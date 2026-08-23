@@ -30,6 +30,12 @@
     background:rgba(255,255,255,.72);border:1px solid var(--rule);padding:7px 12px;
     backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
   #hud b{color:var(--ink);font-weight:600}
+  /* 지금 보고 있는 곳 — 아무리 파고들어도 여기가 어디인지는 사라지지 않는다 */
+  #where{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:5;
+    font:500 12px/1 var(--sans);letter-spacing:.06em;color:var(--ink);
+    background:rgba(250,247,240,.86);border:1px solid var(--rule);
+    padding:7px 14px;border-radius:2px;white-space:nowrap;pointer-events:none;
+    max-width:46vw;overflow:hidden;text-overflow:ellipsis}
   #hud .wm{font-family:var(--serif);font-size:14px;letter-spacing:3.4px;color:var(--ink)}
   #note{position:fixed;bottom:10px;left:12px;right:12px;z-index:5;font:10px var(--sans);color:var(--dim)}
   /* ── 뷰 전환 바 ── */
@@ -196,6 +202,7 @@
     #jpanel{width:auto;left:12px;right:12px;top:auto;bottom:86px;transform:translateY(6px)}
     #jpanel.on{transform:none}
     #jstops{grid-template-columns:repeat(4,minmax(0,1fr))}
+    #where{font-size:11px;padding:5px 10px;max-width:56vw}
     #hud{font-size:10px;padding:6px 10px}
     .mbtn{padding:12px 16px}
   }
@@ -208,6 +215,7 @@
 
 <div id="hud"><span class="wm">ESTELA</span> — 미식 별 레이어는 이 위에 얹습니다<br>
 FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—</b> · 단위 <b id="lvl">—</b> · 내 기록 <b id="mine">0</b> · <span id="hint">끌어서 이동 / 휠·핀치로 확대 — 파고들면 지구본이 저절로 펴집니다</span><span id="res" hidden>—</span></div>
+<div id="where">—</div>
 
 <div id="modebar">
   <span class="mbtn" id="btnhome">전체 보기</span>
@@ -347,11 +355,61 @@ async function addPaperBase(){
     P.forEach(p=>p[0].forEach(([lo,la])=>{
       if(lo<mnx)mnx=lo;if(lo>mxx)mxx=lo;if(la<mny)mny=la;if(la>mxy)mxy=la;}));
     return (mxx-mnx)*Math.cos((mny+mxy)/2*Math.PI/180)*(mxy-mny);};
+  /* 여러 조각인 나라는 가장 넓은 조각에 이름을 놓는다. 인도네시아 이름이
+     섬과 섬 사이 바다에 뜨지 않게 */
+  const areaOf=ring=>{let a=0;for(let i=0,j=ring.length-1;i<ring.length;j=i++)
+      a+=(ring[j][0]-ring[i][0])*(ring[j][1]+ring[i][1]);return Math.abs(a/2);};
+  const biggestPart=f=>{
+    const P=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+    let best=P[0],ba=-1;
+    P.forEach(p=>{const a=areaOf(p[0]);if(a>ba){ba=a;best=p;}});
+    return {type:'Polygon',coordinates:best};};
+  /* 라벨 자리를 우리가 정한다. 도형을 그대로 넘기면 MapLibre 가 타일마다 이름을
+     한 번씩 붙여서 러시아가 여섯 번 찍힌다. 그래서 점 하나로 준다.
+     그 점은 무게중심이 아니라 '테두리에서 가장 먼 안쪽 점' — 굽은 나라도
+     이름이 제 땅 위에 앉는다. 성긴 격자로 훑고 이긴 칸 주위를 다시 훑는다 */
+  const distToEdges=(x,y,rings)=>{
+    let best=Infinity;
+    for(const r of rings)for(let i=0,j=r.length-1;i<r.length;j=i++){
+      const [x1,y1]=r[j],[x2,y2]=r[i];
+      let dx=x2-x1,dy=y2-y1;
+      const L=dx*dx+dy*dy;
+      let t=L?((x-x1)*dx+(y-y1)*dy)/L:0;
+      t=t<0?0:t>1?1:t;
+      const ex=x1+t*dx-x, ey=y1+t*dy-y;
+      const d=ex*ex+ey*ey;
+      if(d<best)best=d;}
+    return Math.sqrt(best);};
+  const thin=(r,cap)=>{
+    if(r.length<=cap)return r;
+    const step=r.length/cap,out=[];
+    for(let i=0;i<cap;i++)out.push(r[Math.floor(i*step)]);
+    out.push(r[r.length-1]);return out;};
+  function labelPoint(poly){
+    const rings=poly.coordinates.map(r=>thin(r,120));
+    const outer=rings[0];
+    let a=180,b=-180,c=90,d=-90;
+    outer.forEach(([lo,la])=>{if(lo<a)a=lo;if(lo>b)b=lo;if(la<c)c=la;if(la>d)d=la;});
+    let bx=(a+b)/2,by=(c+d)/2,bd=-1,sx=(b-a),sy=(d-c);
+    for(let pass=0;pass<3;pass++){
+      const n=pass?7:22, gx=sx/n, gy=sy/n;
+      const x0=bd<0?a:bx-sx/2, y0=bd<0?c:by-sy/2;
+      for(let i=0;i<=n;i++)for(let j=0;j<=n;j++){
+        const x=x0+gx*i, y=y0+gy*j;
+        if(!inRing(x,y,outer))continue;
+        let hole=false;
+        for(let k=1;k<rings.length;k++)if(inRing(x,y,rings[k])){hole=true;break;}
+        if(hole)continue;
+        const q=distToEdges(x,y,rings);
+        if(q>bd){bd=q;bx=x;by=y;}}
+      sx/=3.2;sy/=3.2;}
+    return [bx,by];}
   const named=fc.features.filter(f=>f.properties&&f.properties.name);
   const ranked=named.map(f=>({f,a:spanOf(f)})).sort((x,y)=>y.a-x.a);
   const pts={type:'FeatureCollection',features:ranked.map((r,i)=>({type:'Feature',
       properties:{n:r.f.properties.name.toUpperCase(),rank:i},
-      geometry:{type:'Point',coordinates:centroidOf(r.f)}}))};
+      geometry:{type:'Point',coordinates:labelPoint(biggestPart(r.f))}}))};
+  COUNTRIES=fc.features;                 /* 어느 나라 위인지 물어볼 때 쓴다 */
   map.addSource('cnames',{type:'geojson',data:pts});
   map.addLayer({id:'cnames',type:'symbol',source:'cnames',
     layout:{'text-field':['get','n'],'text-font':['Noto Sans Regular'],
@@ -359,6 +417,53 @@ async function addPaperBase(){
       'text-padding':8,'symbol-sort-key':['get','rank']},
     paint:{'text-color':INK,'text-halo-color':PAPER,'text-halo-width':1.4,
       'text-opacity':['interpolate',['linear'],['zoom'],1,.85,5.5,.85,7.5,0]}});}
+
+/* ══ 여기가 어디인가 ══ 확대해 들어가도 나라와 도시는 계속 알려준다 ══ */
+let COUNTRIES=null, GAZ=null;
+const bboxOf=f=>{
+  if(f.__bb)return f.__bb;
+  const P=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+  let a=180,b=-180,c=90,d=-90;
+  P.forEach(p=>p.forEach(r=>r.forEach(([lo,la])=>{
+    if(lo<a)a=lo;if(lo>b)b=lo;if(la<c)c=la;if(la>d)d=la;})));
+  return (f.__bb=[a,b,c,d]);};
+/* 광선 쏘기 — 점에서 오른쪽으로 선을 그어 테두리를 몇 번 넘는지 센다. 홀수면 안쪽 */
+function inRing(lo,la,r){
+  let hit=false;
+  for(let i=0,j=r.length-1;i<r.length;j=i++){
+    const [xi,yi]=r[i],[xj,yj]=r[j];
+    if((yi>la)!==(yj>la)&&lo<(xj-xi)*(la-yi)/(yj-yi)+xi)hit=!hit;}
+  return hit;}
+function countryAt(lo,la){
+  if(!COUNTRIES)return '';
+  for(const f of COUNTRIES){
+    const [a,b,c,d]=bboxOf(f);
+    if(lo<a||lo>b||la<c||la>d)continue;
+    const P=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+    for(const p of P){
+      if(!inRing(lo,la,p[0]))continue;
+      let hole=false;
+      for(let k=1;k<p.length;k++)if(inRing(lo,la,p[k])){hole=true;break;}
+      if(!hole)return (f.properties||{}).name||'';}}
+  return '';}
+function placeAt(lo,la){
+  if(!GAZ)return null;
+  const kx=Math.cos(la*Math.PI/180);
+  let best=null,bd=Infinity;
+  for(const p of GAZ){
+    const dx=(p.lo-lo)*kx, dy=p.la-la, d=dx*dx+dy*dy;
+    if(d<bd){bd=d;best=p;}}
+  return best?{p:best,km:Math.sqrt(bd)*111.32}:null;}
+function paintWhere(){
+  const el=$('where'); if(!el)return;
+  const c=map.getCenter(), z=map.getZoom();
+  const cty=countryAt(c.lng,c.lat);
+  const near=z>=4?placeAt(c.lng,c.lat):null;
+  /* 가까운 지명이 화면 밖 저 멀리면 이름을 대는 게 오히려 헷갈린다 */
+  const reach=Math.max(40,4000/Math.pow(2,z-2));
+  const town=near&&near.km<=reach?near.p.n:'';
+  const bits=[cty||(near?near.p.c:''),town].filter(Boolean);
+  el.textContent=bits.length?bits.join(' · '):'바다 위';}
 
 /* ══ 도시 등급 ══ 유네스코 미식 창의도시는 가게가 아니라 도시다 ══
    가게와 똑같은 점으로 찍으면 "여기 식당이 하나 있다"로 읽힌다. 거짓이다.
@@ -386,6 +491,41 @@ function ringIcon(state){
     x.fillStyle=OLIVE; x.fill();}
   const d=x.getImageData(0,0,S*R,S*R);
   return {img:{width:d.width,height:d.height,data:d.data},pr:R};}
+
+/* 다녀온 표시는 점을 고쳐 그리지 않는다. 점은 어느 레이어인지를 이미 말하고 있고,
+   그 위에 덧칠하면 그 말을 지운다. 대신 종이에 인주를 눌렀다 뗀 자국처럼
+   작은 잉크 고리를 옆에 찍는다 — 여권 도장과 같은 물건의 작은 판이다 */
+function stampIcon(){
+  const R=2,S=30,cv=document.createElement('canvas');
+  cv.width=cv.height=S*R;
+  const x=cv.getContext('2d'),r=S/2-4;
+  x.scale(R,R);x.translate(S/2,S/2);
+  x.strokeStyle=INK;x.lineWidth=2.2;x.lineCap='round';x.globalAlpha=.82;
+  x.beginPath();x.arc(0,0,r,.55,Math.PI*2-.18);x.stroke();  /* 한쪽이 덜 찍힌 자국 */
+  x.beginPath();x.arc(0,0,r-4.2,Math.PI+.3,Math.PI*2+.9);x.stroke();
+  x.globalAlpha=.9;x.beginPath();x.arc(0,0,1.9,0,Math.PI*2);
+  x.fillStyle=INK;x.fill();
+  const d=x.getImageData(0,0,S*R,S*R);
+  return {img:{width:d.width,height:d.height,data:d.data},pr:R};}
+
+function addStampIcon(){
+  if(map.hasImage('stampmark'))return;
+  const {img,pr}=stampIcon(); map.addImage('stampmark',img,{pixelRatio:pr});}
+
+/* 찍힌 자국이 전부 똑같이 반듯하면 인쇄처럼 보인다. 키에서 각도를 뽑아
+   같은 곳은 늘 같은 기울기로, 서로는 다르게 */
+function tiltOf(k){let h=0;for(let i=0;i<k.length;i++)h=(h*31+k.charCodeAt(i))|0;
+  return ((h%17)-8)*1.6;}
+
+function addStampLayer(L){
+  addStampIcon();
+  map.addLayer({id:L.id+'-st',type:'symbol',source:L.id,
+    filter:['all',['!',['has','point_count']],['get','done']],
+    layout:{'icon-image':'stampmark','icon-allow-overlap':true,
+      'icon-ignore-placement':true,
+      'icon-rotate':['get','tilt'],'icon-rotation-alignment':'viewport',
+      'icon-size':['interpolate',['linear'],['zoom'],1,.42,6,.6,11,.78],
+      'icon-offset':[13,-13]}});}
 
 function addRingIcons(){
   [['ucity','off'],['ucity-sv','save'],['ucity-on','done']].forEach(([id,st])=>{
@@ -451,6 +591,7 @@ function addCityLayer(L){
     paint:{'text-color':OLIVE,'text-halo-color':PAPER,'text-halo-width':2,
       'text-opacity':['interpolate',['linear'],['zoom'],9.5,1,11,0]}});
 
+  addStampLayer(L);
   map.on('click',L.id+'-ring',e=>selectPlace(L,e.features[0].properties));
   map.on('mouseenter',L.id+'-ring',()=>map.getCanvas().style.cursor='pointer');
   map.on('mouseleave',L.id+'-ring',()=>map.getCanvas().style.cursor='');}
@@ -460,7 +601,7 @@ const layers=[];
 function featureOf(L,it){
   const k=keyOf(L,it);
   return {type:'Feature',properties:{n:it.n,ct:it.ct||'',c:it.c||'',q:it.q||it.n,cu:it.cu||'',w:it.w||'',
-    y:it.y||'',sh:!!it.g,
+    y:it.y||'',sh:!!it.g,tilt:tiltOf(k),
     L:L.id,done:stampsOf(k).length>0,save:isSaved(k)},
     geometry:{type:'Point',coordinates:[it.lo,it.la]}};}
 function fcOf(L){return {type:'FeatureCollection',features:(L.items||[]).map(it=>featureOf(L,it))};}
@@ -482,8 +623,8 @@ function addStarLayer(L){
   map.addLayer({id:L.id+'-pt',type:'circle',source:L.id,filter:['!',['has','point_count']],
     paint:{'circle-color':['case',['get','save'],'rgba(0,0,0,0)',L.color],
       'circle-radius':L.kind==='candidate'?4:6,
-      'circle-stroke-width':['case',['get','done'],3.5,['get','save'],3,2],
-      'circle-stroke-color':['case',['get','done'],L.color,['get','save'],L.color,'rgba(247,244,238,.95)']}});
+      'circle-stroke-width':['case',['get','save'],3,2],
+      'circle-stroke-color':['case',['get','save'],L.color,'rgba(247,244,238,.95)']}});
   map.addLayer({id:L.id+'-lb',type:'symbol',source:L.id,filter:['!',['has','point_count']],
     minzoom:L.kind==='candidate'?12:9,
     layout:{'text-field':['get','n'],'text-font':['Noto Sans Regular'],'text-size':11,
@@ -497,6 +638,7 @@ function addStarLayer(L){
     map.getSource(L.id).getClusterExpansionZoom(id)
       .then(z=>map.easeTo({center:at,zoom:z,duration:700}))
       .catch(()=>map.easeTo({center:at,zoom:map.getZoom()+2,duration:700}));});
+  addStampLayer(L);
   map.on('click',L.id+'-pt',e=>selectPlace(L,e.features[0].properties));
   ['-cl','-pt'].forEach(sfx=>{
     map.on('mouseenter',L.id+sfx,()=>map.getCanvas().style.cursor='pointer');
@@ -505,7 +647,7 @@ function addStarLayer(L){
 function refreshLayer(L){
   const s=map.getSource(L.id);if(s)s.setData(fcOf(L));
   const a=map.getSource(L.id+'@a');if(a)a.setData(cityAreaFC(L));}
-const LSFX=['-cl','-clt','-pt','-lb','-ring','-ar','-arl','-arls'];
+const LSFX=['-cl','-clt','-pt','-lb','-ring','-ar','-arl','-arls','-st'];
 function refreshAll(){layers.forEach(refreshLayer);}
 
 /* ══ 내 장소 ══ 가이드에 없는 곳. 한 번에 한 곳씩, 사람이 넣는다 (§4) ══ */
@@ -592,7 +734,7 @@ function paintPanel(){
   $('lrows').innerHTML=layers.map((L,i)=>{
     const mapped=(L.items||[]).length;
     const unit=L.grain==='city'?' 도시':'';
-    const ct=L.kind==='candidate'?L.total+' 후보'
+    const ct=L.kind==='candidate'?L.total.toLocaleString()+'곳'
       :(mapped<L.total?mapped+' / '+L.total:String(L.total))+unit;
     return '<div class="lrow'+(L.on===false?' off':'')+'" data-i="'+i+'">'
       +'<span class="dot" style="'+(L.grain==='city'
@@ -614,7 +756,7 @@ function paintPanel(){
   /* 머리말의 '별'은 정본만 센다. 후보는 분모가 아니므로 따로 적는다 */
   const canon=layers.filter(L=>L.kind!=='candidate').reduce((a,L)=>a+L.total,0);
   const cand=layers.filter(L=>L.kind==='candidate').reduce((a,L)=>a+L.total,0);
-  $('nstar').textContent=canon+(cand?' (+후보 '+cand+')':'');}
+  $('nstar').textContent=canon+(cand?' (+표기 '+cand.toLocaleString()+')':'');}
 function paintMine(){const c=myCounts();$('mine').textContent=c.places?(c.places+'곳 · '+c.visits+'번'):'0';}
 
 /* ══ 지금 어느 단위를 보는가 ══ */
@@ -740,7 +882,8 @@ function paintJourney(){
     return '<div class="prow"><div class="pl"><span>'+esc(L.label)+'</span><b>'+got+' / '+L.total+'</b></div>'
       +'<div class="bar"><i style="width:'+Math.max(pct,got?2:0)+'%;background:'+L.color+'"></i></div></div>';}).join('')
     +'<div class="hint">분모는 그 목록의 전체 수입니다. 우리가 정한 숫자가 아닙니다.<br>'
-    +'후보 레이어는 끝이 없어 분모가 되지 못합니다 — 도장은 찍히되 여기 세지 않습니다.</div>';
+    +'지도 표기 레이어는 심사를 거친 명단이 아니라 누군가 지도에 적어 넣은 것이라, '
+    +'끝이 없어 분모가 되지 못합니다 — 도장은 찍히되 여기 세지 않습니다.</div>';
   const ring=(t,dsc,kind)=>{
     const svg=kind==='solo'?'<circle cx="14" cy="14" r="4" fill="'+WINE+'"/>'
       :kind==='apart'?'<circle cx="14" cy="14" r="4" fill="'+WINE+'"/><circle cx="14" cy="14" r="9.5" fill="none" stroke="'+OLIVE+'" stroke-width="1.8" stroke-dasharray="3 3"/>'
@@ -748,8 +891,8 @@ function paintJourney(){
     return '<div class="brow"><svg width="28" height="28" viewBox="0 0 28 28">'+svg+'</svg>'
       +'<div><b>'+t+'</b><span>'+dsc+'</span></div></div>';};
   $('jbond').innerHTML=ring('혼자','나만 다녀온 곳','solo')
-    +ring('따로','같은 곳을 각자','apart')
-    +ring('같이','한자리에 함께','together')
+    +ring('각자','지인도 다녀온 곳','apart')
+    +ring('같이','함께 다녀온 곳','together')
     +'<div class="hint">고리 두께 = 인원수 · 끊김/이어짐 = 함께 갔는가.<br>'
     +'그룹은 계정이 생기는 단계에서 열립니다. 그때 <b>“우리 모임 9명 중 4명”</b>이 여기 붙습니다.</div>'
     +(saved.length?'<div class="colh mt">가고 싶은 곳</div>'
@@ -779,8 +922,12 @@ map.on('load',async()=>{
     total:d.total||(d.items||[]).length,
     source:d.source,license:d.license,lastVerified:d.lastVerified,items:d.items}));
   addStarLayer(minePlacesLayer());
+  fetch('data/places.json').then(r=>r.json())
+    .then(d=>{GAZ=d.items;paintWhere();}).catch(()=>{});
   addJourneyLayers();
-  wireAdd();paintPanel();paintMine();paintJourney();
+  wireAdd();paintPanel();paintMine();paintJourney();paintWhere();
+  let wt=0;
+  map.on('move',()=>{clearTimeout(wt);wt=setTimeout(paintWhere,120);});
   $('res').textContent='50m';
   map.on('click',e=>{ /* 빈 곳을 누르면 카드를 닫는다 */
     const hit=map.queryRenderedFeatures(e.point,{layers:layers.flatMap(L=>
