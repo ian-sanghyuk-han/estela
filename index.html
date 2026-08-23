@@ -312,7 +312,7 @@ function refreshClones(){ /* 지도 모드: 좌우 복제 — 끝이 없는 지�
     c.position.x=off;scene.add(c);stageClones.push(c);});}
 
 /* ── 바탕: 구가 아니라 격자다. 같은 정점이 구로 감기고 평면으로 펼쳐진다 ── */
-const baseMat=new THREE.MeshBasicMaterial({color:0xE2DACB,side:THREE.DoubleSide});
+const baseMat=new THREE.MeshBasicMaterial({color:0xD8CEBA,side:THREE.DoubleSide});
 const baseGeo=new THREE.PlaneGeometry(W2,H2,192,96);
 const BP0=new Float32Array(baseGeo.attributes.position.count*3);
 const BP1=new Float32Array(baseGeo.attributes.position.count*3);
@@ -351,7 +351,7 @@ fetch(TOPO_FAST).then(r=>r.json()).then(topo=>{
   /* 채움: 등장방형 캔버스 → 텍스처 (나라별 미묘한 명도 차로 구분) */
   const c=document.createElement('canvas');c.width=4096;c.height=2048;
   const x=c.getContext('2d');
-  x.fillStyle='#E2DACB';x.fillRect(0,0,4096,2048); /* 바다 — 살짝 짙은 종이 */
+  x.fillStyle='#D8CEBA';x.fillRect(0,0,4096,2048); /* 바다 — 육지와 갈리도록 한 톤 더 짙게 */
   const px=(lo)=> (lo+180)/360*4096, py=(la)=> (90-la)/180*2048;
   feats.forEach((f,fi)=>{
     /* 육지는 바다보다 밝다 — 종이에 찍은 지도의 결. 나라별 음영은 아주 옅게만 */
@@ -731,6 +731,7 @@ function recluster(){
     L.pts.forEach(p=>{p.s.material.opacity=0;});
     L.hosts=[];
     let bi=0,ni=0;
+    const usedNames=new Set();
     L.clusters.forEach(c=>{
       /* 무리의 한가운데가 지구 뒷면이면 통째로 감춘다 — 숫자는 안 바뀐다 */
       const nrm=sphV3(c.la,c.lo,1);
@@ -765,7 +766,9 @@ function recluster(){
         const txt=single
           ? (span<NAME_PLACE_DEG?c.m[0].it.n:districtOf(c.m[0].it))
           : commonName(c.m,span<NAME_DISTRICT_DEG?districtOf:cityOf);
-        if(txt){
+        /* 같은 이름을 두 번 쓰지 않는다 — 한 구에 무리가 여럿이면 이름이 겹쳐 쌓인다 */
+        if(txt&&!usedNames.has(txt)){
+          usedNames.add(txt);
           const t=L.names[ni++];
           const tex=nameTexture(txt,L.rgb);
           t.material.map=tex;t.material.needsUpdate=true;
@@ -1052,6 +1055,23 @@ function configCamera(){
     controls.target.set(0,0,0);
     if(camera.position.length()<1.5)camera.position.set(0,.5,3.8);}}
 
+/* ── 지구본을 창에 맞춘다 ──
+   세로로 긴 창에서는 가로 화각이 좁아져 지구가 프레임 밖으로 잘린다.
+   좁은 쪽 화각을 기준으로 지구 전체 + 여백이 들어가는 거리를 구한다.
+   (Batavia에 있던 fitCamera를 옮겨오지 않아 여태 잘려 있었다) */
+function fitDistance(){
+  const fovY=camera.fov*D2R;
+  const fovX=2*Math.atan(Math.tan(fovY/2)*camera.aspect);
+  return 1.26/Math.sin(Math.min(fovY,fovX)/2);}
+function fitCamera(force){
+  if(VIEW==='2d')return;
+  const d=fitDistance();
+  controls.maxDistance=Math.max(5.5,d+.8);
+  /* 이미 파고든 사람을 끌어내지 않는다 — 전체가 보이는 상태일 때만 맞춘다 */
+  if(force||visibleSpanDeg()>100){
+    if(camera.position.length()<d)camera.position.setLength(d);}
+  markClusterDirty();}
+
 /* 가까이 갈수록 앞유리(near plane)를 좁힌다 — 안 그러면 지표가 잘려 나가고,
    반대로 항상 좁혀두면 깊이 정밀도가 떨어져 국경선이 지면과 싸운다(z-fighting) */
 function updateNear(){
@@ -1139,7 +1159,20 @@ function rescaleMarkers(){
       screenFix(t,11/u.frac,u.h/u.w);}});});
   jStars.forEach(t=>{
     const d=_sp.copy(t.mesh.position).sub(camera.position).length();
-    t.mesh.scale.setScalar(Math.max(.35,d/3.4));});}
+    t.mesh.scale.setScalar(Math.max(.35,d/3.4));});
+  rescaleCityDots();}
+
+/* 도시 참조 점도 월드 크기라 확대하면 부푼다 — 유럽 위에 회색 얼룩이 되던 원인.
+   화면에서 늘 4px 지름으로 보이도록 인스턴스마다 크기를 다시 넣는다 */
+const CITY_PX=4, _cd=new THREE.Object3D();
+function rescaleCityDots(){
+  const k=CITY_PX*pxScale()*Math.tan(camera.fov*D2R/2)/Math.max(1,innerHeight)/.0038;
+  ALLCITY.forEach((c2,i)=>{
+    const p=blendV3(c2[1],c2[2],R*1.0025,MORPH);
+    const d=_sp.copy(p).sub(camera.position).length();
+    _cd.position.copy(p);_cd.scale.setScalar(Math.max(1e-4,k*d));
+    _cd.updateMatrix();cityIM.setMatrixAt(i,_cd.matrix);});
+  cityIM.instanceMatrix.needsUpdate=true;}
 
 /* ── 조작감 ── 고도가 낮아질수록 드래그와 휠이 느려져야 한다.
    안 그러면 지표 51km 상공에서 손가락 한 번에 대륙을 건너뛴다.
@@ -1415,6 +1448,7 @@ const SAMPLE_STAMPS=(function(){
     +'<span class="n">HONG KONG</span><span class="d">날짜 미상</span></div>';})();
 
 paintMine();paintJourney();          /* 선언이 모두 끝난 뒤 첫 그리기 */
+fitCamera(true);                     /* 창 크기에 맞춰 지구본을 프레임에 넣는다 */
 
 let frames=0,fpsT=performance.now(),lastT=performance.now();
 const fpsEl=document.getElementById('fps');
@@ -1458,7 +1492,7 @@ function loop(now){
   requestAnimationFrame(loop);}
 requestAnimationFrame(loop);
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);});
+  renderer.setSize(innerWidth,innerHeight);fitCamera();markClusterDirty();});
 </script>
 </body>
 </html>
