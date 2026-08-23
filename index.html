@@ -253,7 +253,10 @@ const W2=4,H2=2;                       /* 펼친 지도의 폭·높이 */
 let VIEW='3d',MODE='3d',MORPH=0;       /* MORPH 0=구 · 1=평면 */
 function sphV3(la,lo,r){const phi=(90-la)*D2R,th=(lo+180)*D2R;
   return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(th),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(th));}
-function flatV3(la,lo,r){return new THREE.Vector3(lo/180*(W2/2),la/90*(H2/2),(r-R)*2.2);}
+/* 펼친 지도에서 겹침 순서를 정하는 아주 얕은 층. 깊이 파고들면 카메라가
+   이 층보다 아래로 내려가 버리므로, 층 간격을 실제로 필요한 만큼만 남긴다 */
+const FLAT_LIFT=.06;
+function flatV3(la,lo,r){return new THREE.Vector3(lo/180*(W2/2),la/90*(H2/2),(r-R)*FLAT_LIFT);}
 function blendV3(la,lo,r,k){return sphV3(la,lo,r).lerp(flatV3(la,lo,r),k);}
 function toV3(la,lo,r){return blendV3(la,lo,r,MORPH);}
 function setLerpGeo(geo,p0,p1,k){      /* 정점 배열 두 벌 사이를 선형 보간 (CPU) */
@@ -459,12 +462,12 @@ function labelSprite(txt,tier){
     depthTest:false,opacity:0})); /* 구에 잘리지 않음 — 노출은 페이드가 결정 */
   s.renderOrder=20;
   const k=tier===4?.22:tier===5?.18:.235;
-  s.scale.set(k,k*96/640,1);return s;}
+  s.userData.k0=k;s.scale.set(k,k*96/640,1);return s;}
 const labelObjs=[];
 function addLabel(txt,la,lo,tier,key){
   const s=labelSprite(txt,tier);
   s.position.copy(toV3(la,lo,R*1.012));
-  labelObjs.push({s,tier,la,lo,key:key||null,normal:sphV3(la,lo,1)});
+  labelObjs.push({s,tier,la,lo,key:key||null,k0:s.userData.k0,normal:sphV3(la,lo,1)});
   stage.add(s);}
 /* 도시 — T4 주요 도시(줌<1.95) · T5 광역 주요 도시(줌<1.6) */
 const CITY4=[['SEOUL',37.5,127],['TOKYO',35.7,139.7],['NEW YORK',40.7,-74],['LONDON',51.5,-.1],
@@ -557,10 +560,12 @@ function hexToRgb(h){h=h.replace('#','');
 function addLayer(def){
   const rgb=hexToRgb(def.color||'#7A2233');
   const g=new THREE.Group();layerG.add(g);
-  const mk=k=>new THREE.SpriteMaterial({map:dotTexture(rgb,k),transparent:true,depthTest:false,opacity:0});
-  const matPlain=mk(),matStamped=mk('stamped'),matSaved=mk('saved'),matSel=mk('sel');
+  /* 텍스처는 공유해도 되지만 재질은 안 된다 — 투명도가 재질에 붙어 있어서
+     하나를 켜면 같은 재질을 쓰는 점이 전부 켜진다. 점마다 제 재질을 준다 */
+  const texPlain=dotTexture(rgb),texStamped=dotTexture(rgb,'stamped'),
+        texSaved=dotTexture(rgb,'saved'),texSel=dotTexture(rgb,'sel');
   const pts=(def.items||[]).filter(it=>isFinite(it.la)&&isFinite(it.lo)).map(it=>{
-    const s=new THREE.Sprite(matPlain);
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:texPlain,transparent:true,depthTest:false,opacity:0}));
     s.renderOrder=22;s.scale.set(DOT_K,DOT_K,1);
     s.position.copy(blendV3(it.la,it.lo,PT_LIFT,MORPH));
     g.add(s);
@@ -571,7 +576,7 @@ function addLayer(def){
   for(let i=0;i<need;i++){
     const s=new THREE.Sprite(new THREE.SpriteMaterial({transparent:true,depthTest:false,opacity:0}));
     s.renderOrder=25;s.scale.set(BUB_K,BUB_K,1);s.visible=false;g.add(s);bubbles.push(s);}
-  const L={def,g,rgb,pts,bubbles,matPlain,matStamped,matSaved,matSel,
+  const L={def,g,rgb,pts,bubbles,texPlain,texStamped,texSaved,texSel,
            on:true,mapped:pts.length,total:def.total||pts.length};
   layerGroups.push(L);return L;}
 
@@ -634,16 +639,25 @@ function buildClusters(L,deg){
     out.push({la:la/a.length,lo:((lo/a.length+540)%360)-180,m:a});});
   return out;}
 
+/* 묶음 칸 크기와 '지금 어느 단위를 보는가'는 다른 물음이다.
+   칸 크기는 화면을 몇 조각으로 나눌지의 문제고, 단위 이름은 화면에 무엇이
+   담겨 있는지의 문제다. 둘 다 보이는 각도에서 나오되 기준은 따로 둔다. */
+const LEVELS=[[110,'대륙'],[55,'권역'],[22,'나라'],[9,'지방'],
+              [3.5,'도시'],[1.2,'지역'],[.4,'동네'],[0,'좌표']];
+function levelName(span){
+  for(const [t,n] of LEVELS)if(span>=t)return n;
+  return '좌표';}
 function rebuildClusters(){
   const deg=LADDER[ladderIdx].deg;
-  layerGroups.forEach(L=>{L.clusters=buildClusters(L,deg);});
-  const el=document.getElementById('lvl');
-  if(el)el.textContent=LADDER[ladderIdx].name;}
+  layerGroups.forEach(L=>{L.clusters=buildClusters(L,deg);});}
 
 const _v=new THREE.Vector3();
 function recluster(){
+  const span=visibleSpanDeg();
   const li=pickLadder();
   if(li!==ladderIdx){ladderIdx=li;rebuildClusters();}
+  const el=document.getElementById('lvl');
+  if(el)el.textContent=levelName(span);
   const camDir=camera.position.clone().normalize();
   const back=1-journeyAlpha*.72;          /* 여정 모드에서는 한 발 물러선다 */
   layerGroups.forEach(L=>{
@@ -672,9 +686,10 @@ function recluster(){
         host.position.x=base+W2*Math.round((camera.position.x-base)/W2);}
       if(single){    /* 도장 찍은 곳 · 가고 싶은 곳 · 고른 곳은 다르게 보인다 */
         const k=keyOf(L,c.m[0].it);
-        host.material=stampsOf(k).length?L.matStamped
-          :isSaved(k)?L.matSaved
-          :(selected&&selected.key===k)?L.matSel:L.matPlain;}
+        const t=(selected&&selected.key===k)?L.texSel
+          :stampsOf(k).length?L.texStamped
+          :isSaved(k)?L.texSaved:L.texPlain;
+        if(host.material.map!==t){host.material.map=t;host.material.needsUpdate=true;}}
       L.hosts.push({host,c});
       /* 화면 밖이면 그린 값만 0으로 */
       _v.copy(host.position).project(camera);
@@ -686,19 +701,6 @@ function recluster(){
 function relayoutLayers(k){             /* 모핑: 점을 새 자리로 옮기고 다시 묶는다 */
   layerGroups.forEach(L=>L.pts.forEach(p=>p.s.position.copy(blendV3(p.la,p.lo,PT_LIFT,k))));
   markClusterDirty();}
-
-/* ── 파고들면 지구본이 스스로 펼쳐진다 ──
-   구를 계속 확대하면 결국 평면과 다를 게 없어지고, 그때부터는 회전보다 이동이 편하다.
-   '도시' 계단에 닿으면 한 번만 지도로 넘어간다. 되돌아가는 건 사람이 누른다 —
-   경계에서 자동으로 왔다 갔다 하면 조작을 빼앗긴 느낌이 든다. */
-const AUTO_FLAT_LEVEL=4;                /* LADDER 인덱스 — '도시' */
-let autoFlatDone=false;
-function maybeAutoFlatten(){
-  if(VIEW!=='3d'||morphAnim||MODE==='journey')return;
-  if(ladderIdx>=AUTO_FLAT_LEVEL&&!autoFlatDone){
-    autoFlatDone=true;
-    setView('2d');}
-  if(ladderIdx<AUTO_FLAT_LEVEL-1)autoFlatDone=false;}   /* 충분히 물러나면 다시 무장 */
 
 /* 별이 있는 나라는 줌 단계를 올려 항상 보이게 한다.
    지도의 서열은 경제 규모가 아니라 '여기 갈 데가 있는가'여야 한다 */
@@ -894,7 +896,7 @@ function configCamera(){
     controls.mouseButtons={LEFT:THREE.MOUSE.PAN,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.PAN};
     controls.touches={ONE:THREE.TOUCH.PAN,TWO:THREE.TOUCH.DOLLY_PAN};
     controls.autoRotate=false;
-    controls.minDistance=.012;controls.maxDistance=4;   /* 화면 세로 ≈ 90km — 도시 하나 크기 */
+    controls.minDistance=.0015;controls.maxDistance=4;  /* 화면 세로 ≈ 11km — 골목이 갈릴 만큼 */
     controls.target.set(camera.position.x,camera.position.y,0);
     camera.position.z=Math.max(camera.position.z,1.2);
     camera.lookAt(controls.target);
@@ -904,6 +906,7 @@ function configCamera(){
     controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};
     controls.autoRotate=AUTOROT;
     controls.minDistance=1.008;controls.maxDistance=5.5; /* 고도 ≈ 51km (기존 2,548km의 1/50) */
+    controls.rotateSpeed=1;controls.zoomSpeed=1;
     controls.target.set(0,0,0);
     if(camera.position.length()<1.5)camera.position.set(0,.5,3.8);}}
 
@@ -911,7 +914,7 @@ function configCamera(){
    반대로 항상 좁혀두면 깊이 정밀도가 떨어져 국경선이 지면과 싸운다(z-fighting) */
 function updateNear(){
   const d=VIEW==='2d'?Math.abs(camera.position.z):Math.max(0,camera.position.length()-R);
-  const n=THREE.MathUtils.clamp(d*.3,.0008,.05);
+  const n=THREE.MathUtils.clamp(d*.3,.00006,.05);
   if(Math.abs(camera.near-n)>n*.15){camera.near=n;camera.updateProjectionMatrix();}}
 
 /* ── 지도도 지구본처럼 계속 흐른다 ──
@@ -920,11 +923,12 @@ function updateNear(){
 /* 지구본은 autoRotateSpeed .22로 한 바퀴에 약 273초가 걸린다.
    지도도 같은 속도로 느껴지도록 W2(=지구 한 바퀴)를 273초에 지나가게 맞춘다 */
 const DRIFT=W2/273;
+let driftOn=true;
 let userHold=0;                       /* 사람이 만지는 동안은 흐름을 멈춘다 */
 controls.addEventListener('start',()=>{userHold=1;});
 controls.addEventListener('end',()=>{userHold=performance.now();});
 function driftMap(dt){
-  if(VIEW!=='2d'||!AUTOROT||morphAnim)return;
+  if(VIEW!=='2d'||!AUTOROT||morphAnim||!driftOn)return;
   if(userHold===1)return;                                   /* 잡고 있는 중 */
   if(userHold&&performance.now()-userHold<2500)return;      /* 놓은 뒤 2.5초는 쉰다 */
   const dx=DRIFT*dt;
@@ -949,7 +953,8 @@ document.querySelectorAll('#modebar .mbtn').forEach(b=>
   b.addEventListener('click',()=>setView(b.dataset.v)));
 
 window.__dbg={labelObjs,camera,jStars,jRings,layerGroups,recluster,setView,setStageMorph,
-  LADDER,pickLadder,visibleSpanDeg,getLadderIdx:()=>ladderIdx,maybeAutoFlatten,
+  LADDER,pickLadder,visibleSpanDeg,getLadderIdx:()=>ladderIdx,tuneControls,rescaleMarkers,
+  getControls:()=>controls,
   selectPlace,paintJourney,myCounts,keyOf,stampsOf,isSaved,getStore:()=>store,
   getMorph:()=>MORPH,getView:()=>VIEW,getMode:()=>MODE,
   setVIEW:v=>{VIEW=v;configCamera();refreshClones();}}; /* 검증용 훅 */
@@ -969,6 +974,36 @@ window.__dbg={labelObjs,camera,jStars,jRings,layerGroups,recluster,setView,setSt
    no runtime calls to any guide's servers. Every record carries its
    source layer and a last-verified date.
    ──────────────────────────────────────────────────────────────── */
+
+const SCALE_REF=3.4;                  /* 이 거리에서의 크기를 기준으로 삼는다 */
+const _sp=new THREE.Vector3();
+function screenFix(sprite,k,ratio){
+  /* 스프라이트는 월드 크기라 가까이 갈수록 화면에서 커진다.
+     거리에 비례해 줄여 주면 화면상 크기가 일정해진다 — 지도 위의 핀처럼 */
+  const d=_sp.copy(sprite.position).sub(camera.position).length();
+  const w=k*d/SCALE_REF;
+  sprite.scale.set(w,w*(ratio||1),1);}
+
+function rescaleMarkers(){
+  labelObjs.forEach(o=>screenFix(o.s,o.k0,96/640));
+  layerGroups.forEach(L=>{
+    L.pts.forEach(p=>{if(p.s.material.opacity>0)screenFix(p.s,DOT_K);});
+    L.bubbles.forEach(b=>{if(b.visible)screenFix(b,BUB_K);});});
+  const js=.010*Math.max(.25,camera.position.length()/SCALE_REF);
+  jStars.forEach(t=>t.mesh.scale.setScalar(js/.010));}
+
+/* ── 조작감 ── 고도가 낮아질수록 드래그와 휠이 느려져야 한다.
+   안 그러면 지표 51km 상공에서 손가락 한 번에 대륙을 건너뛴다.
+   화면에 담긴 각도에 비례시키면, 어느 높이에서든 '한 번 끌면 화면의 절반'이 된다. */
+function tuneControls(){
+  const span=visibleSpanDeg();
+  controls.rotateSpeed=THREE.MathUtils.clamp(span/180,.02,1);
+  controls.zoomSpeed  =THREE.MathUtils.clamp(span/120,.22,1);
+  controls.panSpeed   =THREE.MathUtils.clamp(span/120,.15,1);
+  /* 파고들면 자전이 멈춘다. 들여다보는 중에 무대가 돌면 안 된다 */
+  const far=span>100;
+  if(VIEW!=='2d')controls.autoRotate=AUTOROT&&far&&MODE!=='journey';
+  driftOn=far;}
 
 function updateLabels(){
   const camDir=camera.position.clone().normalize();
@@ -1217,9 +1252,10 @@ function loop(now){
     journeyAlpha=jTween.from+(jTween.to-jTween.from)*p;
     if(p>=1)jTween=null;}
   /* 레이어 묶음은 카메라가 움직였을 때만 다시 계산한다 */
-  if(clusterDirty||jTween){recluster();maybeAutoFlatten();}
+  if(clusterDirty||jTween)recluster();
+  tuneControls();
   setLineO(jLine,journeyAlpha*.90);
-  jRings.forEach(l=>setLineO(l,journeyAlpha*.85));
+  jRings.forEach(l=>setLineO(l,journeyAlpha*.85*(visibleSpanDeg()>9?1:0)));
   jStars.forEach(s=>{s.mesh.material.opacity=journeyAlpha;});
   const dim=1-journeyAlpha*.55;                       /* 여정에서는 지도가 한 발 물러선다 */
   setLineO(innerL,O_INNER*dim);setLineO(coastL,O_COAST*dim);
@@ -1231,6 +1267,7 @@ function loop(now){
   if(controls.enabled){driftMap(dt);controls.update();}
   updateNear();
   updateLabels();
+  rescaleMarkers();
   renderer.render(scene,camera);
   frames++;if(now-fpsT>1000){fpsEl.textContent=frames;frames=0;fpsT=now;}
   requestAnimationFrame(loop);}
