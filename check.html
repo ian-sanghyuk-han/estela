@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<!-- ESTELA — device diagnostic. Deliberately written in ES5 with no modules,
+     no import map, no CDN and no build step, so that it still renders on a
+     browser too old to run the globe itself. If the globe is blank but this
+     page is not, the answer is somewhere on this page.
+     Diagnoses estela, after-flight and batavia-wtl alike: all three load
+     three.js through the same import map + jsDelivr path. -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Estela — 기기 진단</title>
+<style>
+  body{margin:0;background:#05070c;color:#EAF9FF;
+    font-family:-apple-system,'Segoe UI',sans-serif;padding:18px 16px 40px;line-height:1.6}
+  h1{font-size:19px;margin:0 0 4px}
+  .sub{color:#7b8c9c;font-size:13px;margin-bottom:18px}
+  .row{border:1px solid rgba(159,199,224,.18);background:rgba(7,10,16,.6);
+    padding:11px 13px;margin-bottom:9px;border-radius:7px}
+  .k{font-size:13px;color:#9fc7e0;margin-bottom:3px}
+  .v{font-size:16px;font-weight:600;word-break:break-all}
+  .ok{color:#3FE0A0}.bad{color:#FF6A6E}.warn{color:#E8D44D}.wait{color:#7b8c9c}
+  .why{font-size:12px;color:#7b8c9c;margin-top:4px}
+  #verdict{border:1px solid rgba(159,199,224,.35);background:rgba(12,20,29,.9);
+    padding:14px;border-radius:8px;margin:18px 0;font-size:15px}
+  #ua{font-size:11px;color:#5b6b7a;word-break:break-all;margin-top:16px}
+</style>
+</head>
+<body>
+<h1>Estela 기기 진단</h1>
+<div class="sub">이 화면을 통째로 캡처해서 보내주세요. 지구본이 안 보이는 이유가 여기에 있습니다.</div>
+
+<div id="verdict"><span class="wait">검사 중…</span></div>
+<div id="rows"></div>
+<div id="ua"></div>
+
+<script>
+/* ES5 only. No arrow functions, no template literals, no const/let, no fetch —
+   this page must survive a browser that cannot run the globe. */
+var rows = document.getElementById('rows');
+
+function add(id, label, why) {
+  var d = document.createElement('div');
+  d.className = 'row';
+  d.innerHTML = '<div class="k">' + label + '</div>' +
+                '<div class="v wait" id="' + id + '">검사 중…</div>' +
+                (why ? '<div class="why">' + why + '</div>' : '');
+  rows.appendChild(d);
+}
+function set(id, text, cls) {
+  var el = document.getElementById(id);
+  if (el) { el.textContent = text; el.className = 'v ' + (cls || ''); }
+}
+
+add('ios',    '기기와 브라우저 버전', 'three.js를 불러오는 방식은 iOS 16.4부터 지원됩니다');
+add('imap',   '① 임포트맵 지원', '지구본이 three.js를 찾아가는 주소록입니다. 없으면 아무것도 안 뜹니다');
+add('mod',    '② 모듈 스크립트 지원', '');
+add('webgl',  '③ WebGL (3D 그리기)', '사파리 잠금 모드를 켜면 이것이 꺼집니다');
+add('cdn1',   '④ jsDelivr 접속 (three.js)', '지구본 부품을 받아오는 창고입니다');
+add('cdn2',   '⑤ jsDelivr 접속 (지도 데이터)', '');
+add('dyn',    '⑥ 실제 three.js 불러오기', '위가 다 통과해도 이게 실패하면 원인은 여기입니다');
+
+/* ── ① iOS / 브라우저 버전 ───────────────────────────── */
+var ua = navigator.userAgent;
+document.getElementById('ua').textContent = ua;
+var m = ua.match(/OS (\d+)[_.](\d+)/);
+var iosMajor = null, iosMinor = 0;
+if (m) { iosMajor = parseInt(m[1], 10); iosMinor = parseInt(m[2], 10); }
+if (iosMajor !== null) {
+  var vtxt = 'iOS ' + iosMajor + '.' + iosMinor;
+  var oldIOS = (iosMajor < 16) || (iosMajor === 16 && iosMinor < 4);
+  set('ios', vtxt + (oldIOS ? '  — 너무 낮습니다' : '  — 충분합니다'), oldIOS ? 'bad' : 'ok');
+} else {
+  set('ios', '아이폰이 아닌 기기', 'warn');
+}
+
+/* ── ② 임포트맵 ─────────────────────────────────────── */
+var imapOK = !!(window.HTMLScriptElement &&
+                HTMLScriptElement.supports &&
+                HTMLScriptElement.supports('importmap'));
+set('imap', imapOK ? '지원함' : '지원하지 않음  ← 지구본이 안 뜨는 원인', imapOK ? 'ok' : 'bad');
+
+/* ── ③ 모듈 스크립트 ────────────────────────────────── */
+var modOK = 'noModule' in document.createElement('script');
+set('mod', modOK ? '지원함' : '지원하지 않음', modOK ? 'ok' : 'bad');
+
+/* ── ④ WebGL ────────────────────────────────────────── */
+var glTxt = '없음  ← 3D를 그릴 수 없습니다', glCls = 'bad';
+try {
+  var cv = document.createElement('canvas');
+  if (cv.getContext('webgl2')) { glTxt = 'WebGL 2 사용 가능'; glCls = 'ok'; }
+  else if (cv.getContext('webgl') || cv.getContext('experimental-webgl')) {
+    glTxt = 'WebGL 1만 사용 가능'; glCls = 'warn';
+  }
+} catch (e) { glTxt = '오류: ' + e.message; }
+set('webgl', glTxt, glCls);
+
+/* ── ⑤⑥ 네트워크 (XHR — 오래된 사파리 대비) ─────────── */
+function ping(id, url, label) {
+  var t0 = new Date().getTime();
+  try {
+    var x = new XMLHttpRequest();
+    x.open('GET', url, true);
+    x.timeout = 12000;
+    x.onload = function () {
+      var ms = new Date().getTime() - t0;
+      if (x.status >= 200 && x.status < 400) set(id, '연결됨 (' + ms + 'ms)', 'ok');
+      else set(id, '거부됨 — HTTP ' + x.status + '  ← 막혀 있습니다', 'bad');
+    };
+    x.onerror   = function () { set(id, '연결 실패  ← 네트워크에서 막혔습니다', 'bad'); };
+    x.ontimeout = function () { set(id, '시간 초과 (12초)  ← 너무 느리거나 막혔습니다', 'bad'); };
+    x.send();
+  } catch (e) { set(id, '오류: ' + e.message, 'bad'); }
+}
+ping('cdn1', 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js');
+ping('cdn2', 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+
+/* ── ⑦ 실제로 three.js를 불러와 본다 ────────────────── */
+if (!modOK) {
+  set('dyn', '건너뜀 — 모듈을 지원하지 않는 기기', 'bad');
+} else {
+  var s = document.createElement('script');
+  s.type = 'module';
+  s.textContent =
+    "import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js')" +
+    ".then(function(T){window.__diag('성공 — three.js r'+T.REVISION+' 불러옴','ok');})" +
+    ".catch(function(e){window.__diag('실패 — '+e.message,'bad');});";
+  window.__diag = function (t, c) { set('dyn', t, c); verdict(); };
+  document.body.appendChild(s);
+  setTimeout(function () {
+    var el = document.getElementById('dyn');
+    if (el && el.textContent === '검사 중…') { set('dyn', '응답 없음 (15초)', 'bad'); verdict(); }
+  }, 15000);
+}
+
+/* ── 종합 판정 ──────────────────────────────────────── */
+function verdict() {
+  var v = document.getElementById('verdict'), msg;
+  if (!imapOK) {
+    msg = '<b class="bad">원인을 찾았습니다 — 임포트맵 미지원.</b><br>' +
+          '기기의 사파리가 지구본이 부품을 찾는 방식을 모릅니다. ' +
+          '아이폰을 iOS 16.4 이상으로 업데이트하면 바로 해결되고, ' +
+          '업데이트가 어려우면 제가 부품을 저장소 안에 직접 넣는 방식으로 고칠 수 있습니다. ' +
+          '<b>Batavia와 After Flight도 같은 이유로 안 보이는 것입니다.</b>';
+  } else if (document.getElementById('webgl').className.indexOf('bad') >= 0) {
+    msg = '<b class="bad">원인을 찾았습니다 — WebGL이 꺼져 있습니다.</b><br>' +
+          '설정 → 개인정보 보호 및 보안 → <b>잠금 모드</b>가 켜져 있으면 3D가 차단됩니다. ' +
+          '이 사이트만 예외로 두거나 잠금 모드를 끄면 해결됩니다.';
+  } else if (document.getElementById('dyn').className.indexOf('bad') >= 0) {
+    msg = '<b class="bad">원인을 찾았습니다 — 부품 창고(jsDelivr)에 닿지 못합니다.</b><br>' +
+          '네트워크가 막고 있을 가능성이 큽니다. 와이파이를 끄고 셀룰러로, ' +
+          '또는 그 반대로 바꿔서 다시 열어봐 주세요. ' +
+          '계속 막히면 부품을 저장소 안에 직접 넣어 CDN 없이 돌아가게 만들 수 있습니다.';
+  } else {
+    msg = '<b class="ok">이 기기는 지구본을 띄울 수 있어야 합니다.</b><br>' +
+          '모든 검사를 통과했습니다. 그래도 안 보인다면 원인이 다른 곳에 있습니다 — ' +
+          '이 화면을 캡처해서 보내주시면 다음 단서를 찾겠습니다.';
+  }
+  v.innerHTML = msg;
+}
+setTimeout(verdict, 16000);
+</script>
+</body>
+</html>
