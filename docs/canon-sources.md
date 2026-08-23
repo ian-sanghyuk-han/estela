@@ -151,3 +151,54 @@ Korean 도로명 addresses: 0 of 5 correct — three not found, two matched to D
 Dagestan. Any Korean layer therefore needs a Korean geocoder (VWorld, 도로명주소 API, or
 Kakao Local — all free, all require a key). Until then Korea cannot be put on the map
 from address data.
+
+### 3b. France and the United States — checked 2026-08-24, and they correct §3
+
+The claim in §3 above ("tourism boards publish inventories, not canons") was generalised
+from Korea and Singapore alone. Checking France and the US changes the shape of it.
+
+**France — publishes an enormous inventory and no national canon.**
+
+- [DATAtourisme](https://www.datatourisme.fr/) (DGE + Tourisme & Territoires, the national
+  platform): **530,000+ POIs**, restaurants included with coordinates, **Licence Ouverte 2.0**,
+  free public API. Textbook inventory. Fails the finite-set test in §2.
+- **Titre de Maître Restaurateur** — the only title the French state awards a restaurateur
+  (created 2007). Searched `data.gouv.fr`: **0 datasets.** It is published préfecture by
+  préfecture, as PDFs (e.g. Finistère ships a `Liste Maître restaurateur.pdf`). ~101 files,
+  no schema, no coordinates.
+- **Qualité Tourisme** — 6 datasets on data.gouv.fr, all **regional** (Sud de France,
+  Hauts-de-France…). No national file.
+
+**United States — publishes neither.**
+
+- Brand USA is a marketing corporation, not a data agency: `thebrandusa.com/robots.txt` and
+  `api.thebrandusa.com` both return **403**. There is no national tourism API.
+- There is **no federal restaurant designation programme at all**. The closest federal list
+  is the National Register of Historic Places, which contains **51 restaurants, 46 of them
+  diners** — an architecture register, not a gastronomy canon.
+- (data.gov's CKAN API returned 404 on every endpoint tried on 2026-08-24, so its catalogue
+  was not enumerated directly. Publicly documented US restaurant open data is health
+  inspections and economic statistics, at city and state level.)
+- Every US canon list — James Beard, Michelin US, newspaper lists — is private and copyrighted.
+
+**The corrected rule.** It is not that tourism boards publish inventories. It is that
+
+> **a state publishes a selective food canon in inverse proportion to how valuable its
+> food is commercially.**
+
+Where a commercial guide market already exists (France, US, Japan), the state leaves
+selection to the market and publishes only inventory or nothing. Where it does not
+(Korea, Singapore), the state fills the gap itself with designation programmes.
+
+This is good news for the plan, and it is why §1's "cover Michelin-less countries with
+other designations" is structurally sound rather than a workaround. The two sources are
+complementary by construction. Current coverage across all shipped layers makes the gap
+concrete:
+
+| | France | Japan | United States | **South Korea** |
+|---|---|---|---|---|
+| stars on our map today | 31 | 29 | 28 | **3** |
+
+Korea is not underrepresented because Korean food is lesser. It is underrepresented because
+the open sources we can legally use are the commercial guides' leftovers, and Korea has
+few. **백년가게 (1,262) is the correction**, and it is blocked only on geocoding.
