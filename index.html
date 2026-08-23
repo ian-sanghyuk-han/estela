@@ -284,7 +284,7 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
       <div class="attrib">검색 © OpenStreetMap contributors (ODbL)</div></div></div>
   <div class="prov" id="lprov"></div></div>
 
-<div id="note">estela · 지도 MapLibre GL JS (BSD-3-Clause) · 타일과 검색 © OpenStreetMap contributors (ODbL) · 별 Wikidata (CC0) · 여정은 샘플 도시 좌표이며 가이드 데이터 없음</div>
+<div id="note">estela · 지도 MapLibre GL JS (BSD-3-Clause) · 타일 OpenFreeMap · OpenMapTiles · 검색 Nominatim — © OpenStreetMap contributors (ODbL) · 별 Wikidata (CC0) · 여정은 샘플 도시 좌표이며 가이드 데이터 없음</div>
 <script type="importmap">
 {"imports":{"topojson-client":"https://cdn.jsdelivr.net/npm/topojson-client@3/+esm"}}
 </script>
@@ -303,7 +303,7 @@ import * as topojson from 'topojson-client';
    도시로 들어가면 실제 타일이 서서히 배어 나온다.
    ══════════════════════════════════════════════════════════════════ */
 const PAPER='#F2EEE6', SEA='#D8CEBA', LAND='#FAF7F0', INK='#1B1714',
-      DIM='#6B6259', WINE='#7A2233', OLIVE='#6E7355';
+      DIM='#6B6259', MUTE='#8C8175', WINE='#7A2233', OLIVE='#6E7355';
 const TOPO='https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
 const LAYER_FILES=['data/michelin-3star.json','data/unesco-gastronomy.json',
                    'data/osm-finedining.json'];
@@ -313,6 +313,101 @@ const LAYER_FILES=['data/michelin-3star.json','data/unesco-gastronomy.json',
 function worldZoom(){
   return Math.log2(Math.max(220,Math.min(innerWidth,innerHeight))*.86/183);}
 
+/* ══ 거리 지도 ══ 종이 지구본과 같은 물감으로 칠한다 ══
+   예전에는 OSM 기본 스타일 PNG를 받아 필터로 색만 눌렀다. 남이 그린 그림이라
+   우리 팔레트에 닿지 못했고, 그래서 지구본에서 골목으로 넘어갈 때 다른 제품처럼
+   느껴졌다. 이제 도형을 받아 직접 칠한다.
+   가장 큰 변화는 더한 게 아니라 뺀 것이다 — 가게 아이콘을 전부 껐다.
+   OSM 기본 지도는 식당마다 포크 아이콘을 뿌리는데, 그건 우리 별이 할 일이다. */
+const IN=(a,b)=>['interpolate',['linear'],['zoom'],5.5,0,8.5,1];
+const ROAD=(z0,w0,z1,w1)=>['interpolate',['exponential',1.4],['zoom'],z0,w0,z1,w1];
+/* 줌 곡선은 한 식에 하나만, 그것도 맨 바깥에만 올 수 있다. 그래서 굵기는
+   '줌마다 도로 등급을 물어보는' 모양으로 뒤집어 쓴다 */
+const WIDTH=(a,b,c)=>['interpolate',['exponential',1.42],['zoom'],
+  8,  ['case',MAJOR,a[0],MID,b[0],c[0]],
+  12, ['case',MAJOR,a[1],MID,b[1],c[1]],
+  17, ['case',MAJOR,a[2],MID,b[2],c[2]]];
+const MAJOR=['match',['get','class'],['motorway','trunk','primary'],true,false];
+const MID=['match',['get','class'],['secondary','tertiary'],true,false];
+const SMALL=['match',['get','class'],
+  ['minor','service','residential','unclassified','living_street'],true,false];
+
+const STREET_LAYERS=[
+  {id:'sea',type:'background',paint:{'background-color':SEA}},
+
+  /* 땅 — 종이. 여기서부터 위로 거리 지도가 쌓인다 */
+  {id:'streets',type:'background',
+   paint:{'background-color':LAND,'background-opacity':IN()}},
+
+  {id:'s-water',type:'fill',source:'omt','source-layer':'water',
+   filter:['!=',['get','brunnel'],'tunnel'],
+   paint:{'fill-color':SEA,'fill-opacity':IN()}},
+  {id:'s-green',type:'fill',source:'omt','source-layer':'park',
+   paint:{'fill-color':OLIVE,
+     'fill-opacity':['interpolate',['linear'],['zoom'],5.5,0,8.5,.11]}},
+  {id:'s-wood',type:'fill',source:'omt','source-layer':'landcover',
+   filter:['match',['get','class'],['wood','grass','scrub'],true,false],
+   paint:{'fill-color':OLIVE,
+     'fill-opacity':['interpolate',['linear'],['zoom'],5.5,0,9,.08]}},
+  {id:'s-stream',type:'line',source:'omt','source-layer':'waterway',
+   paint:{'line-color':SEA,'line-width':ROAD(9,.6,16,2.4),'line-opacity':IN()}},
+
+  /* 건물 — 아주 옅게. 골목의 결만 보이면 된다 */
+  {id:'s-bldg',type:'fill',source:'omt','source-layer':'building',
+   minzoom:13.5,
+   paint:{'fill-color':INK,
+     'fill-opacity':['interpolate',['linear'],['zoom'],13.5,0,16,.075]}},
+
+  /* 길 — 종이 위의 흰 획. 테두리를 먼저 깔고 그 위에 흰 선을 얹으면
+     판화처럼 파인 느낌이 난다 */
+  {id:'s-road-case',type:'line',source:'omt','source-layer':'transportation',
+   filter:['any',MAJOR,MID,SMALL],minzoom:8,
+   layout:{'line-cap':'round','line-join':'round'},
+   paint:{'line-color':INK,'line-opacity':['interpolate',['linear'],['zoom'],8,0,10,.16],
+     'line-width':WIDTH([2.2,5.4,16],[0.9,3.4,11],[0,1.9,7])}},
+  {id:'s-road',type:'line',source:'omt','source-layer':'transportation',
+   filter:['any',MAJOR,MID,SMALL],minzoom:8,
+   layout:{'line-cap':'round','line-join':'round'},
+   paint:{'line-color':'#FFFDF9','line-opacity':['interpolate',['linear'],['zoom'],8,0,10,1],
+     'line-width':WIDTH([1.3,3.6,12.5],[0.5,2.2,8],[0,1.1,4.6])}},
+  {id:'s-path',type:'line',source:'omt','source-layer':'transportation',
+   filter:['match',['get','class'],['path','track','pedestrian'],true,false],
+   minzoom:14,
+   paint:{'line-color':MUTE,'line-dasharray':[1.6,1.8],'line-width':ROAD(14,.6,18,1.6),
+     'line-opacity':['interpolate',['linear'],['zoom'],14,0,15.5,.55]}},
+  {id:'s-rail',type:'line',source:'omt','source-layer':'transportation',
+   filter:['==',['get','class'],'rail'],minzoom:11,
+   paint:{'line-color':DIM,'line-dasharray':[3,2.2],'line-width':ROAD(11,.5,17,1.5),
+     'line-opacity':['interpolate',['linear'],['zoom'],11,0,13,.42]}},
+
+  /* 행정 경계 — 도시로 들어가도 어느 구인지 결은 남는다 */
+  {id:'s-bound',type:'line',source:'omt','source-layer':'boundary',
+   filter:['<=',['get','admin_level'],6],minzoom:7,
+   paint:{'line-color':DIM,'line-dasharray':[2.4,2.2],'line-width':.9,
+     'line-opacity':['interpolate',['linear'],['zoom'],7,0,9,.32]}},
+
+  /* 글씨 — 길 이름은 작고 흐리게, 지명은 먹색으로.
+     가게 아이콘(poi)은 통째로 뺀다. 그 자리는 우리 별의 자리다 */
+  {id:'s-roadname',type:'symbol',source:'omt','source-layer':'transportation_name',
+   minzoom:13.5,
+   layout:{'text-field':['get','name'],'text-font':['Noto Sans Regular'],
+     'text-size':10,'symbol-placement':'line','text-letter-spacing':.04},
+   paint:{'text-color':DIM,'text-halo-color':LAND,'text-halo-width':1.6,
+     'text-opacity':['interpolate',['linear'],['zoom'],13.5,0,14.5,.85]}},
+  {id:'s-place',type:'symbol',source:'omt','source-layer':'place',
+   filter:['match',['get','class'],['city','town','village','suburb','neighbourhood'],
+     true,false],
+   minzoom:8,
+   layout:{'text-field':['get','name'],'text-font':['Noto Sans Regular'],
+     'text-size':['interpolate',['linear'],['zoom'],
+       8,['match',['get','class'],['city'],13,['town'],11,9.5],
+       14,['match',['get','class'],['city'],17,['town'],14,12]],
+     'text-letter-spacing':.05,'text-padding':6,
+     'symbol-sort-key':['match',['get','class'],['city'],0,['town'],1,['village'],2,3]},
+   paint:{'text-color':INK,'text-halo-color':LAND,'text-halo-width':2,
+     'text-opacity':['interpolate',['linear'],['zoom'],8,0,9.2,.9]}},
+];
+
 const map=new maplibregl.Map({
   container:'map',
   attributionControl:{compact:true},
@@ -320,15 +415,12 @@ const map=new maplibregl.Map({
     projection:{type:'globe'},          /* 구 ↔ 평면 전환을 라이브러리가 맡는다 */
     glyphs:'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
     sources:{
-      osm:{type:'raster',tileSize:256,maxzoom:19,
-        tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-        attribution:'© OpenStreetMap contributors'}},
-    layers:[
-      {id:'sea',type:'background',paint:{'background-color':SEA}},
-      /* 도시로 들어가면 실제 지도가 배어 나온다 — 종이에서 거리로 넘어가는 결 */
-      {id:'streets',type:'raster',source:'osm',
-       paint:{'raster-opacity':['interpolate',['linear'],['zoom'],5.5,0,8.5,1],
-              'raster-saturation':-0.62,'raster-contrast':-0.08,'raster-brightness-min':0.06}}]},
+      /* 완성된 그림이 아니라 도형을 받는다. 그래야 우리 색으로 우리가 그린다 */
+      omt:{type:'vector',url:'https://tiles.openfreemap.org/planet',
+        attribution:'© <a href="https://openfreemap.org">OpenFreeMap</a> '
+          +'© <a href="https://www.openmaptiles.org/">OpenMapTiles</a> '
+          +'© OpenStreetMap contributors'}},
+    layers:STREET_LAYERS},
   center:[2.35,20],zoom:worldZoom(),renderWorldCopies:true});
 map.addControl(new maplibregl.NavigationControl({showCompass:false}),'bottom-right');
 map.dragRotate.disable();map.touchZoomRotate.disableRotation();
@@ -372,7 +464,7 @@ async function addPaperBase(){
   map.addSource('countries',{type:'geojson',data:fc});
   map.addLayer({id:'land',type:'fill',source:'countries',
     paint:{'fill-color':LAND,
-      'fill-opacity':['interpolate',['linear'],['zoom'],5.5,1,8.5,0]}},'streets');
+      'fill-opacity':['interpolate',['linear'],['zoom'],5.5,1,8.5,0]}},'s-water');
   map.addLayer({id:'coast',type:'line',source:'countries',
     paint:{'line-color':INK,'line-width':['interpolate',['linear'],['zoom'],1,.5,5,1],
       'line-opacity':['interpolate',['linear'],['zoom'],5.5,.55,8,0]}});
