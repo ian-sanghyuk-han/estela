@@ -67,6 +67,11 @@
   .stamp .d{font-size:8px;letter-spacing:.6px;opacity:.82}
   /* 함께 간 도장에는 올리브 겹도장이 하나 더 찍힌다 */
   .stamp.tg{border-color:var(--olive);color:var(--olive);box-shadow:2.5px 2.5px 0 rgba(110,115,85,.22)}
+  /* 두 번 이상 찍힌 칸 — 살짝 어깼난 겹도장 자국이 남는다 */
+  .stamp.again{box-shadow:3px -3px 0 rgba(122,34,51,.20)}
+  .stamp.again.tg{box-shadow:3px -3px 0 rgba(110,115,85,.20),2.5px 2.5px 0 rgba(110,115,85,.22)}
+  .stamp{position:relative}
+  .stamp .x{position:absolute;top:2px;right:3px;font-size:8px;font-weight:600;opacity:.85}
   .stamp.empty{border:1.5px dashed rgba(140,129,117,.65);color:var(--dim);transform:none}
   .stamp.float{border-style:dashed;border-color:rgba(140,129,117,.8);color:var(--dim)}
   /* 찍히는 순간 — 위에서 내려와 눌린다 */
@@ -574,13 +579,19 @@ function loadLayers(){
    ══════════════════════════════════════════════════════════════════ */
 /* with: 'solo' 나 혼자 · 'together' 함께 갔고 서로 확인됨 · 'apart' 여럿이 따로 갔음.
    함께 여부는 §5.4대로 상호 확인만이 판정한다 — 선이 겹친다고 함께 간 것이 아니다 */
-const JOURNEY=[            /* [도시, 위도, 경도, 날짜, 동행상태] — 시간 순 */
-  ['TOKYO',        35.68, 139.70,'2023-05','together'],
-  ['PARIS',        48.86,   2.35,'2023-11','solo'],
-  ['SAN SEBASTIÁN',43.32,  -1.98,'2024-04','apart'],
-  ['LIMA',        -12.05, -77.04,'2024-09','solo'],
-  ['NEW YORK',     40.71, -74.01,'2025-02','together'],
-  ['SEOUL',        37.57, 126.98,'2025-08','solo']];
+/* 한 곳을 여러 번 갈 수 있다. 장소는 하나지만 도장은 간 횟수만큼 찍힐다 —
+   진행률은 '간 장소 수'로 세고, 여정선은 '간 횟수'만큼 그곳을 다시 지난다.
+   [도시, 위도, 경도, [[날짜, 동행상태], ...]] */
+const JOURNEY=[
+  ['TOKYO',        35.68, 139.70,[['2023-05','together'],['2025-01','solo']]],
+  ['PARIS',        48.86,   2.35,[['2023-11','solo']]],
+  ['SAN SEBASTIÁN',43.32,  -1.98,[['2024-04','apart']]],
+  ['LIMA',        -12.05, -77.04,[['2024-09','solo']]],
+  ['NEW YORK',     40.71, -74.01,[['2025-02','together']]],
+  ['SEOUL',        37.57, 126.98,[['2025-08','solo'],['2026-03','together']]]];
+/* 날짜 순으로 펼친 방문 목록 — 여정선이 꾰고 지나갈 실의 순서 */
+const VISITS=JOURNEY.flatMap(p=>p[3].map(v=>({n:p[0],la:p[1],lo:p[2],d:v[0],w:v[1]})))
+  .sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);
 const FLOATING=[           /* 떠 있는 별 — 갔지만 언제였는지 기억이 안 나는 곳 (§5.3.3) */
   ['COPENHAGEN',   55.68,  12.57],
   ['HONG KONG',    22.30, 114.17]];
@@ -608,8 +619,11 @@ function greatCircle(la1,lo1,la2,lo2,steps){
 function buildJourney(){
   /* 여정선: 대권 궤적을 잘게 쪼개 LineSegments로. 구·평면 두 벌 좌표를 같이 굽는다 */
   const v0=[],v1=[];
-  for(let s=0;s<JOURNEY.length-1;s++){
-    const pts=greatCircle(JOURNEY[s][1],JOURNEY[s][2],JOURNEY[s+1][1],JOURNEY[s+1][2],48);
+  for(let s=0;s<VISITS.length-1;s++){
+    const A=VISITS[s],B=VISITS[s+1];
+    /* 같은 곳을 연이어 두 번 갔으면 이을 선이 없다 */
+    if(Math.abs(A.la-B.la)<1e-6&&Math.abs(A.lo-B.lo)<1e-6)continue;
+    const pts=greatCircle(A.la,A.lo,B.la,B.lo,48);
     let unwrap=0;                                     /* 평면용 경도 연속화 */
     for(let i=0;i<pts.length-1;i++){
       const [laA,loA,lfA]=pts[i];
@@ -641,13 +655,15 @@ function buildJourney(){
     journeyG.add(m);
     jStars.push({la,lo,mesh:m,lift});
     return m;};
-  JOURNEY.forEach(j=>mkStar(j[1],j[2],0x7A2233,.004));
+  JOURNEY.forEach(j=>mkStar(j[1],j[2],0x7A2233,.004));   /* 별은 장소당 하나 */
   FLOATING.forEach(f=>mkStar(f[1],f[2],0x8C8175,.028)); /* 떠 있는 별 — 지면에서 살짝 띄운다 */
   /* 고리: 관계를 그래프가 아니라 지도 위에 그린다 (§5.4의 다섯 상태).
      이어진 고리 = 함께 감 · 끊긴 고리 = 여럿이 따로 감 · 고리 없음 = 나 혼자 */
   JOURNEY.forEach(j=>{
-    if(j[4]==='together')buildRing(j[1],j[2],2.6,false);
-    else if(j[4]==='apart')buildRing(j[1],j[2],2.6,true);});
+    /* 여러 번 갔으면 그중 한 번이라도 함께갔으면 이어진 고리다 */
+    const ws=j[3].map(v=>v[1]);
+    if(ws.includes('together'))buildRing(j[1],j[2],2.6,false);
+    else if(ws.includes('apart'))buildRing(j[1],j[2],2.6,true);});
   paintPassport();}
 
 /* 구면 위의 작은 원 — 위경도로 걸어 그리므로 모핑을 그대로 탄다 */
@@ -678,9 +694,15 @@ function paintPassport(){
   const cells=[];
   const rot=i=>(((i*2654435761)%1000)/1000*8-4).toFixed(2)+'deg'; /* -4°~+4°, 매번 같은 각도 */
   JOURNEY.forEach((j,i)=>{
-    const tg=j[4]==='together';
-    cells.push(`<div class="stamp${tg?' tg':''}" style="--r:${rot(i)};animation-delay:${(i*70)}ms">`
-      +`<span class="n">${j[0]}</span><span class="d">${j[3].replace('-',' · ')}</span></div>`);});
+    const vs=j[3].slice().sort((a,b)=>a[0]<b[0]?-1:1);
+    const tg=vs.some(v=>v[1]==='together');
+    const n=vs.length;
+    const dates=vs.map(v=>v[0].replace('-',' · ')).join('  /  ');
+    cells.push(`<div class="stamp${tg?' tg':''}${n>1?' again':''}" title="${dates}"`
+      +` style="--r:${rot(i)};animation-delay:${(i*70)}ms">`
+      +(n>1?`<span class="x">×${n}</span>`:'')
+      +`<span class="n">${j[0]}</span>`
+      +`<span class="d">${vs[n-1][0].replace('-',' · ')}</span></div>`);});
   FLOATING.forEach((f,i)=>{
     cells.push(`<div class="stamp float" style="--r:${rot(i+40)};animation-delay:${((JOURNEY.length+i)*70)}ms">`
       +`<span class="n">${f[0]}</span><span class="d">날짜 미상</span></div>`);});
