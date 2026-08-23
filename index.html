@@ -269,7 +269,8 @@ import * as topojson from 'topojson-client';
 const PAPER='#F2EEE6', SEA='#D8CEBA', LAND='#FAF7F0', INK='#1B1714',
       DIM='#6B6259', WINE='#7A2233', OLIVE='#6E7355';
 const TOPO='https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
-const LAYER_FILES=['data/michelin-3star.json','data/unesco-gastronomy.json'];
+const LAYER_FILES=['data/michelin-3star.json','data/unesco-gastronomy.json',
+                   'data/osm-finedining.json'];
 
 /* 지구 전체가 창에 들어오는 줌 — 짧은 변을 기준으로 잡는다.
    가로로 긴 창에서도 세로로 긴 창에서도 잘리지 않게 */
@@ -363,7 +364,7 @@ async function addPaperBase(){
 const layers=[];
 function featureOf(L,it){
   const k=keyOf(L,it);
-  return {type:'Feature',properties:{n:it.n,ct:it.ct||'',c:it.c||'',q:it.q||it.n,
+  return {type:'Feature',properties:{n:it.n,ct:it.ct||'',c:it.c||'',q:it.q||it.n,cu:it.cu||'',w:it.w||'',
     L:L.id,done:stampsOf(k).length>0,save:isSaved(k)},
     geometry:{type:'Point',coordinates:[it.lo,it.la]}};}
 function fcOf(L){return {type:'FeatureCollection',features:(L.items||[]).map(it=>featureOf(L,it))};}
@@ -374,7 +375,7 @@ function addStarLayer(L){
     clusterRadius:46,clusterMaxZoom:13,
     clusterProperties:{done:['+',['case',['get','done'],1,0]]}});
   map.addLayer({id:L.id+'-cl',type:'circle',source:L.id,filter:['has','point_count'],
-    paint:{'circle-color':L.color,'circle-radius':15,
+    paint:{'circle-color':L.color,'circle-radius':L.kind==='candidate'?12:15,
       'circle-stroke-width':['case',['>',['get','done'],0],3,1.5],
       'circle-stroke-color':['case',['>',['get','done'],0],INK,'rgba(247,244,238,.95)']}});
   map.addLayer({id:L.id+'-clt',type:'symbol',source:L.id,filter:['has','point_count'],
@@ -383,11 +384,11 @@ function addStarLayer(L){
     paint:{'text-color':'#F7F4EE'}});
   map.addLayer({id:L.id+'-pt',type:'circle',source:L.id,filter:['!',['has','point_count']],
     paint:{'circle-color':['case',['get','save'],'rgba(0,0,0,0)',L.color],
-      'circle-radius':6,
+      'circle-radius':L.kind==='candidate'?4:6,
       'circle-stroke-width':['case',['get','done'],3.5,['get','save'],3,2],
       'circle-stroke-color':['case',['get','done'],L.color,['get','save'],L.color,'rgba(247,244,238,.95)']}});
   map.addLayer({id:L.id+'-lb',type:'symbol',source:L.id,filter:['!',['has','point_count']],
-    minzoom:9,
+    minzoom:L.kind==='candidate'?12:9,
     layout:{'text-field':['get','n'],'text-font':['Noto Sans Regular'],'text-size':11,
       'text-offset':[0,1.1],'text-anchor':'top','text-padding':4,'text-max-width':11},
     paint:{'text-color':INK,'text-halo-color':PAPER,'text-halo-width':1.6}});
@@ -476,7 +477,8 @@ const PENDING=[{label:'우리 그룹의 장소',note:'계정 필요'},{label:'�
 function paintPanel(){
   $('lrows').innerHTML=layers.map((L,i)=>{
     const mapped=(L.items||[]).length;
-    const ct=mapped<L.total?mapped+' / '+L.total:String(L.total);
+    const ct=L.kind==='candidate'?L.total+' 후보'
+      :mapped<L.total?mapped+' / '+L.total:String(L.total);
     return '<div class="lrow'+(L.on===false?' off':'')+'" data-i="'+i+'">'
       +'<span class="dot" style="background:'+L.color+'"></span>'
       +'<span class="nm">'+esc(L.label)+'</span><span class="ct">'+ct+'</span></div>';}).join('')
@@ -492,7 +494,10 @@ function paintPanel(){
   $('lprov').innerHTML='출처 Wikidata · CC0 · 최종확인 '+((layers[0]||{}).lastVerified||'—')
     +(gap.length?'<br>'+gap.map(L=>L.label+' '+(L.items||[]).length+'/'+L.total).join(' · ')+' — 좌표 있는 것만':'')
     +'<br>우리가 평가하지 않습니다';
-  $('nstar').textContent=layers.reduce((a,L)=>a+L.total,0);}
+  /* 머리말의 '별'은 정본만 센다. 후보는 분모가 아니므로 따로 적는다 */
+  const canon=layers.filter(L=>L.kind!=='candidate').reduce((a,L)=>a+L.total,0);
+  const cand=layers.filter(L=>L.kind==='candidate').reduce((a,L)=>a+L.total,0);
+  $('nstar').textContent=canon+(cand?' (+후보 '+cand+')':'');}
 function paintMine(){const c=myCounts();$('mine').textContent=c.places?(c.places+'곳 · '+c.visits+'번'):'0';}
 
 /* ══ 지금 어느 단위를 보는가 ══ */
@@ -611,12 +616,13 @@ function paintJourney(){
         '<div class="stamp empty" style="animation-delay:'+((mine.length+i)*60)+'ms"><span class="d">빈칸</span></div>').join('');
     $('jsample').style.display='none';
   }else{el.innerHTML=SAMPLE;$('jsample').style.display='';}
-  $('jprog').innerHTML=layers.map(L=>{
+  $('jprog').innerHTML=layers.filter(L=>L.kind!=='candidate').map(L=>{
     const got=(L.items||[]).filter(it=>stampsOf(keyOf(L,it)).length).length;
     const pct=L.total?Math.round(got/L.total*100):0;
     return '<div class="prow"><div class="pl"><span>'+esc(L.label)+'</span><b>'+got+' / '+L.total+'</b></div>'
       +'<div class="bar"><i style="width:'+Math.max(pct,got?2:0)+'%;background:'+L.color+'"></i></div></div>';}).join('')
-    +'<div class="hint">분모는 그 목록의 전체 수입니다. 우리가 정한 숫자가 아닙니다.</div>';
+    +'<div class="hint">분모는 그 목록의 전체 수입니다. 우리가 정한 숫자가 아닙니다.<br>'
+    +'후보 레이어는 끝이 없어 분모가 되지 못합니다 — 도장은 찍히되 여기 세지 않습니다.</div>';
   const ring=(t,dsc,kind)=>{
     const svg=kind==='solo'?'<circle cx="14" cy="14" r="4" fill="'+WINE+'"/>'
       :kind==='apart'?'<circle cx="14" cy="14" r="4" fill="'+WINE+'"/><circle cx="14" cy="14" r="9.5" fill="none" stroke="'+OLIVE+'" stroke-width="1.8" stroke-dasharray="3 3"/>'
@@ -649,7 +655,8 @@ map.on('load',async()=>{
   await addPaperBase();
   const defs=await Promise.all(LAYER_FILES.map(f=>fetch(f).then(r=>r.json()).catch(()=>null)));
   defs.filter(Boolean).forEach(d=>addStarLayer({
-    id:d.layer,label:d.label,color:d.color,grade:d.grade,total:d.total||(d.items||[]).length,
+    id:d.layer,label:d.label,color:d.color,grade:d.grade,kind:d.kind,
+    total:d.total||(d.items||[]).length,
     source:d.source,license:d.license,lastVerified:d.lastVerified,items:d.items}));
   addStarLayer(minePlacesLayer());
   addJourneyLayers();
