@@ -112,12 +112,27 @@
   #addbox.on{display:block}
   #addq{width:100%;box-sizing:border-box;font:12px var(--sans);color:var(--ink);
     background:var(--card);border:1px solid rgba(27,23,20,.22);padding:7px 8px}
-  #addres{margin-top:5px;max-height:168px;overflow:auto}
+  #addres{margin-top:5px;max-height:210px;overflow:auto}
   #addres .r{padding:6px 7px;font-size:11px;line-height:1.4;cursor:pointer;
     border-bottom:1px solid var(--rule);color:var(--ink)}
   #addres .r:hover{background:var(--sand)}
   #addres .r small{display:block;color:var(--dim);font-size:9.5px}
   #addres .msg{font-size:10px;color:var(--dim);padding:6px 2px}
+  #addres .grp{font-size:9px;letter-spacing:.1em;color:var(--mute);
+    padding:7px 2px 3px;border-top:1px solid var(--rule);margin-top:4px}
+  #addres .grp:first-child{border-top:0;margin-top:0}
+  /* 우리 목록에 있는 건 담는 게 아니라 열어보는 것이라, 표시를 달리한다 */
+  #addres .r.ours{border-left:2px solid var(--wine);padding-left:8px}
+  /* 마지막 수단은 스크롤에 묻히면 안 된다 — 목록이 길어도 바닥에 붙어 있는다 */
+  #addres .pickrow{position:sticky;bottom:0;margin-top:6px;padding:7px;
+    text-align:center;cursor:pointer;font-size:10.5px;color:var(--ink);
+    border:1px dashed var(--mute);background:var(--card)}
+  #addres .pickrow:hover{background:var(--sand)}
+  /* 손으로 찍는 중 — 지도 위에 무엇을 하는 중인지 계속 붙여 둔다 */
+  #picking{display:none;position:fixed;left:50%;bottom:76px;transform:translateX(-50%);
+    z-index:6;font:500 12px var(--sans);color:var(--paper);background:var(--wine);
+    padding:9px 16px;border-radius:2px;white-space:nowrap;pointer-events:none}
+  #picking.on{display:block}
   .lrow.locked{opacity:.55;cursor:default}
   .lrow.locked .ct{font-size:9px;letter-spacing:.4px}
   #layers .attrib{font-size:8.5px;color:var(--mute);margin-top:6px;line-height:1.5}
@@ -216,6 +231,7 @@
 <div id="hud"><span class="wm">ESTELA</span> — 미식 별 레이어는 이 위에 얹습니다<br>
 FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—</b> · 단위 <b id="lvl">—</b> · 내 기록 <b id="mine">0</b> · <span id="hint">끌어서 이동 / 휠·핀치로 확대 — 파고들면 지구본이 저절로 펴집니다</span><span id="res" hidden>—</span></div>
 <div id="where">—</div>
+<div id="picking"><span>지도에서 자리를 눌러 주세요</span></div>
 
 <div id="modebar">
   <span class="mbtn" id="btnhome">전체 보기</span>
@@ -250,8 +266,8 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
 <div id="card"></div>
 
 <div id="layers"><h4>레이어</h4><div id="lrows"></div>
-  <div class="add"><span class="addbtn" id="addbtn">+ 내 장소 추가</span>
-    <div id="addbox"><input id="addq" placeholder="식당 이름이나 주소" autocomplete="off">
+  <div class="add"><span class="addbtn" id="addbtn">+ 찾아서 담기</span>
+    <div id="addbox"><input id="addq" placeholder="식당 이름 · 주소 · 도시" autocomplete="off">
       <div id="addres"></div>
       <div class="attrib">검색 © OpenStreetMap contributors (ODbL)</div></div></div>
   <div class="prov" id="lprov"></div></div>
@@ -661,27 +677,96 @@ function rebuildMine(){
   paintPanel();paintMine();paintJourney();}
 
 let addTimer=null;
+/* 우리 목록 안에서 먼저 찾는다. 이건 인터넷이 없어도 즉시 된다.
+   이걸 건너뛰면 미슐랭 식당을 검색해도 '내 장소'로 하나 더 만들어 버린다 */
+function searchCanon(t){
+  const s=t.toLowerCase(), hit=[];
+  for(const L of layers){
+    for(const it of (L.items||[])){
+      const n=(it.n||'').toLowerCase();
+      const i=n.indexOf(s);
+      if(i<0)continue;
+      hit.push({L,it,rank:(i===0?0:1)+(L.kind==='candidate'?2:0)});
+      if(hit.length>400)break;}}
+  hit.sort((a,b)=>a.rank-b.rank||a.it.n.length-b.it.n.length);
+  return hit.slice(0,6);}
+
+/* 지금 보고 있는 화면 쪽을 먼저 보여달라고 일러둔다. '라멘'은 세상에 수천 개다 */
+function viewBox(){
+  const b=map.getBounds();
+  return [b.getWest(),b.getNorth(),b.getEast(),b.getSouth()]
+    .map(v=>v.toFixed(4)).join(',');}
+
+let pickMode=false;
+function setPick(on,label){
+  pickMode=on;
+  map.getCanvas().style.cursor=on?'crosshair':'';
+  const el=$('picking');
+  if(el){el.classList.toggle('on',on);
+    if(on)el.firstChild.textContent='지도에서 «'+label+'» 자리를 눌러 주세요';}}
+
+function addOwnPlace(n,la,lo,ct,c){
+  store.places.push({id:'p'+Date.now(),n:n,la:+la.toFixed(6),lo:+lo.toFixed(6),
+    ct:ct||'',c:c||''});
+  saveStore();rebuildMine();paintJourney();}
+
 function wireAdd(){
   const btn=$('addbtn'),box=$('addbox'),q=$('addq'),res=$('addres');
   btn.onclick=()=>{box.classList.toggle('on');if(box.classList.contains('on'))q.focus();};
-  q.oninput=()=>{clearTimeout(addTimer);const t=q.value.trim();
+
+  /* 손으로 찍기 — 검색이 끝내 못 찾아도 여기서는 반드시 된다.
+     자주 가는 집은 어차피 어디인지 알고 있으니, 찾는 것보다 가리키는 게 빠르다 */
+  map.on('click',e=>{
+    if(!pickMode)return;
+    const nm=(q.value||'').trim()||'이름 없는 곳';
+    addOwnPlace(nm,e.lngLat.lat,e.lngLat.lng,'', countryAt(e.lngLat.lng,e.lngLat.lat));
+    setPick(false);
+    q.value='';res.innerHTML='<div class="msg">«'+esc(nm)+'» 을 찍었습니다.</div>';});
+
+  q.oninput=()=>{
+    clearTimeout(addTimer);
+    const t=q.value.trim();
+    if(pickMode)setPick(false);
     if(t.length<2){res.innerHTML='';return;}
-    res.innerHTML='<div class="msg">찾는 중…</div>';
-    addTimer=setTimeout(()=>{        /* Nominatim은 초당 1회를 넘기지 않는다 */
-      fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&addressdetails=1&q='+encodeURIComponent(t))
+
+    const mine=searchCanon(t);
+    const head=mine.length?'<div class="grp">우리 목록에 있습니다</div>'
+      +mine.map((h,i)=>'<div class="r ours" data-c="'+i+'"><b>'+esc(h.it.n)+'</b>'
+        +'<small>'+esc([h.it.ct,h.it.c].filter(Boolean).join(' · '))
+        +' — '+esc(h.L.label)+'</small></div>').join(''):'';
+    const wire=()=>res.querySelectorAll('.r.ours').forEach(el=>el.onclick=()=>{
+      const h=mine[+el.dataset.c];
+      map.easeTo({center:[h.it.lo,h.it.la],
+        zoom:Math.max(map.getZoom(),h.L.grain==='city'?9.5:15),duration:900});
+      selectPlace(h.L,{n:h.it.n,ct:h.it.ct||'',c:h.it.c||'',q:h.it.q||h.it.n,
+        y:h.it.y||'',sh:!!h.it.g});});
+    res.innerHTML=head+'<div class="msg">지도에서 찾는 중…</div>';
+    wire();
+
+    addTimer=setTimeout(()=>{      /* Nominatim은 초당 1회를 넘기지 않는다 */
+      fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5'
+        +'&addressdetails=1&viewbox='+viewBox()+'&q='+encodeURIComponent(t))
         .then(r=>r.json()).then(list=>{
-          if(!list.length){res.innerHTML='<div class="msg">결과가 없습니다.</div>';return;}
-          res.innerHTML=list.map((r,i)=>{
-            const nm=(r.name||r.display_name.split(',')[0]).trim();
-            return '<div class="r" data-i="'+i+'"><b>'+esc(nm)+'</b><small>'+esc(r.display_name)+'</small></div>';}).join('');
-          res.querySelectorAll('.r').forEach(el=>el.onclick=()=>{
+          const tail=list.length
+            ?'<div class="grp">지도에서 찾았습니다</div>'+list.map((r,i)=>{
+               const nm=(r.name||r.display_name.split(',')[0]).trim();
+               return '<div class="r" data-i="'+i+'"><b>'+esc(nm)+'</b><small>'
+                 +esc(r.display_name)+'</small></div>';}).join('')
+            :'<div class="msg">지도에도 아직 없는 곳입니다.</div>';
+          res.innerHTML=head+tail
+            +'<div class="pickrow" id="dopick">지도에서 직접 찍기</div>';
+          wire();
+          res.querySelectorAll('.r:not(.ours)').forEach(el=>el.onclick=()=>{
             const r=list[+el.dataset.i],a=r.address||{};
-            store.places.push({id:'p'+Date.now(),n:(r.name||r.display_name.split(',')[0]).trim(),
-              la:+parseFloat(r.lat).toFixed(6),lo:+parseFloat(r.lon).toFixed(6),
-              ct:a.city||a.town||a.village||a.municipality||a.suburb||'',c:a.country||''});
-            saveStore();rebuildMine();
-            q.value='';res.innerHTML='<div class="msg">추가했습니다.</div>';});})
-        .catch(()=>{res.innerHTML='<div class="msg">검색에 닿지 못했습니다.</div>';});},700);};}
+            addOwnPlace((r.name||r.display_name.split(',')[0]).trim(),
+              parseFloat(r.lat),parseFloat(r.lon),
+              a.city||a.town||a.village||a.municipality||a.suburb||'',a.country||'');
+            q.value='';res.innerHTML='<div class="msg">추가했습니다.</div>';});
+          $('dopick').onclick=()=>setPick(true,t);})
+        .catch(()=>{res.innerHTML=head
+          +'<div class="msg">검색에 닿지 못했습니다.</div>'
+          +'<div class="pickrow" id="dopick">지도에서 직접 찍기</div>';
+          wire();$('dopick').onclick=()=>setPick(true,t);});},700);};}
 
 /* ══ 고른 곳 카드 ══ */
 let selected=null;
