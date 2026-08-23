@@ -93,3 +93,61 @@
 2. **유네스코 음식 무형문화유산** — 나라 단위 레이어
 3. **Maître Restaurateur** — 프랑스. 흩어진 목록 모으기
 4. 미슐랭 정식 문의 — 되면 C등급이 통째로 열린다
+
+---
+
+## Checked 2026-08-24 — three questions, three answers
+
+### 1. Why the fine-dining layer holds 2,317 and not 841
+
+taginfo's 841 counts objects whose `cuisine` value is the bare string `fine_dining`.
+OSM stores `cuisine` as a semicolon list, and taginfo keys on the whole string, so
+`italian;fine_dining` is filed under a different value entirely. Our Overpass pull splits
+the list and matches membership. Measured breakdown of the 2,317 named objects:
+
+| what the tag says | count |
+|---|---|
+| `cuisine=fine_dining` exactly | 827 |
+| `cuisine=gourmet` exactly | 50 |
+| a semicolon combination containing either | 1,440 |
+
+(827 vs taginfo's 841: taginfo counts unnamed objects too; we drop those.)
+The larger number is the correct one — a French fine-dining room is not less fine for
+having declared its cuisine as well.
+
+### 2. Former Michelin stars — real idea, unusable data
+
+Wikidata records 1,222 places with a Michelin-star award statement and coordinates.
+1,094 hold one now; **128 have an end date (`pq:P582`)** and no current star.
+
+Distribution of those 128: Netherlands 45 · Ireland 21 · Sweden 12 · Belgium 10 ·
+**France 10** · Denmark 9 · United States 8 · Spain 5 · United Kingdom 4.
+
+France loses more stars than that in a single year. The list does not measure lost stars;
+it measures which Wikipedia communities maintain award end-dates. Mapping it would show
+the Netherlands as the world capital of fallen stars, which is false. **Do not ship this
+as a layer.** Michelin's own historical guides are the accurate source and are copyrighted
+— out of bounds under §4. Revisit only if Wikidata coverage evens out.
+
+### 3. National tourism board APIs — grade B confirmed, with a blocker
+
+Checked for the first time on 2026-08-24. The pattern across boards:
+
+- Tourism boards publish **inventories**, not canons — everything a region wants promoted.
+  Korea's TourAPI (`contentTypeId=39`, restaurants, free key from data.go.kr, includes
+  `mapx`/`mapy`) and Singapore STB's TIH F&B API (free account) are both this shape.
+  An inventory has no denominator, so it fails the finite-set test in §2 the same way
+  Google Places does. **Not canon material.**
+- The usable exception is a **designation programme** — a government names a bounded list
+  and publishes it. This is the B grade already catalogued above.
+
+Best concrete find, and one the owner named himself: **백년가게** (소상공인시장진흥공단),
+`data.go.kr` dataset 15102255 — **1,262 rows, last updated 2025-07-28, 이용허락범위 제한 없음**.
+Columns: 업체명 · 연락처 · 시도 · 시군구 · 기본주소 · 상세주소 · 주요사업. Includes
+non-restaurants, so `주요사업` has to filter it down.
+
+**Blocker: no coordinates, and our geocoder cannot make them.** Tested Nominatim on five
+Korean 도로명 addresses: 0 of 5 correct — three not found, two matched to Denmark and to
+Dagestan. Any Korean layer therefore needs a Korean geocoder (VWorld, 도로명주소 API, or
+Kakao Local — all free, all require a key). Until then Korea cannot be put on the map
+from address data.
