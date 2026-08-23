@@ -443,7 +443,7 @@ function buildBorders(topo){          /* 해상도가 바뀌면 통째로 다시
    T1 대국 = 항상·큰 글씨 · T2 중견 = 줌<2.5 · T3 전국 = 줌<1.85
    T4 주요 도시 = 줌<1.95 · T5 광역 도시 = 줌<1.6 */
 function labelSprite(txt,tier){
-  const c=document.createElement('canvas');c.width=640;c.height=96;
+  const c=document.createElement('canvas');c.width=640;c.height=44;
   const x=c.getContext('2d');
   /* 나라 이름은 전부 같은 크기다. 크기로 서열을 매기면 '독일이 덴마크보다 미식에서 크다'는
      거짓말이 되고, 별 개수 뱃지와 두 개의 위계가 충돌한다. 도시만 한 단계 작다 — 종류가 다른 것 */
@@ -452,22 +452,30 @@ function labelSprite(txt,tier){
   x.font=`500 ${size}px Archivo,'Segoe UI',sans-serif`;
   x.textAlign='center';x.textBaseline='middle';
   x.letterSpacing='2.5px';
-  x.lineWidth=7;x.strokeStyle='rgba(250,247,240,.92)';x.strokeText(txt,320,48); /* 종이색 헤일로 */
+  /* 헤일로 — 지도 라벨은 어떤 바탕 위에도 서야 하므로 종이색 테두리를 두른다 */
+  x.lineWidth=6;x.strokeStyle='rgba(250,247,240,.94)';x.strokeText(txt,320,22);
   /* 나라 이름은 먹빛, 도시 이름은 와인빛 — 축이 다르면 색도 다르다 */
   x.fillStyle=tier===4?'rgba(122,34,51,.90)':tier===5?'rgba(122,34,51,.72)'
     :'rgba(27,23,20,.86)';   /* 나라는 먹빛 하나, 도시는 와인빛 */
-  x.fillText(txt,320,48);
+  x.fillText(txt,320,22);
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,
     depthTest:false,opacity:0})); /* 구에 잘리지 않음 — 노출은 페이드가 결정 */
   s.renderOrder=20;
-  const k=tier===4?.22:tier===5?.18:.235;
-  s.userData.k0=k;s.scale.set(k,k*96/640,1);return s;}
+  /* 목표 — 글자 높이기준 화면 12px (도시는 11 · 10).
+     12px 미만은 본문에서 안티패턴으로 꾽혀 있고, 지도 라벨은
+     그보다 더 짧게 스캐니되므로 그 아래로 내려서는 안 된다 */
+  const glyph=tier===4?11:tier===5?10:12;
+  s.userData.px=glyph*(44/size);      /* 캔버스 여백까지 포함한 스프라이트 높이 */
+  s.userData.ratio=44/640;
+  s.scale.set(.24,.24*44/640,1);       /* 첫 프레임용 임시값 — 곧 화면 크기로 덮인다 */
+  return s;}
 const labelObjs=[];
 function addLabel(txt,la,lo,tier,key){
   const s=labelSprite(txt,tier);
   s.position.copy(toV3(la,lo,R*1.012));
-  labelObjs.push({s,tier,la,lo,key:key||null,k0:s.userData.k0,normal:sphV3(la,lo,1)});
+  labelObjs.push({s,tier,la,lo,key:key||null,px:s.userData.px,ratio:s.userData.ratio,
+    normal:sphV3(la,lo,1)});
   stage.add(s);}
 /* 도시 — T4 주요 도시(줌<1.95) · T5 광역 주요 도시(줌<1.6) */
 const CITY4=[['SEOUL',37.5,127],['TOKYO',35.7,139.7],['NEW YORK',40.7,-74],['LONDON',51.5,-.1],
@@ -588,15 +596,9 @@ function addLayer(def){
    ② 묶음 칸 크기는 **계단**으로만 바뀐다 — 줌을 부드럽게 넣어도 단계를 넘을 때만 재편된다.
    ③ 숫자는 '지금 보이는 개수'가 아니라 '그 지역에 있는 개수'다. 뒷면으로 넘어가도 안 변한다.
    계단이 곧 나라 → 도시 → 지역 → 좌표의 드릴다운 단계이기도 하다. */
-const LADDER=[
-  {deg:40,  name:'대륙'},
-  {deg:16,  name:'권역'},
-  {deg:6,   name:'나라'},
-  {deg:2,   name:'지방'},
-  {deg:.7,  name:'도시'},
-  {deg:.25, name:'지역'},
-  {deg:.08, name:'동네'},
-  {deg:0,   name:'좌표'}];
+/* 칸 크기 계단. 촘촘할수록 줌을 넣을 때 재편이 잘게 나뉘어 덜 튄다 */
+const LADDER=[{deg:40},{deg:24},{deg:14},{deg:8},{deg:4.5},{deg:2.5},{deg:1.4},
+              {deg:.8},{deg:.45},{deg:.25},{deg:.14},{deg:.08},{deg:.045},{deg:0}];
 let ladderIdx=-1;
 let clusterDirty=true;
 function markClusterDirty(){clusterDirty=true;}
@@ -623,11 +625,12 @@ function pickLadder(){
 function buildClusters(L,deg){
   if(deg<=0)return L.pts.map(p=>({la:p.la,lo:p.lo,m:[p]}));
   const cells=new Map();
+  const bandWide=gy=>{                 /* 그 위도 띠 하나에 대해 한 번만 정한다 */
+    const midLa=(gy+.5)*deg-90;
+    return deg/Math.max(.15,Math.cos(midLa*D2R));};
   L.pts.forEach(p=>{
     const gy=Math.floor((p.la+90)/deg);
-    /* 경도 칸은 위도에 따라 넓어진다 — 안 그러면 고위도에서 잘게 쪼개진다 */
-    const wide=deg/Math.max(.15,Math.cos(p.la*D2R));
-    const gx=Math.floor((p.lo+180)/wide);
+    const gx=Math.floor((p.lo+180)/bandWide(gy));
     const k=gx+','+gy;
     let a=cells.get(k);if(!a){a=[];cells.set(k,a);}
     a.push(p);});
@@ -975,29 +978,32 @@ window.__dbg={labelObjs,camera,jStars,jRings,layerGroups,recluster,setView,setSt
    source layer and a last-verified date.
    ──────────────────────────────────────────────────────────────── */
 
-const SCALE_REF=3.4;                  /* 이 거리에서의 크기를 기준으로 삼는다 */
 const _sp=new THREE.Vector3();
-function screenFix(sprite,k,ratio){
-  /* 스프라이트는 월드 크기라 가까이 갈수록 화면에서 커진다.
-     거리에 비례해 줄여 주면 화면상 크기가 일정해진다 — 지도 위의 핀처럼 */
+/* 크기를 월드 단위가 아니라 '화면 픽셀'로 지정한다. 스프라이트는 월드 크기라
+   가까이 갈수록 화면에서 커지므로, 거리에서 역산해 월드 크기를 정해 준다.
+   좁은 화면에서는 조금 키운다 — 손에 든 화면은 더 멀리서 본다 */
+function pxScale(){return innerWidth<560?1.15:1;}
+function screenFix(sprite,pxH,ratio){
   const d=_sp.copy(sprite.position).sub(camera.position).length();
-  const w=k*d/SCALE_REF;
-  sprite.scale.set(w,w*(ratio||1),1);}
+  const h=pxH*pxScale()*2*d*Math.tan(camera.fov*D2R/2)/Math.max(1,innerHeight);
+  sprite.scale.set(h/(ratio||1),h,1);}
 
+const DOT_PX=10,BUB_PX=30;            /* 점 지름 · 묶음 지름 (화면 픽셀) */
 function rescaleMarkers(){
-  labelObjs.forEach(o=>screenFix(o.s,o.k0,96/640));
+  labelObjs.forEach(o=>screenFix(o.s,o.px,o.ratio));
   layerGroups.forEach(L=>{
-    L.pts.forEach(p=>{if(p.s.material.opacity>0)screenFix(p.s,DOT_K);});
-    L.bubbles.forEach(b=>{if(b.visible)screenFix(b,BUB_K);});});
-  const js=.010*Math.max(.25,camera.position.length()/SCALE_REF);
-  jStars.forEach(t=>t.mesh.scale.setScalar(js/.010));}
+    L.pts.forEach(p=>{if(p.s.material.opacity>0)screenFix(p.s,DOT_PX,1);});
+    L.bubbles.forEach(b=>{if(b.visible)screenFix(b,BUB_PX,1);});});
+  jStars.forEach(t=>{
+    const d=_sp.copy(t.mesh.position).sub(camera.position).length();
+    t.mesh.scale.setScalar(Math.max(.35,d/3.4));});}
 
 /* ── 조작감 ── 고도가 낮아질수록 드래그와 휠이 느려져야 한다.
    안 그러면 지표 51km 상공에서 손가락 한 번에 대륙을 건너뛴다.
    화면에 담긴 각도에 비례시키면, 어느 높이에서든 '한 번 끌면 화면의 절반'이 된다. */
 function tuneControls(){
   const span=visibleSpanDeg();
-  controls.rotateSpeed=THREE.MathUtils.clamp(span/180,.02,1);
+  controls.rotateSpeed=THREE.MathUtils.clamp(span/150,.05,1);
   controls.zoomSpeed  =THREE.MathUtils.clamp(span/120,.22,1);
   controls.panSpeed   =THREE.MathUtils.clamp(span/120,.15,1);
   /* 파고들면 자전이 멈춘다. 들여다보는 중에 무대가 돌면 안 된다 */
