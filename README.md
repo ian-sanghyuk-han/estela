@@ -17,6 +17,12 @@ visited stars light up and connect into a personal trail — the *estela*.
   toggleable group each. Two ship today, both from Wikidata (CC0): the world's Michelin
   3-star restaurants (140, individually placed) and the UNESCO Cities of Gastronomy
   (36 of the official 56 carry coordinates; the panel shows both numbers).
+- **Street handover.** Below a 1.6° view the flat map hands the stage to MapLibre, which
+  draws a real street map and re-pins the same stars as HTML markers; above 4° it hands back.
+  It is a handover rather than an overlay because our flat projection is equirectangular and
+  web maps are Web Mercator — at Paris latitude the two do not line up. Tiles are OSM raster
+  for now (keyless, attributed, tone-matched to the paper palette with a CSS filter on the
+  tile canvas only); swapping in self-hosted per-city PMTiles is a one-line source change.
 - `내 장소` is a fourth layer built from the browser's own store, not a file: a place is
   added one at a time by searching Nominatim (OpenStreetMap, ODbL, attributed in the panel)
   and picking a result, which supplies the coordinates. There is deliberately **no bulk

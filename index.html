@@ -18,6 +18,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Estela — Globe</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.css">
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.js"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500&family=Archivo:wght@400;500;600&display=swap">
 <style>
   /* ── Direction C + olive. Wine is me, olive is together, ink is the map. ── */
@@ -120,6 +122,27 @@
   .lrow.locked .ct{font-size:9px;letter-spacing:.4px}
   #layers .attrib{font-size:8.5px;color:var(--mute);margin-top:6px;line-height:1.5}
   @media (max-width:560px){#layers{display:none}}
+  /* ══ 골목 지도 ══ 도시 배율에서 무대를 넘겨받는다 */
+  /* 지구본 캔버스만. 그냥 canvas로 걸면 MapLibre의 캔버스까지 잡혀
+     z-index 1이 붙고, 그 위에 있어야 할 별들이 캔버스 밑으로 깔린다 */
+  body>canvas{position:fixed;inset:0;z-index:1;transition:opacity .45s ease}
+  #street{position:fixed;inset:0;z-index:2;opacity:0;pointer-events:none;
+    transition:opacity .5s ease}
+  /* OSM 기본 스타일은 초록·파랑이 강해 종이 팔레트와 부딪힌다 — 톤을 눌러 맞춘다.
+     필터는 타일 캔버스에만 건다. 컨테이너에 걸면 그 위의 별까지 같이 바래버린다 */
+  #street .maplibregl-canvas{filter:saturate(.32) sepia(.52) brightness(1.07) contrast(.9)}
+  #street.on{opacity:1;pointer-events:auto}
+  .maplibregl-ctrl-attrib{font:9px var(--sans)!important}
+  /* 골목 지도 위의 별 */
+  .smark{display:flex;flex-direction:column;align-items:center;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;filter:none}
+  .smark i{width:11px;height:11px;border-radius:999px;background:var(--c);
+    border:2px solid rgba(247,244,238,.95);box-shadow:0 1px 3px rgba(27,23,20,.35)}
+  .smark.stamped i{box-shadow:0 0 0 3px var(--c),0 1px 3px rgba(27,23,20,.35)}
+  .smark.saved i{background:transparent;border-color:var(--c);border-width:3px}
+  .smark span{margin-top:3px;font:600 10px var(--sans);color:var(--ink);
+    background:rgba(250,247,240,.88);padding:1px 5px;white-space:nowrap;
+    max-width:170px;overflow:hidden;text-overflow:ellipsis}
   /* ══ 여정 화면 — 전체를 차지한다. 지구본은 뒤에서 계속 돈다 ══ */
   #jview{position:fixed;inset:0;z-index:7;overflow:auto;
     background:linear-gradient(180deg,rgba(242,238,230,.90),rgba(242,238,230,.97) 22%);
@@ -206,6 +229,8 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 경계 <b id="res">110
   <span class="mbtn" data-v="2d">지도</span>
   <span class="mbtn" data-v="journey">여정</span>
 </div>
+
+<div id="street"></div>
 
 <div id="jview">
   <div id="jwrap">
@@ -819,7 +844,7 @@ function paintLayerPanel(){
       el.classList.toggle('off',!L.on);
       if(!L.on){L.pts.forEach(p=>{p.s.material.opacity=0;});
                 L.bubbles.forEach(b=>{b.visible=false;});}
-      markClusterDirty();}));
+      markClusterDirty();if(streetOn)paintStreetMarks();}));
   document.getElementById('lrows').innerHTML+=PENDING.map(p=>
     '<div class="lrow locked"><span class="dot" style="background:transparent;'
     +'border:1.5px dashed rgba(140,129,117,.7)"></span>'
@@ -1115,6 +1140,7 @@ const HINT={'3d':'드래그 회전 / 휠·핀치 줌','2d':'드래그 이동 / �
   'journey':'다녀온 별이 순서대로 이어집니다'};
 function setView(v){
   if(v===MODE||morphAnim)return;
+  if(streetOn&&v!=='2d')leaveStreet();   /* 3D나 여정을 누르면 골목에서 나온다 */
   MODE=v;
   document.querySelectorAll('#modebar .mbtn').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   document.getElementById('hint').textContent=HINT[v];
@@ -1131,7 +1157,8 @@ window.__dbg={labelObjs,camera,jStars,jRings,layerGroups,recluster,setView,setSt
   LADDER,pickLadder,visibleSpanDeg,getLadderIdx:()=>ladderIdx,tuneControls,rescaleMarkers,
   getControls:()=>controls,
   selectPlace,paintJourney,myCounts,keyOf,stampsOf,isSaved,getStore:()=>store,
-  updateLabels,bandFade,rebuildMine,
+  updateLabels,bandFade,rebuildMine,enterStreet,leaveStreet,
+  getStreet:()=>street,isStreetOn:()=>streetOn,streetZoomFor,
   getMorph:()=>MORPH,getView:()=>VIEW,getMode:()=>MODE,
   setVIEW:v=>{VIEW=v;configCamera();refreshClones();}}; /* 검증용 훅 */
 
@@ -1362,7 +1389,8 @@ function paintCard(){
   if(u)u.onclick=()=>{removeLastStamp(key);paintCard();afterRecord();};}
 function esc(t){return String(t==null?'':t).replace(/[&<>"]/g,
   c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-function afterRecord(){paintMine();markClusterDirty();paintJourney();}
+function afterRecord(){paintMine();markClusterDirty();paintJourney();
+  if(streetOn)paintStreetMarks();}
 
 /* HUD의 내 기록 요약 */
 function paintMine(){
@@ -1460,6 +1488,111 @@ const SAMPLE_STAMPS=(function(){
     +'<div class="stamp float" style="--r:'+rot(41)+';animation-delay:420ms">'
     +'<span class="n">HONG KONG</span><span class="d">날짜 미상</span></div>';})();
 
+/* ══════════════════════════════════════════════════════════════════
+   골목 지도 — 도시 배율에 닿으면 무대를 통째로 넘긴다.
+
+   왜 겹치지 않고 넘기는가: 우리 평면은 등장방형(위도를 그대로 편 것)이고
+   웹 지도는 웹 메르카토르다. 파리 위도에서 둘은 세로로 크게 어긋나므로
+   겹쳐 깔면 점과 거리가 안 맞는다. 좁은 범위에서는 투영 차이가 눈에 안 보이니,
+   각자 잘하는 배율을 맡긴다 — 세계는 등장방형, 골목은 메르카토르.
+
+   타일은 지금 OSM 래스터를 빌려 쓴다. 흐름을 증명하기 위한 것이고,
+   커지면 도시별 PMTiles를 우리가 만들어 얹는다 (source 한 줄 교체).
+   ══════════════════════════════════════════════════════════════════ */
+const STREET_IN=1.6, STREET_OUT=4.0;   /* 들어가는 각도 · 나오는 각도 (히스테리시스) */
+let street=null, streetOn=false, streetMarks=[], streetLock=false;
+
+function streetZoomFor(spanDeg,la){
+  /* 화면 세로에 spanDeg가 담기는 메르카토르 줌 */
+  const px=Math.max(1,innerHeight);
+  return Math.log2(360*px*Math.cos(la*D2R)/(256*spanDeg));}
+
+function ensureStreet(){
+  if(street||!window.maplibregl)return street;
+  street=new maplibregl.Map({
+    container:'street',
+    style:{version:8,
+      sources:{osm:{type:'raster',tileSize:256,maxzoom:19,
+        tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        attribution:'© OpenStreetMap contributors'}},
+      layers:[{id:'osm',type:'raster',source:'osm'}]},
+    center:[0,0],zoom:2,attributionControl:{compact:true}});
+  street.addControl(new maplibregl.NavigationControl({showCompass:false}),'bottom-right');
+  /* 사람이 골목 지도에서 끌고 다닌 위치를 지구본 쪽에도 반영해 둔다 */
+  street.on('load',()=>{if(streetOn)paintStreetMarks();});
+  street.on('idle',()=>{if(streetOn&&!streetMarks.length)paintStreetMarks();});
+  street.on('moveend',()=>{if(streetOn){syncBackFromStreet();paintStreetMarks();}});
+  street.on('zoomend',()=>{if(streetOn){syncBackFromStreet();maybeLeaveStreet();}});
+  return street;}
+
+function centerLatLon(){
+  if(VIEW==='2d')return [camera.position.y*90, camera.position.x/2*180];
+  const v=camera.position.clone().normalize();
+  const la=Math.asin(THREE.MathUtils.clamp(v.y,-1,1))/D2R;
+  let lo=Math.atan2(v.z,-v.x)/D2R-180;
+  return [la,((lo+540)%360)-180];}
+
+function enterStreet(){
+  const m=ensureStreet();if(!m)return;
+  const [la,lo]=centerLatLon();
+  const span=visibleSpanDeg();
+  m.jumpTo({center:[lo,la],zoom:streetZoomFor(span,la)});
+  streetOn=true;
+  document.getElementById('street').classList.add('on');
+  renderer.domElement.style.opacity='0';
+  document.getElementById('lvl').textContent='골목';
+  setTimeout(()=>{m.resize();paintStreetMarks();},80);
+  if(m.loaded())paintStreetMarks();}
+
+function leaveStreet(){
+  streetOn=false;
+  /* 나가자마자 배율이 그대로면 곧바로 다시 빨려 들어간다 — 충분히 물러날 때까지 잠근다 */
+  streetLock=true;
+  document.getElementById('street').classList.remove('on');
+  renderer.domElement.style.opacity='';
+  markClusterDirty();}
+
+function syncBackFromStreet(){
+  /* 골목에서 움직인 자리를 평면 카메라에 옮겨 적는다 — 빠져나올 때 이어지도록 */
+  if(!street)return;
+  const c=street.getCenter();
+  const spanDeg=360*innerHeight*Math.cos(c.lat*D2R)/(256*Math.pow(2,street.getZoom()));
+  const z=spanDeg/180*H2/(2*Math.tan(camera.fov*D2R/2));
+  camera.position.set(c.lng/180*(W2/2), c.lat/90*(H2/2), z);
+  controls.target.set(camera.position.x,camera.position.y,0);
+  camera.lookAt(controls.target);}
+
+function maybeLeaveStreet(){
+  if(!street)return;
+  const c=street.getCenter();
+  const spanDeg=360*innerHeight*Math.cos(c.lat*D2R)/(256*Math.pow(2,street.getZoom()));
+  if(spanDeg>STREET_OUT)leaveStreet();}
+
+/* 골목 지도 위의 별 — 같은 색, 같은 크기, 같은 클릭 동작 */
+function paintStreetMarks(){
+  if(!street)return;
+  streetMarks.forEach(m=>m.remove());streetMarks=[];
+  const b=street.getBounds();
+  layerGroups.forEach(L=>{
+    if(!L.on)return;
+    L.pts.forEach(p=>{
+      if(p.lo<b.getWest()||p.lo>b.getEast()||p.la<b.getSouth()||p.la>b.getNorth())return;
+      const k=keyOf(L,p.it),st=stampsOf(k).length;
+      const el=document.createElement('div');
+      el.className='smark'+(st?' stamped':'')+(isSaved(k)?' saved':'');
+      el.style.setProperty('--c',L.def.color);
+      el.innerHTML='<i></i><span>'+esc(p.it.n)+'</span>';
+      el.addEventListener('click',ev=>{ev.stopPropagation();selectPlace(L,p.it);});
+      streetMarks.push(new maplibregl.Marker({element:el,anchor:'bottom'})
+        .setLngLat([p.lo,p.la]).addTo(street));});});}
+
+/* 배율이 도시 아래로 내려가면 넘기고, 충분히 물러나면 되돌린다 */
+function maybeEnterStreet(){
+  if(streetLock){if(visibleSpanDeg()>STREET_OUT)streetLock=false;return;}
+  if(streetOn||morphAnim||MODE==='journey')return;
+  if(VIEW!=='2d')return;               /* 지구본에서는 먼저 평면으로 펴진 뒤에 */
+  if(visibleSpanDeg()<STREET_IN)enterStreet();}
+
 paintMine();paintJourney();          /* 선언이 모두 끝난 뒤 첫 그리기 */
 fitCamera(true);                     /* 창 크기에 맞춰 지구본을 프레임에 넣는다 */
 
@@ -1484,8 +1617,10 @@ function loop(now){
     journeyAlpha=jTween.from+(jTween.to-jTween.from)*p;
     if(p>=1)jTween=null;}
   /* 레이어 묶음은 카메라가 움직였을 때만 다시 계산한다 */
-  if(clusterDirty||jTween)recluster();
-  tuneControls();
+  if(!streetOn){
+    if(clusterDirty||jTween)recluster();
+    tuneControls();
+    maybeEnterStreet();}
   setLineO(jLine,journeyAlpha*.90);
   jRings.forEach(l=>setLineO(l,journeyAlpha*.85*(visibleSpanDeg()>9?1:0)));
   jStars.forEach(s=>{s.mesh.material.opacity=journeyAlpha;});
