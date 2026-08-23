@@ -360,16 +360,111 @@ async function addPaperBase(){
     paint:{'text-color':INK,'text-halo-color':PAPER,'text-halo-width':1.4,
       'text-opacity':['interpolate',['linear'],['zoom'],1,.85,5.5,.85,7.5,0]}});}
 
+/* ══ 도시 등급 ══ 유네스코 미식 창의도시는 가게가 아니라 도시다 ══
+   가게와 똑같은 점으로 찍으면 "여기 식당이 하나 있다"로 읽힌다. 거짓이다.
+   그래서 도시는 점선 고리로 그린다. 멀리서는 화면에 고정된 크기의 고리 아이콘,
+   도시 배율로 들어가면 땅 위에 그린 반경 10km 점선 원이 배어 나온다.
+   그 원은 행정 경계가 아니다 — '이 도시 전체'라는 뜻의 기호다. 카드에도 그렇게 적는다. */
+const CITY_KM = 10;
+
+/* 점선 고리를 캔버스로 굽는다. 안 간 곳은 점선, 간 곳은 실선에 가운데를 채운다 */
+function ringIcon(state){
+  const R=2, S=54, cv=document.createElement('canvas');
+  cv.width=cv.height=S*R;
+  const x=cv.getContext('2d'), r=S/2-5;
+  x.scale(R,R); x.translate(S/2,S/2);
+  x.beginPath(); x.arc(0,0,r,0,Math.PI*2);
+  x.fillStyle=state==='done'?'rgba(110,115,85,.22)':'rgba(110,115,85,.07)';
+  x.fill();
+  x.beginPath(); x.arc(0,0,r,0,Math.PI*2);
+  x.strokeStyle=OLIVE; x.lineWidth=state==='done'?3:1.8;
+  x.setLineDash(state==='done'?[]:[5,4.5]);
+  x.stroke();
+  if(state!=='off'){                      /* 도장 찍힌 도시엔 심지가 생긴다 */
+    x.setLineDash([]); x.beginPath();
+    x.arc(0,0,state==='done'?5:3.4,0,Math.PI*2);
+    x.fillStyle=OLIVE; x.fill();}
+  const d=x.getImageData(0,0,S*R,S*R);
+  return {img:{width:d.width,height:d.height,data:d.data},pr:R};}
+
+function addRingIcons(){
+  [['ucity','off'],['ucity-sv','save'],['ucity-on','done']].forEach(([id,st])=>{
+    if(map.hasImage(id))return;
+    const {img,pr}=ringIcon(st); map.addImage(id,img,{pixelRatio:pr});});}
+
+/* 반경 km의 지오데식 원 — 큰 원을 메르카토르에서 찌그러뜨리지 않으려면
+   화면 좌표가 아니라 지구 위에서 걸어야 한다 */
+function circlePoly(lon,lat,km,steps){
+  const R=6371, d=km/R, la=lat*Math.PI/180, lo=lon*Math.PI/180, out=[];
+  for(let i=0;i<=steps;i++){
+    const b=i/steps*Math.PI*2;
+    const l2=Math.asin(Math.sin(la)*Math.cos(d)+Math.cos(la)*Math.sin(d)*Math.cos(b));
+    const o2=lo+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(la),
+                           Math.cos(d)-Math.sin(la)*Math.sin(l2));
+    out.push([o2*180/Math.PI,l2*180/Math.PI]);}
+  return out;}
+
+function cityAreaFC(L){
+  return {type:'FeatureCollection',features:(L.items||[]).map(it=>{
+    const k=keyOf(L,it);
+    return {type:'Feature',properties:{done:stampsOf(k).length>0},
+      geometry:{type:'Polygon',coordinates:[circlePoly(it.lo,it.la,CITY_KM,72)]}};})};}
+
+/* 도시는 묶지 않는다. 36개를 뭉쳐 숫자를 붙이면 다시 가게 무더기처럼 보인다 */
+function addCityLayer(L){
+  layers.push(L);
+  addRingIcons();
+  map.addSource(L.id,{type:'geojson',data:fcOf(L)});
+  map.addSource(L.id+'@a',{type:'geojson',data:cityAreaFC(L)});
+
+  map.addLayer({id:L.id+'-ar',type:'fill',source:L.id+'@a',
+    paint:{'fill-color':OLIVE,
+      'fill-opacity':['interpolate',['linear'],['zoom'],
+        6,0, 8.5,['case',['get','done'],.13,.05]]}});
+  /* 점선/실선은 레이어를 나눈다. line-dasharray 는 지형별로 못 바꾸는 성질이라
+     조건식을 넣으면 타일 계산 도중에 터진다 */
+  map.addLayer({id:L.id+'-arl',type:'line',source:L.id+'@a',
+    filter:['!',['get','done']],
+    paint:{'line-color':OLIVE,'line-width':1.6,'line-dasharray':[2.4,2.2],
+      'line-opacity':['interpolate',['linear'],['zoom'],6,0,8.5,.9]}});
+  map.addLayer({id:L.id+'-arls',type:'line',source:L.id+'@a',
+    filter:['get','done'],
+    paint:{'line-color':OLIVE,'line-width':2.4,
+      'line-opacity':['interpolate',['linear'],['zoom'],6,0,8.5,.95]}});
+
+  map.addLayer({id:L.id+'-ring',type:'symbol',source:L.id,
+    layout:{'icon-image':['case',['get','done'],'ucity-on',
+                                 ['get','save'],'ucity-sv','ucity'],
+      'icon-size':['interpolate',['linear'],['zoom'],1,.36,4,.58,6.5,.8],
+      'icon-allow-overlap':true},
+    paint:{'icon-opacity':['interpolate',['linear'],['zoom'],6,1,8.5,0]}});
+
+  /* 도시 이름은 가게 이름과 다르게 조판한다 — 자간을 벌리고 대문자로.
+     같은 글꼴이라도 이렇게 짜면 '상호'가 아니라 '지명'으로 읽힌다 */
+  map.addLayer({id:L.id+'-lb',type:'symbol',source:L.id,minzoom:2.2,
+    layout:{'text-field':['get','n'],'text-font':['Noto Sans Regular'],
+      'text-size':['interpolate',['linear'],['zoom'],2.2,10,7,13],
+      'text-letter-spacing':.05,
+      'text-offset':[0,1.35],'text-anchor':'top','text-padding':6},
+    paint:{'text-color':OLIVE,'text-halo-color':PAPER,'text-halo-width':2,
+      'text-opacity':['interpolate',['linear'],['zoom'],9.5,1,11,0]}});
+
+  map.on('click',L.id+'-ring',e=>selectPlace(L,e.features[0].properties));
+  map.on('mouseenter',L.id+'-ring',()=>map.getCanvas().style.cursor='pointer');
+  map.on('mouseleave',L.id+'-ring',()=>map.getCanvas().style.cursor='');}
+
 /* ══ 정본 레이어 ══ 파일 하나 = 레이어 하나. 클러스터링은 내장을 쓴다 ══ */
 const layers=[];
 function featureOf(L,it){
   const k=keyOf(L,it);
   return {type:'Feature',properties:{n:it.n,ct:it.ct||'',c:it.c||'',q:it.q||it.n,cu:it.cu||'',w:it.w||'',
+    y:it.y||'',
     L:L.id,done:stampsOf(k).length>0,save:isSaved(k)},
     geometry:{type:'Point',coordinates:[it.lo,it.la]}};}
 function fcOf(L){return {type:'FeatureCollection',features:(L.items||[]).map(it=>featureOf(L,it))};}
 
 function addStarLayer(L){
+  if(L.grain==='city')return addCityLayer(L);
   layers.push(L);
   map.addSource(L.id,{type:'geojson',data:fcOf(L),cluster:true,
     clusterRadius:46,clusterMaxZoom:13,
@@ -394,15 +489,21 @@ function addStarLayer(L){
     paint:{'text-color':INK,'text-halo-color':PAPER,'text-halo-width':1.6}});
   /* 묶음은 눌러서 파고들고, 낱개는 카드를 연다 */
   map.on('click',L.id+'-cl',e=>{
-    const id=e.features[0].properties.cluster_id;
-    map.getSource(L.id).getClusterExpansionZoom(id).then(z=>
-      map.easeTo({center:e.features[0].geometry.coordinates,zoom:z,duration:700}));});
+    /* e.features 는 이 함수가 끝나면 사라진다. 비동기 뒤에 다시 읽으면 빈손이다 */
+    const f=e.features[0]; if(!f)return;
+    const id=f.properties.cluster_id, at=f.geometry.coordinates.slice();
+    map.getSource(L.id).getClusterExpansionZoom(id)
+      .then(z=>map.easeTo({center:at,zoom:z,duration:700}))
+      .catch(()=>map.easeTo({center:at,zoom:map.getZoom()+2,duration:700}));});
   map.on('click',L.id+'-pt',e=>selectPlace(L,e.features[0].properties));
   ['-cl','-pt'].forEach(sfx=>{
     map.on('mouseenter',L.id+sfx,()=>map.getCanvas().style.cursor='pointer');
     map.on('mouseleave',L.id+sfx,()=>map.getCanvas().style.cursor='');});}
 
-function refreshLayer(L){const s=map.getSource(L.id);if(s)s.setData(fcOf(L));}
+function refreshLayer(L){
+  const s=map.getSource(L.id);if(s)s.setData(fcOf(L));
+  const a=map.getSource(L.id+'@a');if(a)a.setData(cityAreaFC(L));}
+const LSFX=['-cl','-clt','-pt','-lb','-ring','-ar','-arl','-arls'];
 function refreshAll(){layers.forEach(refreshLayer);}
 
 /* ══ 내 장소 ══ 가이드에 없는 곳. 한 번에 한 곳씩, 사람이 넣는다 (§4) ══ */
@@ -446,18 +547,26 @@ function paintCard(){
   const el=$('card');
   if(!selected){el.classList.remove('on');return;}
   const {L,p,key}=selected,st=stampsOf(key),n=st.length;
+  const city=L.grain==='city';
   el.classList.add('on');
-  const bits=[p.ct,p.c].filter(Boolean).join(' · ');
+  const bits=city?[p.c,p.y?p.y+' 지정':''].filter(Boolean).join(' · ')
+                 :[p.ct,p.c].filter(Boolean).join(' · ');
   el.innerHTML='<button id="cx" aria-label="닫기">×</button>'
     +'<div class="src">'+esc(L.label)+(L.grade?' · '+L.grade:'')+'</div>'
     +'<h3>'+esc(p.n)+'</h3>'
     +(bits?'<div class="sub">'+esc(bits)+'</div>':'')
+    +(city?'<div class="sub" style="color:var(--dim);font-size:11.5px;margin-top:6px">'
+        +'가게가 아니라 <b>도시 전체</b>에 주어진 지정입니다. '
+        +'지도의 원은 행정 경계가 아니라 “이 도시”라는 표시입니다.</div>':'')
     +'<div class="mystamps">'+(n?st.map(v=>'<span>'+v.d.replace('-',' · ')+'</span>').join('')
-        :'<span style="border-color:rgba(140,129,117,.5);color:var(--dim)">아직 안 감</span>')+'</div>'
+        :'<span style="border-color:rgba(140,129,117,.5);color:var(--dim)">'
+         +(city?'아직 안 가봄':'아직 안 감')+'</span>')+'</div>'
     +'<div class="acts">'
-    +'<button id="cstamp" class="primary">'+(n?'또 도장 찍기':'도장 찍기')+'</button>'
+    +'<button id="cstamp" class="primary">'
+      +(n?'또 도장 찍기':(city?'이 도시에 도장 찍기':'도장 찍기'))+'</button>'
     +'<button id="csave" class="'+(isSaved(key)?'on':'')+'">'
-      +(isSaved(key)?'가고 싶은 곳에서 빼기':'가고 싶은 곳에 담기')+'</button>'
+      +(isSaved(key)?(city?'가고 싶은 도시에서 빼기':'가고 싶은 곳에서 빼기')
+                    :(city?'가고 싶은 도시에 담기':'가고 싶은 곳에 담기'))+'</button>'
     +(n?'<button id="cundo" class="quiet">마지막 도장 취소</button>':'')
     +'<button id="cgo" class="quiet">이 자리로 지도 옮기기</button>'
     +'</div>'
@@ -469,7 +578,9 @@ function paintCard(){
   $('csave').onclick=()=>{toggleSaved(key);after();};
   const u=$('cundo');if(u)u.onclick=()=>{removeLastStamp(key);after();};
   $('cgo').onclick=()=>{const f=(L.items||[]).find(i=>(i.q||i.n)===(p.q||p.n));
-    if(f)map.easeTo({center:[f.lo,f.la],zoom:Math.max(map.getZoom(),15),duration:900});};
+    /* 도시는 도시가 화면에 담기는 배율까지만 간다. 15까지 밀면 골목 한 칸이 보인다 */
+    if(f)map.easeTo({center:[f.lo,f.la],
+      zoom:city?Math.max(map.getZoom(),9.5):Math.max(map.getZoom(),15),duration:900});};
   function after(){paintCard();refreshAll();paintMine();paintJourney();}}
 
 /* ══ 레이어 패널 ══ */
@@ -477,10 +588,13 @@ const PENDING=[{label:'우리 그룹의 장소',note:'계정 필요'},{label:'�
 function paintPanel(){
   $('lrows').innerHTML=layers.map((L,i)=>{
     const mapped=(L.items||[]).length;
+    const unit=L.grain==='city'?' 도시':'';
     const ct=L.kind==='candidate'?L.total+' 후보'
-      :mapped<L.total?mapped+' / '+L.total:String(L.total);
+      :(mapped<L.total?mapped+' / '+L.total:String(L.total))+unit;
     return '<div class="lrow'+(L.on===false?' off':'')+'" data-i="'+i+'">'
-      +'<span class="dot" style="background:'+L.color+'"></span>'
+      +'<span class="dot" style="'+(L.grain==='city'
+          ?'background:transparent;border:1.5px dashed '+L.color
+          :'background:'+L.color)+'"></span>'
       +'<span class="nm">'+esc(L.label)+'</span><span class="ct">'+ct+'</span></div>';}).join('')
     +PENDING.map(p=>'<div class="lrow locked"><span class="dot" style="background:transparent;'
       +'border:1.5px dashed rgba(140,129,117,.7)"></span><span class="nm">'+p.label
@@ -488,7 +602,7 @@ function paintPanel(){
   $('lrows').querySelectorAll('.lrow:not(.locked)').forEach(el=>el.onclick=()=>{
     const L=layers[+el.dataset.i];L.on=(L.on===false);
     el.classList.toggle('off',!L.on);
-    ['-cl','-clt','-pt','-lb'].forEach(s=>{
+    LSFX.forEach(s=>{
       if(map.getLayer(L.id+s))map.setLayoutProperty(L.id+s,'visibility',L.on?'visible':'none');});});
   const gap=layers.filter(L=>(L.items||[]).length<L.total);
   $('lprov').innerHTML='출처 Wikidata · CC0 · 최종확인 '+((layers[0]||{}).lastVerified||'—')
@@ -602,8 +716,9 @@ function paintJourney(){
   const mine=myPlaces(),c=myCounts();
   const saved=[];layers.forEach(L=>(L.items||[]).forEach(it=>{if(isSaved(keyOf(L,it)))saved.push({L,it});}));
   const stat=(v,l)=>'<span class="st"><b>'+v+'</b>'+l+'</span>';
+  const cityOf=m=>m.L&&m.L.grain==='city'?m.it.n:m.it.ct;
   $('jsum').innerHTML=stat(new Set(mine.map(m=>m.it.c).filter(Boolean)).size,'나라')
-    +stat(new Set(mine.map(m=>m.it.ct).filter(Boolean)).size,'도시')
+    +stat(new Set(mine.map(cityOf).filter(Boolean)).size,'도시')
     +stat(c.places,'도장 찍은 곳')+stat(c.visits,'찍은 횟수')+stat(c.saved,'가고 싶은 곳');
   const el=$('jstops');
   if(mine.length){
@@ -635,7 +750,8 @@ function paintJourney(){
     +'그룹은 계정이 생기는 단계에서 열립니다. 그때 <b>“우리 모임 9명 중 4명”</b>이 여기 붙습니다.</div>'
     +(saved.length?'<div class="colh mt">가고 싶은 곳</div>'
       +saved.slice(0,8).map(s=>'<div class="wrow"><span class="wd" style="background:'+s.L.color+'"></span>'
-        +esc(s.it.n)+'<i>'+esc(s.it.ct||'')+'</i></div>').join(''):'');}
+        +esc(s.it.n)+'<i>'+esc(s.L&&s.L.grain==='city'?'도시 전체'
+                                :(s.it.ct||''))+'</i></div>').join(''):'');}
 
 const SAMPLE=(function(){
   const S=[['TOKYO','2023 · 05',2,true],['PARIS','2023 · 11',1,false],
@@ -655,7 +771,7 @@ map.on('load',async()=>{
   await addPaperBase();
   const defs=await Promise.all(LAYER_FILES.map(f=>fetch(f).then(r=>r.json()).catch(()=>null)));
   defs.filter(Boolean).forEach(d=>addStarLayer({
-    id:d.layer,label:d.label,color:d.color,grade:d.grade,kind:d.kind,
+    id:d.layer,label:d.label,color:d.color,grade:d.grade,kind:d.kind,grain:d.grain||'place',
     total:d.total||(d.items||[]).length,
     source:d.source,license:d.license,lastVerified:d.lastVerified,items:d.items}));
   addStarLayer(minePlacesLayer());
@@ -664,7 +780,7 @@ map.on('load',async()=>{
   $('res').textContent='50m';
   map.on('click',e=>{ /* 빈 곳을 누르면 카드를 닫는다 */
     const hit=map.queryRenderedFeatures(e.point,{layers:layers.flatMap(L=>
-      [L.id+'-pt',L.id+'-cl'].filter(i=>map.getLayer(i)))});
+      [L.id+'-pt',L.id+'-cl',L.id+'-ring'].filter(i=>map.getLayer(i)))});
     if(!hit.length)closeCard();});});
 
 /* FPS */
