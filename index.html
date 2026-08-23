@@ -305,7 +305,7 @@ fetch(TOPO_FAST).then(r=>r.json()).then(topo=>{
     const tier=T1.has(key)?1:T2.has(key)?2:3;
     const c=centroidOf(f);
     CENTROID.set(key,c);                /* 레이어 덩어리를 앉힐 자리 */
-    addLabel(nm.toUpperCase(),c[0],c[1],tier);});
+    addLabel(nm.toUpperCase(),c[0],c[1],tier,key);});
   loadLayers();                         /* 국경이 준비된 다음에 별을 얹는다 */
   setStageMorph(MORPH);                /* 새로 생긴 국경·라벨을 현재 뷰에 맞춘다 */
   refreshClones();
@@ -354,26 +354,29 @@ function buildBorders(topo){          /* 해상도가 바뀌면 통째로 다시
 function labelSprite(txt,tier){
   const c=document.createElement('canvas');c.width=640;c.height=96;
   const x=c.getContext('2d');
-  const size=tier===1?38:tier===2?30:tier===4?27:tier===5?22:23; /* 크기 = 위계 */
-  x.font=`${tier<=2?600:500} ${size}px Archivo,'Segoe UI',sans-serif`;
+  /* 나라 이름은 전부 같은 크기다. 크기로 서열을 매기면 '독일이 덴마크보다 미식에서 크다'는
+     거짓말이 되고, 별 개수 뱃지와 두 개의 위계가 충돌한다. 도시만 한 단계 작다 — 종류가 다른 것 */
+  const isCity=tier===4||tier===5;
+  const size=isCity?(tier===4?27:22):27;
+  x.font=`500 ${size}px Archivo,'Segoe UI',sans-serif`;
   x.textAlign='center';x.textBaseline='middle';
-  x.letterSpacing=tier===1?'4px':'2.5px';
+  x.letterSpacing='2.5px';
   x.lineWidth=7;x.strokeStyle='rgba(250,247,240,.92)';x.strokeText(txt,320,48); /* 종이색 헤일로 */
   /* 나라 이름은 먹빛, 도시 이름은 와인빛 — 축이 다르면 색도 다르다 */
-  x.fillStyle=tier===1?'rgba(27,23,20,.92)':tier===2?'rgba(27,23,20,.78)'
-    :tier===4?'rgba(122,34,51,.90)':tier===5?'rgba(122,34,51,.72)':'rgba(107,98,89,.72)';
+  x.fillStyle=tier===4?'rgba(122,34,51,.90)':tier===5?'rgba(122,34,51,.72)'
+    :'rgba(27,23,20,.86)';   /* 나라는 먹빛 하나, 도시는 와인빛 */
   x.fillText(txt,320,48);
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,
     depthTest:false,opacity:0})); /* 구에 잘리지 않음 — 노출은 페이드가 결정 */
   s.renderOrder=20;
-  const k=tier===1?.34:tier===2?.26:tier===4?.22:tier===5?.18:.20;
+  const k=tier===4?.22:tier===5?.18:.235;
   s.scale.set(k,k*96/640,1);return s;}
 const labelObjs=[];
-function addLabel(txt,la,lo,tier){
+function addLabel(txt,la,lo,tier,key){
   const s=labelSprite(txt,tier);
   s.position.copy(toV3(la,lo,R*1.012));
-  labelObjs.push({s,tier,la,lo,normal:sphV3(la,lo,1)});
+  labelObjs.push({s,tier,la,lo,key:key||null,normal:sphV3(la,lo,1)});
   stage.add(s);}
 /* 도시 — T4 주요 도시(줌<1.95) · T5 광역 주요 도시(줌<1.6) */
 const CITY4=[['SEOUL',37.5,127],['TOKYO',35.7,139.7],['NEW YORK',40.7,-74],['LONDON',51.5,-.1],
@@ -431,7 +434,9 @@ function clusterSprite(n,rgb){
   x.fillText(String(n),cx,cx+1);
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false,opacity:0}));
-  s.renderOrder=18;
+  /* 나라 이름과 같은 점에 앉으면 서로 가린다. 앵커를 아래로 내려 이름 위에 뜨게 한다 */
+  s.center.set(.5,0);
+  s.renderOrder=24;                     /* 라벨(20)보다 위 */
   const k=.052+.030*Math.sqrt(n)/Math.sqrt(31);
   s.scale.set(k,k,1);return s;}
 
@@ -457,6 +462,15 @@ function addLayer(def){
   if(missed.length)console.warn('[estela] 지도에서 못 찾은 나라:',missed.join(', '));
   return layerGroups[layerGroups.length-1];}
 
+/* 별이 있는 나라는 줌 단계를 올려 항상 보이게 한다.
+   지도의 서열은 경제 규모가 아니라 '여기 갈 데가 있는가'여야 한다 (§1 무대는 미식이다) */
+function promoteStarredCountries(){
+  const starred=new Set();
+  layerGroups.forEach(L=>(L.def.counts||[]).forEach(r=>{
+    if(r.match)starred.add(r.match.toLowerCase());}));
+  labelObjs.forEach(o=>{if(o.key&&starred.has(o.key)&&o.tier>1)o.tier=1;});
+  return starred.size;}
+
 function paintLayerPanel(){
   document.getElementById('lrows').innerHTML=layerGroups.map((L,i)=>
     `<div class="lrow${L.on?'':' off'}" data-i="${i}">`
@@ -475,6 +489,7 @@ function loadLayers(){
   Promise.all(LAYER_FILES.map(f=>fetch(f).then(r=>r.json()).catch(()=>null)))
     .then(defs=>{
       defs.filter(Boolean).forEach(d=>addLayer(d));
+      promoteStarredCountries();
       paintLayerPanel();
       const n=layerGroups.reduce((a,L)=>a+L.total,0);
       const el=document.getElementById('nstar');if(el)el.textContent=n;
