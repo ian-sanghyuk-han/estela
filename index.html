@@ -115,7 +115,7 @@
 </head>
 <body>
 <div id="hud"><span class="wm">ESTELA</span> — 미식 별 레이어는 이 위에 얹습니다<br>
-FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 경계 <b id="res">110m</b> · 별 <b id="nstar">—</b> · <span id="hint">드래그 회전 / 휠·핀치 줌</span></div>
+FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 경계 <b id="res">110m</b> · 별 <b id="nstar">—</b> · 단위 <b id="lvl">—</b> · <span id="hint">드래그 회전 / 휠·핀치 줌</span></div>
 
 <div id="modebar">
   <span class="mbtn on" data-v="3d">3D</span>
@@ -475,60 +475,122 @@ function addLayer(def){
   const L={def,g,rgb,pts,bubbles,on:true,mapped:pts.length,total:def.total||pts.length};
   layerGroups.push(L);return L;}
 
-/* ── 화면 좌표로 묶기 ──
-   3D 점을 화면에 투영해 격자에 담는다. 한 칸에 하나면 그 점을 그대로 보여주고,
-   둘 이상이면 점들을 감추고 그 자리에 개수만 띄운다. 줌이 들어가면 같은 칸에
-   있던 점들이 다른 칸으로 흩어지면서 묶음이 저절로 풀린다. */
-const CLUSTER_PX=52;
+/* ── 묶기 ──
+   회전해도 숫자가 흔들리면 안 된다. 화면 격자로 묶으면 점이 1px만 움직여도
+   칸이 바뀌고, 지구 뒷면으로 넘어간 점이 셈에서 빠지면서 숫자가 계속 요동친다.
+   그래서 두 가지를 바꿨다.
+   ① 묶음은 화면이 아니라 **위경도**로 짓는다 — 지구가 돌아도 무리가 그대로다.
+   ② 묶음 칸 크기는 **계단**으로만 바뀐다 — 줌을 부드럽게 넣어도 단계를 넘을 때만 재편된다.
+   ③ 숫자는 '지금 보이는 개수'가 아니라 '그 지역에 있는 개수'다. 뒷면으로 넘어가도 안 변한다.
+   계단이 곧 나라 → 도시 → 지역 → 좌표의 드릴다운 단계이기도 하다. */
+const LADDER=[
+  {deg:40,  name:'대륙'},
+  {deg:16,  name:'권역'},
+  {deg:6,   name:'나라'},
+  {deg:2,   name:'지방'},
+  {deg:.7,  name:'도시'},
+  {deg:.25, name:'지역'},
+  {deg:.08, name:'동네'},
+  {deg:0,   name:'좌표'}];
+let ladderIdx=-1;
 let clusterDirty=true;
 function markClusterDirty(){clusterDirty=true;}
 controls.addEventListener('change',markClusterDirty);
 addEventListener('resize',markClusterDirty);
+
+/* 화면에 담기는 각도 — 계단을 고르는 잣대 */
+function visibleSpanDeg(){
+  if(VIEW==='2d'){
+    const wh=2*Math.abs(camera.position.z)*Math.tan(camera.fov*D2R/2);
+    return Math.min(180,wh/H2*180);}
+  const d=Math.max(1.0001,camera.position.length());
+  const horizon=2*Math.acos(Math.min(1,R/d))/D2R;          /* 지평선까지 */
+  const fov=2*Math.atan(Math.tan(camera.fov*D2R/2))*(d-R)/R/D2R;
+  return Math.max(2,Math.min(horizon,fov*2,180));}
+
+function pickLadder(){
+  const span=visibleSpanDeg();
+  const want=span/14;                     /* 화면을 대략 14칸으로 */
+  let i=0;while(i<LADDER.length-1&&LADDER[i].deg>want)i++;
+  return i;}
+
+/* 위경도 격자로 묶는다 — 한 번 지으면 계단이 바뀔 때까지 그대로 쓴다 */
+function buildClusters(L,deg){
+  if(deg<=0)return L.pts.map(p=>({la:p.la,lo:p.lo,m:[p]}));
+  const cells=new Map();
+  L.pts.forEach(p=>{
+    const gy=Math.floor((p.la+90)/deg);
+    /* 경도 칸은 위도에 따라 넓어진다 — 안 그러면 고위도에서 잘게 쪼개진다 */
+    const wide=deg/Math.max(.15,Math.cos(p.la*D2R));
+    const gx=Math.floor((p.lo+180)/wide);
+    const k=gx+','+gy;
+    let a=cells.get(k);if(!a){a=[];cells.set(k,a);}
+    a.push(p);});
+  const out=[];
+  cells.forEach(a=>{
+    let la=0,lo=0;const lo0=a[0].lo;
+    a.forEach(p=>{la+=p.la;let dd=p.lo-lo0;
+      if(dd>180)dd-=360;else if(dd<-180)dd+=360;lo+=lo0+dd;});
+    out.push({la:la/a.length,lo:((lo/a.length+540)%360)-180,m:a});});
+  return out;}
+
+function rebuildClusters(){
+  const deg=LADDER[ladderIdx].deg;
+  layerGroups.forEach(L=>{L.clusters=buildClusters(L,deg);});
+  const el=document.getElementById('lvl');
+  if(el)el.textContent=LADDER[ladderIdx].name;}
+
 const _v=new THREE.Vector3();
 function recluster(){
-  const w=innerWidth||1,h=innerHeight||1;
+  const li=pickLadder();
+  if(li!==ladderIdx){ladderIdx=li;rebuildClusters();}
   const camDir=camera.position.clone().normalize();
-  const back=1-journeyAlpha*.72;        /* 여정 모드에서는 한 발 물러선다 */
+  const back=1-journeyAlpha*.72;          /* 여정 모드에서는 한 발 물러선다 */
   layerGroups.forEach(L=>{
     L.g.visible=L.on;
     if(!L.on)return;
-    const cells=new Map();
-    L.pts.forEach(p=>{
-      if(VIEW!=='2d'&&p.normal.dot(camDir)<.03){p.s.material.opacity=0;return;} /* 지구 뒷면 */
-      /* 펼쳐진 지도는 좌우로 끝없이 이어지므로, 점도 카메라에서 가장 가까운
-         주기로 옆으로 율긴다. 사본을 세 개 만드는 대신 하나를 옮기는 방식 */
-      if(VIEW==='2d'){
-        const base=flatV3(p.la,p.lo,PT_LIFT).x;
-        p.s.position.x=base+W2*Math.round((camera.position.x-base)/W2);}
-      _v.copy(p.s.position).project(camera);
-      if(_v.z>1||_v.x<-1.3||_v.x>1.3||_v.y<-1.3||_v.y>1.3){p.s.material.opacity=0;return;}
-      p.sx=(_v.x*.5+.5)*w;p.sy=(-_v.y*.5+.5)*h;
-      const k=Math.floor(p.sx/CLUSTER_PX)+','+Math.floor(p.sy/CLUSTER_PX);
-      let a=cells.get(k);if(!a){a=[];cells.set(k,a);}
-      a.push(p);});
+    if(!L.clusters)L.clusters=buildClusters(L,LADDER[ladderIdx].deg);
+    L.pts.forEach(p=>{p.s.material.opacity=0;});
     let bi=0;
-    cells.forEach(a=>{
-      if(a.length===1){a[0].s.material.opacity=.95*back;return;}
-      a.forEach(p=>{p.s.material.opacity=0;});          /* 묶인 점은 감춘다 */
-      if(bi>=L.bubbles.length){a.forEach(p=>{p.s.material.opacity=.95*back;});return;}
-      const b=L.bubbles[bi++];
-      /* 무리의 한가운데 — 경도는 날짜변경선을 넘어도 안전하게 평균 낸다 */
-      let la=0,lo=0;const lo0=a[0].lo;
-      a.forEach(p=>{la+=p.la;let d=p.lo-lo0;
-        if(d>180)d-=360;else if(d<-180)d+=360;lo+=lo0+d;});
-      la/=a.length;lo/=a.length;
-      b.position.copy(blendV3(la,((lo+540)%360)-180,PT_LIFT,MORPH));
-      if(VIEW==='2d')b.position.x=a[0].s.position.x
-        +(b.position.x-flatV3(a[0].la,a[0].lo,PT_LIFT).x);
-      b.material.map=bubbleTexture(a.length,L.rgb);
-      b.material.needsUpdate=true;
-      b.visible=true;b.material.opacity=.95*back;});
+    L.clusters.forEach(c=>{
+      /* 무리의 한가운데가 지구 뒷면이면 통째로 감춘다 — 숫자는 안 바뀐다 */
+      const nrm=sphV3(c.la,c.lo,1);
+      if(VIEW!=='2d'&&nrm.dot(camDir)<.03)return;
+      const single=c.m.length===1;
+      const host=single?c.m[0].s:(bi<L.bubbles.length?L.bubbles[bi++]:null);
+      if(!host)return;
+      if(!single){
+        host.position.copy(blendV3(c.la,c.lo,PT_LIFT,MORPH));
+        if(VIEW==='2d'){const base=flatV3(c.la,c.lo,PT_LIFT).x;
+          host.position.x=base+W2*Math.round((camera.position.x-base)/W2);}
+        host.material.map=bubbleTexture(c.m.length,L.rgb);
+        host.material.needsUpdate=true;host.visible=true;
+      }else if(VIEW==='2d'){
+        const base=flatV3(c.la,c.lo,PT_LIFT).x;
+        host.position.x=base+W2*Math.round((camera.position.x-base)/W2);}
+      /* 화면 밖이면 그린 값만 0으로 */
+      _v.copy(host.position).project(camera);
+      const onScreen=_v.z<=1&&_v.x>-1.3&&_v.x<1.3&&_v.y>-1.3&&_v.y<1.3;
+      host.material.opacity=onScreen?.95*back:0;});
     for(;bi<L.bubbles.length;bi++)L.bubbles[bi].visible=false;});
   clusterDirty=false;}
 
 function relayoutLayers(k){             /* 모핑: 점을 새 자리로 옮기고 다시 묶는다 */
   layerGroups.forEach(L=>L.pts.forEach(p=>p.s.position.copy(blendV3(p.la,p.lo,PT_LIFT,k))));
   markClusterDirty();}
+
+/* ── 파고들면 지구본이 스스로 펼쳐진다 ──
+   구를 계속 확대하면 결국 평면과 다를 게 없어지고, 그때부터는 회전보다 이동이 편하다.
+   '도시' 계단에 닿으면 한 번만 지도로 넘어간다. 되돌아가는 건 사람이 누른다 —
+   경계에서 자동으로 왔다 갔다 하면 조작을 빼앗긴 느낌이 든다. */
+const AUTO_FLAT_LEVEL=4;                /* LADDER 인덱스 — '도시' */
+let autoFlatDone=false;
+function maybeAutoFlatten(){
+  if(VIEW!=='3d'||morphAnim||MODE==='journey')return;
+  if(ladderIdx>=AUTO_FLAT_LEVEL&&!autoFlatDone){
+    autoFlatDone=true;
+    setView('2d');}
+  if(ladderIdx<AUTO_FLAT_LEVEL-1)autoFlatDone=false;}   /* 충분히 물러나면 다시 무장 */
 
 /* 별이 있는 나라는 줌 단계를 올려 항상 보이게 한다.
    지도의 서열은 경제 규모가 아니라 '여기 갈 데가 있는가'여야 한다 */
@@ -799,6 +861,7 @@ document.querySelectorAll('#modebar .mbtn').forEach(b=>
   b.addEventListener('click',()=>setView(b.dataset.v)));
 
 window.__dbg={labelObjs,camera,jStars,jRings,layerGroups,recluster,setView,setStageMorph,
+  LADDER,pickLadder,visibleSpanDeg,getLadderIdx:()=>ladderIdx,maybeAutoFlatten,
   getMorph:()=>MORPH,getView:()=>VIEW,getMode:()=>MODE,
   setVIEW:v=>{VIEW=v;configCamera();refreshClones();}}; /* 검증용 훅 */
 
@@ -848,8 +911,8 @@ function loop(now){
     const p=Math.min(1,(now-jTween.t0)/jTween.dur);
     journeyAlpha=jTween.from+(jTween.to-jTween.from)*p;
     if(p>=1)jTween=null;}
-  /* 레이어 점 묶음은 카메라가 움직였을 때만 다시 계산한다 */
-  if(clusterDirty||jTween)recluster();
+  /* 레이어 묶음은 카메라가 움직였을 때만 다시 계산한다 */
+  if(clusterDirty||jTween){recluster();maybeAutoFlatten();}
   setLineO(jLine,journeyAlpha*.90);
   jRings.forEach(l=>setLineO(l,journeyAlpha*.85));
   jStars.forEach(s=>{s.mesh.material.opacity=journeyAlpha;});
