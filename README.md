@@ -14,9 +14,14 @@ visited stars light up and connect into a personal trail — the *estela*.
   and the trail all carry the same `p0`/`p1` pair. **JOURNEY** draws great-circle arcs
   between visited stars in date order, with undated stars left lit but unthreaded (§5.3.3).
 - `data/*.json` — canon layers as **static snapshots**, read at load and drawn as one
-  toggleable group each. The first one is the world's Michelin 3-star count **by country**
-  (140 across 19 countries), derived from Wikidata (CC0) — aggregate counts, not a place
-  database. Per-restaurant coordinates land later, in the same file format (`grain:"place"`).
+  toggleable group each. Two ship today, both from Wikidata (CC0): the world's Michelin
+  3-star restaurants (140, individually placed) and the UNESCO Cities of Gastronomy
+  (36 of the official 56 carry coordinates; the panel shows both numbers).
+- Markers are **one fixed size** — never scaled by count. Points that land within 52 screen
+  pixels of each other collapse into a single count bubble, and separate again on zoom, so
+  the globe shows "how many here" far out and "exactly where" close in. In MAP mode a point
+  is shifted to whichever ±W2 period is nearest the camera, so the endlessly tiling map
+  never runs out of points.
 - The JOURNEY trail runs on a labelled **sample** of city coordinates. No restaurant names
   and no guide-sourced text exist anywhere in this repo.
 - `check.html` — device diagnostic (iOS version, import-map support, WebGL, CDN reach).

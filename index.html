@@ -411,34 +411,42 @@ const cityIM=new THREE.InstancedMesh(new THREE.SphereGeometry(.0038,8,8),
    정본 레이어 (§3) — 정적 JSON 스냅샷을 읽어 지구본에 얹는 장치.
    가이드 서버에 실시간으로 접속하지 않는다. 파일만 갈아끼우면 된다.
 
-   지금 실린 것은 국가별 집계뿐이다 (grain:"country"). §5.6/화면규칙대로
-   지구본 배율에서는 개별 별이 아니라 덩어리와 개수만 보여주는 것이 맞고,
-   개별 좌표는 오너 승인 후 같은 형식의 파일로 추가된다 (grain:"place").
+   표시 규칙 (화면규칙 판에서 정한 것):
+   · 점 하나의 크기는 언제나 같다. 크기로 개수를 말하지 않는다 —
+     나라 이름 크기를 균일하게 한 것과 같은 이유다. 위계 축이 둘이면 안 읽힌다.
+   · 화면에서 서로 가까운 점들은 하나로 묶여 개수만 뜬다. 줌을 넣어 서로
+     떨어지면 묶음이 저절로 풀리고 각자 제 좌표에 선다.
+   · 색은 레이어가 정한다 (§3.1 — 색은 레이어, 세기는 등급).
    ══════════════════════════════════════════════════════════════════ */
-const LAYER_FILES=['data/michelin-3star-by-country.json'];
+const LAYER_FILES=['data/michelin-3star.json','data/unesco-gastronomy.json'];
 const CENTROID=new Map();               /* 나라 이름(소문자) → [위도, 경도] */
-const layerG=new THREE.Group();stage.add(layerG);
-const layerMarks=[];                    /* {la,lo,s,lift,group} — 모핑 때 자리를 다시 잡는다 */
+const layerG=new THREE.Group();scene.add(layerG); /* 무대 밖 — 좌우 복제본에 끌려가지 않게 */
 const layerGroups=[];
+const PT_LIFT=R*1.016;
+const DOT_K=.026,BUB_K=.062;            /* 점·묶음의 화면 크기 — 개수와 무관하게 고정 */
 
-function clusterSprite(n,rgb){
-  /* 덩어리 표식: 옅은 후광 + 진한 알 + 개수. 크기는 √n — 31곳이 1곳의 31배가 되면 안 된다 */
-  const S=160,c=document.createElement('canvas');c.width=c.height=S;
+function dotTexture(rgb){               /* 점 하나: 어느 레이어든 같은 크기 */
+  const S=64,c=document.createElement('canvas');c.width=c.height=S;
+  const x=c.getContext('2d');
+  x.beginPath();x.arc(S/2,S/2,S*.30,0,Math.PI*2);
+  x.fillStyle='rgb('+rgb+')';x.fill();
+  x.lineWidth=S*.075;x.strokeStyle='rgba(247,244,238,.92)';x.stroke();
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;}
+
+const bubbleCache=new Map();
+function bubbleTexture(n,rgb){          /* 묶음 표식: 개수가 몇이든 크기가 같다 */
+  const key=n+'|'+rgb;if(bubbleCache.has(key))return bubbleCache.get(key);
+  const S=128,c=document.createElement('canvas');c.width=c.height=S;
   const x=c.getContext('2d'),cx=S/2;
-  x.beginPath();x.arc(cx,cx,S*.40,0,Math.PI*2);x.fillStyle=`rgba(${rgb},.16)`;x.fill();
-  x.beginPath();x.arc(cx,cx,S*.40,0,Math.PI*2);x.strokeStyle=`rgba(${rgb},.42)`;x.lineWidth=2;x.stroke();
-  const rr=n>=10?S*.255:n>=3?S*.215:S*.175;
-  x.beginPath();x.arc(cx,cx,rr,0,Math.PI*2);x.fillStyle=`rgb(${rgb})`;x.fill();
-  x.font=`600 ${n>=10?46:52}px Archivo,'Segoe UI',sans-serif`;
+  x.beginPath();x.arc(cx,cx,S*.44,0,Math.PI*2);x.fillStyle='rgba('+rgb+',.15)';x.fill();
+  x.beginPath();x.arc(cx,cx,S*.335,0,Math.PI*2);x.fillStyle='rgb('+rgb+')';x.fill();
+  x.lineWidth=S*.035;x.strokeStyle='rgba(247,244,238,.92)';x.stroke();
+  const txt=n>999?'999+':String(n);
+  x.font='600 '+(txt.length>=3?36:txt.length===2?44:48)+"px Archivo,'Segoe UI',sans-serif";
   x.textAlign='center';x.textBaseline='middle';x.fillStyle='#F7F4EE';
-  x.fillText(String(n),cx,cx+1);
+  x.fillText(txt,cx,cx+1);
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
-  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false,opacity:0}));
-  /* 나라 이름과 같은 점에 앉으면 서로 가린다. 앵커를 아래로 내려 이름 위에 뜨게 한다 */
-  s.center.set(.5,0);
-  s.renderOrder=24;                     /* 라벨(20)보다 위 */
-  const k=.052+.030*Math.sqrt(n)/Math.sqrt(31);
-  s.scale.set(k,k,1);return s;}
+  bubbleCache.set(key,t);return t;}
 
 function hexToRgb(h){h=h.replace('#','');
   return [0,2,4].map(i=>parseInt(h.slice(i,i+2),16)).join(',');}
@@ -446,54 +454,117 @@ function hexToRgb(h){h=h.replace('#','');
 function addLayer(def){
   const rgb=hexToRgb(def.color||'#7A2233');
   const g=new THREE.Group();layerG.add(g);
-  let placed=0,missed=[];
-  (def.counts||[]).forEach(row=>{
-    let la=row.la,lo=row.lo;
-    if(row.match){const c=CENTROID.get(row.match.toLowerCase());
-      if(c){la=c[0];lo=c[1];}}
-    if(la===undefined||lo===undefined){missed.push(row.country);return;}
-    const s=clusterSprite(row.n,rgb);
-    s.position.copy(blendV3(la,lo,R*1.020,MORPH));
+  const tex=dotTexture(rgb);
+  const pts=(def.items||[]).filter(it=>isFinite(it.la)&&isFinite(it.lo)).map(it=>{
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false,opacity:0}));
+    s.renderOrder=22;s.scale.set(DOT_K,DOT_K,1);
+    s.position.copy(blendV3(it.la,it.lo,PT_LIFT,MORPH));
     g.add(s);
-    layerMarks.push({la,lo,s,lift:R*1.020,group:g,normal:sphV3(la,lo,1)});
-    placed++;});
-  const total=(def.counts||[]).reduce((a,b)=>a+b.n,0);
-  layerGroups.push({def,g,on:true,placed,total,missed});
-  if(missed.length)console.warn('[estela] 지도에서 못 찾은 나라:',missed.join(', '));
-  return layerGroups[layerGroups.length-1];}
+    return {la:it.la,lo:it.lo,it,s,normal:sphV3(it.la,it.lo,1),sx:0,sy:0};});
+  /* 묶음 표식은 미리 만들어 돌려 쓴다 — 매 프레임 새로 만들면 폰이 죽는다 */
+  const bubbles=[];
+  const need=Math.min(80,Math.ceil(pts.length/2)+6);
+  for(let i=0;i<need;i++){
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({transparent:true,depthTest:false,opacity:0}));
+    s.renderOrder=25;s.scale.set(BUB_K,BUB_K,1);s.visible=false;g.add(s);bubbles.push(s);}
+  const L={def,g,rgb,pts,bubbles,on:true,mapped:pts.length,total:def.total||pts.length};
+  layerGroups.push(L);return L;}
+
+/* ── 화면 좌표로 묶기 ──
+   3D 점을 화면에 투영해 격자에 담는다. 한 칸에 하나면 그 점을 그대로 보여주고,
+   둘 이상이면 점들을 감추고 그 자리에 개수만 띄운다. 줌이 들어가면 같은 칸에
+   있던 점들이 다른 칸으로 흩어지면서 묶음이 저절로 풀린다. */
+const CLUSTER_PX=52;
+let clusterDirty=true;
+function markClusterDirty(){clusterDirty=true;}
+controls.addEventListener('change',markClusterDirty);
+addEventListener('resize',markClusterDirty);
+const _v=new THREE.Vector3();
+function recluster(){
+  const w=innerWidth||1,h=innerHeight||1;
+  const camDir=camera.position.clone().normalize();
+  const back=1-journeyAlpha*.72;        /* 여정 모드에서는 한 발 물러선다 */
+  layerGroups.forEach(L=>{
+    L.g.visible=L.on;
+    if(!L.on)return;
+    const cells=new Map();
+    L.pts.forEach(p=>{
+      if(VIEW!=='2d'&&p.normal.dot(camDir)<.03){p.s.material.opacity=0;return;} /* 지구 뒷면 */
+      /* 펼쳐진 지도는 좌우로 끝없이 이어지므로, 점도 카메라에서 가장 가까운
+         주기로 옆으로 율긴다. 사본을 세 개 만드는 대신 하나를 옮기는 방식 */
+      if(VIEW==='2d'){
+        const base=flatV3(p.la,p.lo,PT_LIFT).x;
+        p.s.position.x=base+W2*Math.round((camera.position.x-base)/W2);}
+      _v.copy(p.s.position).project(camera);
+      if(_v.z>1||_v.x<-1.3||_v.x>1.3||_v.y<-1.3||_v.y>1.3){p.s.material.opacity=0;return;}
+      p.sx=(_v.x*.5+.5)*w;p.sy=(-_v.y*.5+.5)*h;
+      const k=Math.floor(p.sx/CLUSTER_PX)+','+Math.floor(p.sy/CLUSTER_PX);
+      let a=cells.get(k);if(!a){a=[];cells.set(k,a);}
+      a.push(p);});
+    let bi=0;
+    cells.forEach(a=>{
+      if(a.length===1){a[0].s.material.opacity=.95*back;return;}
+      a.forEach(p=>{p.s.material.opacity=0;});          /* 묶인 점은 감춘다 */
+      if(bi>=L.bubbles.length){a.forEach(p=>{p.s.material.opacity=.95*back;});return;}
+      const b=L.bubbles[bi++];
+      /* 무리의 한가운데 — 경도는 날짜변경선을 넘어도 안전하게 평균 낸다 */
+      let la=0,lo=0;const lo0=a[0].lo;
+      a.forEach(p=>{la+=p.la;let d=p.lo-lo0;
+        if(d>180)d-=360;else if(d<-180)d+=360;lo+=lo0+d;});
+      la/=a.length;lo/=a.length;
+      b.position.copy(blendV3(la,((lo+540)%360)-180,PT_LIFT,MORPH));
+      if(VIEW==='2d')b.position.x=a[0].s.position.x
+        +(b.position.x-flatV3(a[0].la,a[0].lo,PT_LIFT).x);
+      b.material.map=bubbleTexture(a.length,L.rgb);
+      b.material.needsUpdate=true;
+      b.visible=true;b.material.opacity=.95*back;});
+    for(;bi<L.bubbles.length;bi++)L.bubbles[bi].visible=false;});
+  clusterDirty=false;}
+
+function relayoutLayers(k){             /* 모핑: 점을 새 자리로 옮기고 다시 묶는다 */
+  layerGroups.forEach(L=>L.pts.forEach(p=>p.s.position.copy(blendV3(p.la,p.lo,PT_LIFT,k))));
+  markClusterDirty();}
 
 /* 별이 있는 나라는 줌 단계를 올려 항상 보이게 한다.
-   지도의 서열은 경제 규모가 아니라 '여기 갈 데가 있는가'여야 한다 (§1 무대는 미식이다) */
+   지도의 서열은 경제 규모가 아니라 '여기 갈 데가 있는가'여야 한다 */
 function promoteStarredCountries(){
   const starred=new Set();
-  layerGroups.forEach(L=>(L.def.counts||[]).forEach(r=>{
-    if(r.match)starred.add(r.match.toLowerCase());}));
+  layerGroups.forEach(L=>(L.def.items||[]).forEach(r=>{
+    if(r.c)starred.add(String(r.c).toLowerCase());}));
+  [['united states','united states of america'],['china','china'],
+   ['czech republic','czechia']].forEach(pair=>{if(starred.has(pair[0]))starred.add(pair[1]);});
   labelObjs.forEach(o=>{if(o.key&&starred.has(o.key)&&o.tier>1)o.tier=1;});
   return starred.size;}
 
 function paintLayerPanel(){
-  document.getElementById('lrows').innerHTML=layerGroups.map((L,i)=>
-    `<div class="lrow${L.on?'':' off'}" data-i="${i}">`
-    +`<span class="dot"></span><span class="nm">${L.def.label}</span>`
-    +`<span class="ct">${L.total}</span></div>`).join('');
+  document.getElementById('lrows').innerHTML=layerGroups.map((L,i)=>{
+    const ct=L.mapped<L.total?L.mapped+' / '+L.total:String(L.total);
+    return '<div class="lrow'+(L.on?'':' off')+'" data-i="'+i+'">'
+      +'<span class="dot" style="background:'+L.def.color+'"></span>'
+      +'<span class="nm">'+L.def.label+'</span><span class="ct">'+ct+'</span></div>';}).join('');
   document.querySelectorAll('#lrows .lrow').forEach(el=>
     el.addEventListener('click',()=>{
       const L=layerGroups[+el.dataset.i];L.on=!L.on;
-      el.classList.toggle('off',!L.on);}));
-  const L=layerGroups[0];
-  document.getElementById('lprov').innerHTML=L
-    ? `출처 ${L.def.source.split('(')[0].trim()} · ${L.def.license}<br>최종확인 ${L.def.lastVerified} · 국가별 집계`
-    : '';}
+      el.classList.toggle('off',!L.on);
+      if(!L.on){L.pts.forEach(p=>{p.s.material.opacity=0;});
+                L.bubbles.forEach(b=>{b.visible=false;});}
+      markClusterDirty();}));
+  const gap=layerGroups.filter(L=>L.mapped<L.total);
+  document.getElementById('lprov').innerHTML=
+    '출처 Wikidata · CC0 · 최종확인 '+((layerGroups[0]||{def:{}}).def.lastVerified||'—')
+    +(gap.length?'<br>'+gap.map(L=>L.def.label+' '+L.mapped+'/'+L.total).join(' · ')+' — 좌표 있는 것만 표시':'')
+    +'<br>우리가 평가하지 않습니다';}
 
 function loadLayers(){
-  Promise.all(LAYER_FILES.map(f=>fetch(f).then(r=>r.json()).catch(()=>null)))
+  Promise.all(LAYER_FILES.map(f=>fetch(f).then(r=>r.json()).catch(e=>{
+    console.warn('[estela] 레이어 로드 실패',f,e);return null;})))
     .then(defs=>{
       defs.filter(Boolean).forEach(d=>addLayer(d));
       promoteStarredCountries();
       paintLayerPanel();
-      const n=layerGroups.reduce((a,L)=>a+L.total,0);
-      const el=document.getElementById('nstar');if(el)el.textContent=n;
-      setStageMorph(MORPH);});}
+      const el=document.getElementById('nstar');
+      if(el)el.textContent=layerGroups.reduce((a,L)=>a+L.total,0);
+      relayoutLayers(MORPH);});}
 
 /* ══════════════════════════════════════════════════════════════════
    여정 (§5.3) — 도장(사실)과 여정선(서사)은 다른 물건이다.
@@ -628,7 +699,7 @@ function setStageMorph(k){
   setLerpGeo(baseGeo,BP0,BP1,k);      /* 바탕 격자만 CPU — 5.6만 개라 가볍다 */
   setLineK(innerL,k);setLineK(coastL,k);setLineK(jLine,k); /* 선은 GPU가 접는다 */
   jRings.forEach(l=>setLineK(l,k));
-  layerMarks.forEach(m=>m.s.position.copy(blendV3(m.la,m.lo,m.lift,k)));
+  relayoutLayers(k);
   labelObjs.forEach(o=>o.s.position.copy(blendV3(o.la,o.lo,R*1.012,k)));
   jStars.forEach(s=>s.mesh.position.copy(blendV3(s.la,s.lo,R+s.lift,k)));
   const d3=new THREE.Object3D();
@@ -705,7 +776,7 @@ function setView(v){
 document.querySelectorAll('#modebar .mbtn').forEach(b=>
   b.addEventListener('click',()=>setView(b.dataset.v)));
 
-window.__dbg={labelObjs,camera,jStars,jRings,layerGroups,layerMarks,setView,setStageMorph,
+window.__dbg={labelObjs,camera,jStars,jRings,layerGroups,recluster,setView,setStageMorph,
   getMorph:()=>MORPH,getView:()=>VIEW,getMode:()=>MODE,
   setVIEW:v=>{VIEW=v;configCamera();refreshClones();}}; /* 검증용 훅 */
 
@@ -755,14 +826,8 @@ function loop(now){
     const p=Math.min(1,(now-jTween.t0)/jTween.dur);
     journeyAlpha=jTween.from+(jTween.to-jTween.from)*p;
     if(p>=1)jTween=null;}
-  /* 덩어리 표식: 지구 뒷면이면 사라지고, 여정 모드에서는 한 발 물러선다 */
-  {const camDir=camera.position.clone().normalize();
-   const back=1-journeyAlpha*.72;
-   layerGroups.forEach(L=>{L.g.visible=L.on;});
-   layerMarks.forEach(m=>{
-     const facing=VIEW==='2d'?1:m.normal.dot(camDir);
-     const fade=VIEW==='2d'?1:THREE.MathUtils.smoothstep(facing,.02,.30);
-     m.s.material.opacity=fade*back;});}
+  /* 레이어 점 묶음은 카메라가 움직였을 때만 다시 계산한다 */
+  if(clusterDirty||jTween)recluster();
   setLineO(jLine,journeyAlpha*.90);
   jRings.forEach(l=>setLineO(l,journeyAlpha*.85));
   jStars.forEach(s=>{s.mesh.material.opacity=journeyAlpha;});

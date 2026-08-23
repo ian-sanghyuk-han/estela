@@ -1,0 +1,304 @@
+{
+ "layer": "unesco-gastronomy",
+ "label": "유네스코 미식 창의도시",
+ "grain": "place",
+ "color": "#6E7355",
+ "intensity": 2,
+ "source": "UNESCO Creative Cities Network (City of Gastronomy) via Wikidata",
+ "license": "CC0",
+ "sourceUrl": "https://www.unesco.org/en/creative-cities",
+ "lastVerified": "2026-08-23",
+ "total": 56,
+ "mapped": 36,
+ "note": "유네스코 공식 지정 56곳 중 위키데이터에 좌표가 있는 것만 표시합니다. 분모는 56이 맞습니다.",
+ "items": [
+  {
+   "n": "Bendigo",
+   "la": -36.75,
+   "lo": 144.2667,
+   "c": "Australia",
+   "y": "2019",
+   "q": "Q497793"
+  },
+  {
+   "n": "Cochabamba",
+   "la": -17.3935,
+   "lo": -66.157,
+   "c": "Bolivia",
+   "y": "2017",
+   "q": "Q183124"
+  },
+  {
+   "n": "Belo Horizonte",
+   "la": -19.9281,
+   "lo": -43.9419,
+   "c": "Brazil",
+   "y": "2019",
+   "q": "Q42800"
+  },
+  {
+   "n": "Belém",
+   "la": -1.4558,
+   "lo": -48.5039,
+   "c": "Brazil",
+   "y": "2015",
+   "q": "Q12829733"
+  },
+  {
+   "n": "Florianópolis",
+   "la": -27.5933,
+   "lo": -48.553,
+   "c": "Brazil",
+   "y": "2014",
+   "q": "Q132997"
+  },
+  {
+   "n": "Paraty",
+   "la": -23.2194,
+   "lo": -44.7147,
+   "c": "Brazil",
+   "y": "2017",
+   "q": "Q926729"
+  },
+  {
+   "n": "Buenaventura",
+   "la": 3.8772,
+   "lo": -77.0267,
+   "c": "Colombia",
+   "y": "2017",
+   "q": "Q996581"
+  },
+  {
+   "n": "Popayán",
+   "la": 2.4542,
+   "lo": -76.6092,
+   "c": "Colombia",
+   "y": "2005",
+   "q": "Q335135"
+  },
+  {
+   "n": "Portoviejo",
+   "la": -1.0544,
+   "lo": -80.4544,
+   "c": "Ecuador",
+   "y": "2019",
+   "q": "Q990716"
+  },
+  {
+   "n": "Hyderabad",
+   "la": 17.3617,
+   "lo": 78.4747,
+   "c": "India",
+   "y": "2019",
+   "q": "Q1361"
+  },
+  {
+   "n": "Rasht",
+   "la": 37.2761,
+   "lo": 49.5886,
+   "c": "Iran",
+   "y": "2015",
+   "q": "Q178373"
+  },
+  {
+   "n": "Bergamo",
+   "la": 45.695,
+   "lo": 9.67,
+   "c": "Italy",
+   "y": "2019",
+   "q": "Q628"
+  },
+  {
+   "n": "Parma",
+   "la": 44.8015,
+   "lo": 10.328,
+   "c": "Italy",
+   "y": "2015",
+   "q": "Q2683"
+  },
+  {
+   "n": "Tsuruoka",
+   "la": 38.7272,
+   "lo": 139.8267,
+   "c": "Japan",
+   "y": "2014",
+   "q": "Q734416"
+  },
+  {
+   "n": "Zahlé",
+   "la": 33.8439,
+   "lo": 35.9072,
+   "c": "Lebanon",
+   "y": "2013",
+   "q": "Q26569"
+  },
+  {
+   "n": "Ensenada",
+   "la": 31.8578,
+   "lo": -116.6058,
+   "c": "Mexico",
+   "y": "2015",
+   "q": "Q656189"
+  },
+  {
+   "n": "Mérida",
+   "la": 20.97,
+   "lo": -89.62,
+   "c": "Mexico",
+   "y": "2019",
+   "q": "Q165204"
+  },
+  {
+   "n": "Bergen",
+   "la": 60.3925,
+   "lo": 5.3233,
+   "c": "Norway",
+   "y": "2015",
+   "q": "Q26793"
+  },
+  {
+   "n": "Panama City",
+   "la": 8.9711,
+   "lo": -79.5347,
+   "c": "Panama",
+   "y": "2017",
+   "q": "Q3306"
+  },
+  {
+   "n": "Chengdu",
+   "la": 30.66,
+   "lo": 104.0633,
+   "c": "People's Republic of China",
+   "y": "2010",
+   "q": "Q30002"
+  },
+  {
+   "n": "Macau",
+   "la": 22.19,
+   "lo": 113.5381,
+   "c": "People's Republic of China",
+   "y": "2017",
+   "q": "Q14773"
+  },
+  {
+   "n": "Shunde District",
+   "la": 22.7957,
+   "lo": 113.2849,
+   "c": "People's Republic of China",
+   "y": "2014",
+   "q": "Q945428"
+  },
+  {
+   "n": "Yangzhou",
+   "la": 32.3912,
+   "lo": 119.4363,
+   "c": "People's Republic of China",
+   "y": "2019",
+   "q": "Q57906"
+  },
+  {
+   "n": "Arequipa",
+   "la": -16.3989,
+   "lo": -71.5369,
+   "c": "Peru",
+   "y": "2019",
+   "q": "Q159273"
+  },
+  {
+   "n": "Hermanus",
+   "la": -34.4167,
+   "lo": 19.3,
+   "c": "South Africa",
+   "y": "2019",
+   "q": "Q1613480"
+  },
+  {
+   "n": "Jeonju",
+   "la": 35.8239,
+   "lo": 127.1475,
+   "c": "South Korea",
+   "y": "2012",
+   "q": "Q42140"
+  },
+  {
+   "n": "Burgos",
+   "la": 42.3408,
+   "lo": -3.6997,
+   "c": "Spain",
+   "y": "2015",
+   "q": "Q9580"
+  },
+  {
+   "n": "Dénia",
+   "la": 38.8403,
+   "lo": 0.1086,
+   "c": "Spain",
+   "y": "2015",
+   "q": "Q646725"
+  },
+  {
+   "n": "Östersund",
+   "la": 63.1792,
+   "lo": 14.636,
+   "c": "Sweden",
+   "y": "2010",
+   "q": "Q26515"
+  },
+  {
+   "n": "Phuket",
+   "la": 7.8881,
+   "lo": 98.3975,
+   "c": "Thailand",
+   "y": "2015",
+   "q": "Q844430"
+  },
+  {
+   "n": "Afyonkarahisar",
+   "la": 38.7581,
+   "lo": 30.5386,
+   "c": "Turkey",
+   "y": "2019",
+   "q": "Q166824"
+  },
+  {
+   "n": "Gaziantep",
+   "la": 37.0628,
+   "lo": 37.3792,
+   "c": "Turkey",
+   "y": "2015",
+   "q": "Q93338"
+  },
+  {
+   "n": "Hatay Province",
+   "la": 36.2,
+   "lo": 36.15,
+   "c": "Turkey",
+   "y": "2015",
+   "q": "Q83274"
+  },
+  {
+   "n": "Alba",
+   "la": 37.2361,
+   "lo": -94.4172,
+   "c": "United States",
+   "y": "2017",
+   "q": "Q962230"
+  },
+  {
+   "n": "San Antonio",
+   "la": 29.425,
+   "lo": -98.4939,
+   "c": "United States",
+   "y": "2015",
+   "q": "Q975"
+  },
+  {
+   "n": "Tucson",
+   "la": 32.2217,
+   "lo": -110.9264,
+   "c": "United States",
+   "y": "2015",
+   "q": "Q18575"
+  }
+ ]
+}

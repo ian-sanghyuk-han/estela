@@ -1,0 +1,1137 @@
+{
+ "layer": "michelin-3star",
+ "label": "MICHELIN 3스타",
+ "grain": "place",
+ "color": "#7A2233",
+ "grade": "★★★",
+ "intensity": 3,
+ "source": "Wikidata — P166 award received = Q20824563 (Michelin star), qualifier P1114 = 3, statements with no end date (P582)",
+ "license": "CC0",
+ "sourceUrl": "https://query.wikidata.org/",
+ "lastVerified": "2026-08-23",
+ "total": 140,
+ "mapped": 140,
+ "note": "위키데이터 기준 현행 3스타. 실제 세계 3스타 수와 거의 일치합니다. 우리가 평가한 것이 아닙니다.",
+ "items": [
+  {
+   "n": "Amador",
+   "la": 48.2539,
+   "lo": 16.3586,
+   "c": "Austria",
+   "ct": "Vienna",
+   "q": "Q84610458"
+  },
+  {
+   "n": "Boury",
+   "la": 50.9374,
+   "lo": 3.1403,
+   "c": "Belgium",
+   "ct": "Roeselare",
+   "q": "Q88965346"
+  },
+  {
+   "n": "Hof van Cleve",
+   "la": 50.90361,
+   "lo": 3.50972,
+   "c": "Belgium",
+   "ct": "Kruisem",
+   "q": "Q2629148"
+  },
+  {
+   "n": "Zilte",
+   "la": 51.229,
+   "lo": 4.40463,
+   "c": "Belgium",
+   "ct": "Antwerp",
+   "q": "Q2192183"
+  },
+  {
+   "n": "Geranium",
+   "la": 55.70353,
+   "lo": 12.5724,
+   "c": "Denmark",
+   "ct": "Copenhagen Municipality",
+   "q": "Q15573853"
+  },
+  {
+   "n": "Alain Ducasse au Plaza Athénée",
+   "la": 48.8663,
+   "lo": 2.3044,
+   "c": "France",
+   "ct": "8th arrondissement of Paris",
+   "q": "Q84730452"
+  },
+  {
+   "n": "Flocons de Sel",
+   "la": 45.8303,
+   "lo": 6.597,
+   "c": "France",
+   "ct": "Megève",
+   "q": "Q84724804"
+  },
+  {
+   "n": "Georges Blanc",
+   "la": 46.2201,
+   "lo": 4.9896,
+   "c": "France",
+   "ct": "Vonnas",
+   "q": "Q84321389"
+  },
+  {
+   "n": "Guy Savoy",
+   "la": 48.8565,
+   "lo": 2.3395,
+   "c": "France",
+   "ct": "6th arrondissement of Paris",
+   "q": "Q84613055"
+  },
+  {
+   "n": "Kei",
+   "la": 48.8644,
+   "lo": 2.3421,
+   "c": "France",
+   "ct": "1st arrondissement of Paris",
+   "q": "Q84768921"
+  },
+  {
+   "n": "L'Ambroisie",
+   "la": 48.8554,
+   "lo": 2.3643,
+   "c": "France",
+   "ct": "3rd arrondissement of Paris",
+   "q": "Q6455533"
+  },
+  {
+   "n": "L'Arpège",
+   "la": 48.8557,
+   "lo": 2.317,
+   "c": "France",
+   "ct": "7th arrondissement of Paris",
+   "q": "Q6455598"
+  },
+  {
+   "n": "L'Assiette Champenoise",
+   "la": 49.2478,
+   "lo": 4.0031,
+   "c": "France",
+   "ct": "Tinqueux",
+   "q": "Q84726491"
+  },
+  {
+   "n": "L'Auberge du Vieux Puits",
+   "la": 43.0486,
+   "lo": 2.7887,
+   "c": "France",
+   "ct": "Fontjoncouse",
+   "q": "Q84721306"
+  },
+  {
+   "n": "L'Oustau de Baumanière",
+   "la": 43.747,
+   "lo": 4.7956,
+   "c": "France",
+   "ct": "Les Baux-de-Provence",
+   "q": "Q83890108"
+  },
+  {
+   "n": "La Bouitte",
+   "la": 45.3691,
+   "lo": 6.5133,
+   "c": "France",
+   "ct": "Les Belleville",
+   "q": "Q84729357"
+  },
+  {
+   "n": "La Vague d'Or",
+   "la": 43.2668,
+   "lo": 6.6263,
+   "c": "France",
+   "ct": "Saint-Tropez",
+   "q": "Q84726466"
+  },
+  {
+   "n": "La Villa Madie",
+   "la": 43.21109,
+   "lo": 5.54495,
+   "c": "France",
+   "ct": "Cassis",
+   "q": "Q111336957"
+  },
+  {
+   "n": "La table du Castellet",
+   "la": 43.25,
+   "lo": 5.7834,
+   "c": "France",
+   "ct": "Le Castellet",
+   "q": "Q84766573"
+  },
+  {
+   "n": "Le 1947",
+   "la": 45.4095,
+   "lo": 6.6336,
+   "c": "France",
+   "ct": "Courchevel",
+   "q": "Q84731162"
+  },
+  {
+   "n": "Le Bois sans Feuilles",
+   "la": 46.01,
+   "lo": 3.992,
+   "c": "France",
+   "ct": "Ouches",
+   "q": "Q84320721"
+  },
+  {
+   "n": "Le Cinq",
+   "la": 48.86892,
+   "lo": 2.30059,
+   "c": "France",
+   "ct": "8th arrondissement of Paris",
+   "q": "Q14955143"
+  },
+  {
+   "n": "Le Clos des Sens",
+   "la": 45.9176,
+   "lo": 6.1445,
+   "c": "France",
+   "ct": "Annecy",
+   "q": "Q84766821"
+  },
+  {
+   "n": "Le Coquillage",
+   "la": 48.6431,
+   "lo": -1.8711,
+   "c": "France",
+   "ct": "Saint-Méloir-des-Ondes",
+   "q": "Q85343488"
+  },
+  {
+   "n": "Le Petit Nice",
+   "la": 43.2801,
+   "lo": 5.3518,
+   "c": "France",
+   "ct": "7th arrondissement of Marseille",
+   "q": "Q3225491"
+  },
+  {
+   "n": "Le Pré Catelan",
+   "la": 48.86398,
+   "lo": 2.25061,
+   "c": "France",
+   "ct": "16th arrondissement of Paris",
+   "q": "Q3226046"
+  },
+  {
+   "n": "Les Prés d'Eugénie",
+   "la": 43.6965,
+   "lo": -0.3801,
+   "c": "France",
+   "ct": "Eugénie-les-Bains",
+   "q": "Q84320772"
+  },
+  {
+   "n": "Maison Pic",
+   "la": 44.9175,
+   "lo": 4.88556,
+   "c": "France",
+   "ct": "Valence",
+   "q": "Q6737046"
+  },
+  {
+   "n": "Mirazur",
+   "la": 43.7859,
+   "lo": 7.528,
+   "c": "France",
+   "ct": "Menton",
+   "q": "Q6872943"
+  },
+  {
+   "n": "Pavillon Ledoyen",
+   "la": 48.86608,
+   "lo": 2.31642,
+   "c": "France",
+   "ct": "8th arrondissement of Paris",
+   "q": "Q3427911"
+  },
+  {
+   "n": "Pierre Gagnaire",
+   "la": 48.8733,
+   "lo": 2.3005,
+   "c": "France",
+   "ct": "8th arrondissement of Paris",
+   "q": "Q84612318"
+  },
+  {
+   "n": "Plénitude - Cheval Blanc Paris",
+   "la": 48.85885,
+   "lo": 2.34218,
+   "c": "France",
+   "ct": "1st arrondissement of Paris",
+   "q": "Q111336869"
+  },
+  {
+   "n": "Q84723034",
+   "la": 46.9078,
+   "lo": 4.753,
+   "c": "France",
+   "ct": "Chagny",
+   "q": "Q84723034"
+  },
+  {
+   "n": "Régis et Jacques Marcon",
+   "la": 45.1386,
+   "lo": 4.434,
+   "c": "France",
+   "ct": "Saint-Bonnet-le-Froid",
+   "q": "Q84613625"
+  },
+  {
+   "n": "restaurant Christopher Coutanceau",
+   "la": 46.1553,
+   "lo": -1.16,
+   "c": "France",
+   "ct": "La Rochelle",
+   "q": "Q84767946"
+  },
+  {
+   "n": "Épicure",
+   "la": 48.8717,
+   "lo": 2.3148,
+   "c": "France",
+   "ct": "8th arrondissement of Paris",
+   "q": "Q84719171"
+  },
+  {
+   "n": "Aqua",
+   "la": 52.4328,
+   "lo": 10.79,
+   "c": "Germany",
+   "ct": "Wolfsburg",
+   "q": "Q84439888"
+  },
+  {
+   "n": "Atelier",
+   "la": 48.1402,
+   "lo": 11.5737,
+   "c": "Germany",
+   "ct": "Munich",
+   "q": "Q84598697"
+  },
+  {
+   "n": "Hotel Bareiss",
+   "la": 48.52077,
+   "lo": 8.32774,
+   "c": "Germany",
+   "ct": "Baiersbronn",
+   "q": "Q21012613"
+  },
+  {
+   "n": "Restaurant Überfahrt Christian Jürgens",
+   "la": 47.6965,
+   "lo": 11.7583,
+   "c": "Germany",
+   "ct": "Rottach-Egern",
+   "q": "Q84598005"
+  },
+  {
+   "n": "Schwarzwaldstube",
+   "la": 48.537,
+   "lo": 8.3581,
+   "c": "Germany",
+   "ct": "Baiersbronn",
+   "q": "Q84359975"
+  },
+  {
+   "n": "The Table",
+   "la": 53.5426,
+   "lo": 10.0031,
+   "c": "Germany",
+   "ct": "Hamburg",
+   "q": "Q84598294"
+  },
+  {
+   "n": "Vendôme",
+   "la": 50.9662,
+   "lo": 7.1606,
+   "c": "Germany",
+   "ct": "Bergisch Gladbach",
+   "q": "Q7919630"
+  },
+  {
+   "n": "Victor's Fine Dining",
+   "la": 49.5349,
+   "lo": 6.3868,
+   "c": "Germany",
+   "ct": "Perl",
+   "q": "Q84433181"
+  },
+  {
+   "n": "Waldhotel Sonnora",
+   "la": 49.9378,
+   "lo": 6.8112,
+   "c": "Germany",
+   "ct": "Dreis",
+   "q": "Q84362576"
+  },
+  {
+   "n": "Da Vittorio",
+   "la": 45.6772,
+   "lo": 9.7703,
+   "c": "Italy",
+   "ct": "Brusaporto",
+   "q": "Q84266672"
+  },
+  {
+   "n": "Dal Pescatore",
+   "la": 45.1709,
+   "lo": 10.3573,
+   "c": "Italy",
+   "ct": "Canneto sull'Oglio",
+   "q": "Q5210133"
+  },
+  {
+   "n": "Enoteca Pinchiorri",
+   "la": 43.77,
+   "lo": 11.26222,
+   "c": "Italy",
+   "ct": "Florence",
+   "q": "Q1405579"
+  },
+  {
+   "n": "Enrico Bartolini al Mudec",
+   "la": 45.4517,
+   "lo": 9.1614,
+   "c": "Italy",
+   "ct": "Milan",
+   "q": "Q84265769"
+  },
+  {
+   "n": "La Pergola",
+   "la": 41.9189,
+   "lo": 12.4467,
+   "c": "Italy",
+   "ct": "Rome",
+   "q": "Q84267499"
+  },
+  {
+   "n": "Le Calandre",
+   "la": 45.4217,
+   "lo": 11.80957,
+   "c": "Italy",
+   "ct": "Rubano",
+   "q": "Q6506629"
+  },
+  {
+   "n": "Osteria Francescana",
+   "la": 44.64382,
+   "lo": 10.92226,
+   "c": "Italy",
+   "ct": "Modena",
+   "q": "Q2419971"
+  },
+  {
+   "n": "Piazza Duomo",
+   "la": 44.7005,
+   "lo": 8.0359,
+   "c": "Italy",
+   "ct": "Alba",
+   "q": "Q84264548"
+  },
+  {
+   "n": "Reale",
+   "la": 41.7802,
+   "lo": 14.0949,
+   "c": "Italy",
+   "ct": "Castel di Sangro",
+   "q": "Q84176931"
+  },
+  {
+   "n": "St. Hubertus",
+   "la": 46.5715,
+   "lo": 11.9313,
+   "c": "Italy",
+   "ct": "Badia",
+   "q": "Q84266647"
+  },
+  {
+   "n": "Uliassi",
+   "la": 43.7195,
+   "lo": 13.2208,
+   "c": "Italy",
+   "ct": "Senigallia",
+   "q": "Q84266969"
+  },
+  {
+   "n": "Gion Sasaki",
+   "la": 34.9989,
+   "lo": 135.775,
+   "c": "Japan",
+   "ct": "Higashiyama-ku",
+   "q": "Q85228772"
+  },
+  {
+   "n": "Hajime",
+   "la": 34.68864,
+   "lo": 135.49603,
+   "c": "Japan",
+   "ct": "Edobori",
+   "q": "Q5639956"
+  },
+  {
+   "n": "Hyotei",
+   "la": 35.01136,
+   "lo": 135.7865,
+   "c": "Japan",
+   "ct": "Sakyō-ku",
+   "q": "Q21019693"
+  },
+  {
+   "n": "Iida",
+   "la": 35.0098,
+   "lo": 135.7648,
+   "c": "Japan",
+   "ct": "Nakagyō Ward",
+   "q": "Q85117344"
+  },
+  {
+   "n": "Ishikawa",
+   "la": 35.70125,
+   "lo": 139.73942,
+   "c": "Japan",
+   "ct": "Kagurazaka",
+   "q": "Q20982955"
+  },
+  {
+   "n": "Isshisoden Nakamura",
+   "la": 35.0103,
+   "lo": 135.7652,
+   "c": "Japan",
+   "ct": "Nakagyō Ward",
+   "q": "Q85231174"
+  },
+  {
+   "n": "Joël Robuchon",
+   "la": 35.6419,
+   "lo": 139.7145,
+   "c": "Japan",
+   "ct": "Mita",
+   "q": "Q85014399"
+  },
+  {
+   "n": "Kadowaki",
+   "la": 35.6559,
+   "lo": 139.7336,
+   "c": "Japan",
+   "ct": "Azabu-Jūban",
+   "q": "Q84957310"
+  },
+  {
+   "n": "Kanda",
+   "la": 35.65704,
+   "lo": 139.72872,
+   "c": "Japan",
+   "ct": "Atago",
+   "q": "Q19904101"
+  },
+  {
+   "n": "Kashiwaya Osaka Senriyama",
+   "la": 34.7703,
+   "lo": 135.5012,
+   "c": "Japan",
+   "ct": "Suita",
+   "q": "Q85236357"
+  },
+  {
+   "n": "Kikunoi Honten",
+   "la": 35.0015,
+   "lo": 135.7821,
+   "c": "Japan",
+   "ct": "Higashiyama-ku",
+   "q": "Q85218876"
+  },
+  {
+   "n": "Kohaku",
+   "la": 35.7007,
+   "lo": 139.741,
+   "c": "Japan",
+   "ct": "Kagurazaka",
+   "q": "Q85013496"
+  },
+  {
+   "n": "Komada",
+   "la": 34.4946,
+   "lo": 136.7152,
+   "c": "Japan",
+   "ct": "Kawasaki",
+   "q": "Q85029108"
+  },
+  {
+   "n": "Kyoto Kitcho Arashiyama",
+   "la": 35.0136,
+   "lo": 135.6747,
+   "c": "Japan",
+   "ct": "Ukyō Ward",
+   "q": "Q85225413"
+  },
+  {
+   "n": "L'Osier",
+   "la": 35.6697,
+   "lo": 139.7612,
+   "c": "Japan",
+   "ct": "Ginza",
+   "q": "Q6455842"
+  },
+  {
+   "n": "Maeda",
+   "la": 35.0018,
+   "lo": 135.7742,
+   "c": "Japan",
+   "ct": "Higashiyama-ku",
+   "q": "Q85233431"
+  },
+  {
+   "n": "Makimura",
+   "la": 35.5908,
+   "lo": 139.7354,
+   "c": "Japan",
+   "ct": "Minami-Ōi",
+   "q": "Q85016459"
+  },
+  {
+   "n": "Mizai",
+   "la": 35.003,
+   "lo": 135.7824,
+   "c": "Japan",
+   "ct": "Higashiyama-ku",
+   "q": "Q85234429"
+  },
+  {
+   "n": "Nakashima",
+   "la": 34.4056,
+   "lo": 132.465,
+   "c": "Japan",
+   "ct": "Higashi-Hakushima-chō",
+   "q": "Q85114033"
+  },
+  {
+   "n": "Nihonryori Ryugin",
+   "la": 35.66275,
+   "lo": 139.72828,
+   "c": "Japan",
+   "ct": "Yūrakuchō",
+   "q": "Q7034331"
+  },
+  {
+   "n": "Quintessence",
+   "la": 35.6241,
+   "lo": 139.73302,
+   "c": "Japan",
+   "ct": "Kita-Shinagawa",
+   "q": "Q20982995"
+  },
+  {
+   "n": "Sukiyabashi Jiro",
+   "la": 35.6727,
+   "lo": 139.764,
+   "c": "Japan",
+   "ct": "Ginza",
+   "q": "Q7635863"
+  },
+  {
+   "n": "Sushi Gyoten",
+   "la": 33.5804,
+   "lo": 130.4012,
+   "c": "Japan",
+   "ct": "Hirao",
+   "q": "Q85114837"
+  },
+  {
+   "n": "Sushi Sakai",
+   "la": 33.5904,
+   "lo": 130.406,
+   "c": "Japan",
+   "ct": "Nishi-nakasu",
+   "q": "Q85116896"
+  },
+  {
+   "n": "Sushi Yoshitake",
+   "la": 35.6689,
+   "lo": 139.7619,
+   "c": "Japan",
+   "ct": "Ginza",
+   "q": "Q20983131"
+  },
+  {
+   "n": "Taian",
+   "la": 34.6734,
+   "lo": 135.5072,
+   "c": "Japan",
+   "ct": "Shimanouchi",
+   "q": "Q85237380"
+  },
+  {
+   "n": "Yamazaki",
+   "la": 36.6748,
+   "lo": 137.201,
+   "c": "Japan",
+   "ct": "Kyōbashi",
+   "q": "Q85028044"
+  },
+  {
+   "n": "Yukimura",
+   "la": 35.6573,
+   "lo": 139.7329,
+   "c": "Japan",
+   "ct": "Azabu-Jūban",
+   "q": "Q20983166"
+  },
+  {
+   "n": "Le Louis XV",
+   "la": 43.73911,
+   "lo": 7.42734,
+   "c": "Monaco",
+   "ct": "Monte Carlo",
+   "q": "Q6507158"
+  },
+  {
+   "n": "De Leest",
+   "la": 52.28824,
+   "lo": 5.9673,
+   "c": "Netherlands",
+   "ct": "Epe",
+   "q": "Q2481428"
+  },
+  {
+   "n": "De Librije",
+   "la": 52.51417,
+   "lo": 6.095,
+   "c": "Netherlands",
+   "ct": "Zwolle",
+   "q": "Q2173549"
+  },
+  {
+   "n": "Inter Scaldes",
+   "la": 51.45696,
+   "lo": 4.02148,
+   "c": "Netherlands",
+   "ct": "Reimerswaal",
+   "q": "Q2351267"
+  },
+  {
+   "n": "8½ Otto e Mezzo",
+   "la": 22.2815,
+   "lo": 114.159,
+   "c": "People's Republic of China",
+   "ct": "Hong Kong",
+   "q": "Q4645519"
+  },
+  {
+   "n": "Caprice",
+   "la": 22.2863,
+   "lo": 114.157,
+   "c": "People's Republic of China",
+   "ct": "Central and Western District",
+   "q": "Q5036241"
+  },
+  {
+   "n": "Forum Restaurant",
+   "la": 22.2813,
+   "lo": 114.182,
+   "c": "People's Republic of China",
+   "ct": "Wan Chai District",
+   "q": "Q5473081"
+  },
+  {
+   "n": "Jade Dragon",
+   "la": 22.1496,
+   "lo": 113.565,
+   "c": "People's Republic of China",
+   "ct": "Macau",
+   "q": "Q84950614"
+  },
+  {
+   "n": "L'Atelier de Joël Robuchon",
+   "la": 22.28111,
+   "lo": 114.15806,
+   "c": "People's Republic of China",
+   "ct": "Hong Kong",
+   "q": "Q6455617"
+  },
+  {
+   "n": "Lung King Heen",
+   "la": 22.2854,
+   "lo": 114.1594,
+   "c": "People's Republic of China",
+   "ct": "Victoria",
+   "q": "Q6704272"
+  },
+  {
+   "n": "Robuchon au Dôme",
+   "la": 22.191,
+   "lo": 113.5433,
+   "c": "People's Republic of China",
+   "ct": "Macau",
+   "q": "Q84952686"
+  },
+  {
+   "n": "Sushi Shikon",
+   "la": 22.2805,
+   "lo": 114.1579,
+   "c": "People's Republic of China",
+   "ct": "Hong Kong",
+   "q": "Q84942897"
+  },
+  {
+   "n": "T'ang Court",
+   "la": 22.2963,
+   "lo": 114.1698,
+   "c": "People's Republic of China",
+   "ct": "Hong Kong",
+   "q": "Q84941791"
+  },
+  {
+   "n": "The Eight",
+   "la": 22.1909,
+   "lo": 113.5435,
+   "c": "People's Republic of China",
+   "ct": "Macau",
+   "q": "Q84953552"
+  },
+  {
+   "n": "Les Amis",
+   "la": 1.3066,
+   "lo": 103.8313,
+   "c": "Singapore",
+   "ct": "Orchard",
+   "q": "Q30605673"
+  },
+  {
+   "n": "Odette",
+   "la": 1.2899,
+   "lo": 103.8515,
+   "c": "Singapore",
+   "ct": "Downtown Core",
+   "q": "Q84955194"
+  },
+  {
+   "n": "Gaon",
+   "la": 37.5226,
+   "lo": 127.0364,
+   "c": "South Korea",
+   "ct": "Seoul",
+   "q": "Q84955149"
+  },
+  {
+   "n": "La Yeon",
+   "la": 37.5565,
+   "lo": 127.0062,
+   "c": "South Korea",
+   "ct": "Seoul",
+   "q": "Q84954881"
+  },
+  {
+   "n": "Aponiente",
+   "la": 36.6031,
+   "lo": -6.2164,
+   "c": "Spain",
+   "ct": "El Puerto de Santa María",
+   "q": "Q84142859"
+  },
+  {
+   "n": "Arzak",
+   "la": 43.3211,
+   "lo": -1.94917,
+   "c": "Spain",
+   "ct": "San Sebastián",
+   "q": "Q4802737"
+  },
+  {
+   "n": "Azurmendi",
+   "la": 43.25972,
+   "lo": -2.81167,
+   "c": "Spain",
+   "ct": "Larrabetzu",
+   "q": "Q20492050"
+  },
+  {
+   "n": "Cenador de Amós",
+   "la": 43.4125,
+   "lo": -3.6991,
+   "c": "Spain",
+   "ct": "Villaverde de Pontones",
+   "q": "Q84143342"
+  },
+  {
+   "n": "Disfrutar",
+   "la": 41.38777,
+   "lo": 2.15321,
+   "c": "Spain",
+   "ct": "L'Antiga Esquerra de l'Eixample",
+   "q": "Q113148243"
+  },
+  {
+   "n": "DiverXO",
+   "la": 40.4579,
+   "lo": -3.6859,
+   "c": "Spain",
+   "ct": "Madrid",
+   "q": "Q84140290"
+  },
+  {
+   "n": "El Celler de Can Roca",
+   "la": 41.99341,
+   "lo": 2.80826,
+   "c": "Spain",
+   "ct": "Girona",
+   "q": "Q422192"
+  },
+  {
+   "n": "Lasarte",
+   "la": 41.3937,
+   "lo": 2.1621,
+   "c": "Spain",
+   "ct": "Dreta de l'Eixample",
+   "q": "Q14955166"
+  },
+  {
+   "n": "Martin Berasategi",
+   "la": 43.26667,
+   "lo": -2.01528,
+   "c": "Spain",
+   "ct": "Lasarte-Oria",
+   "q": "Q12263146"
+  },
+  {
+   "n": "Q4700586",
+   "la": 43.30778,
+   "lo": -2.04317,
+   "c": "Spain",
+   "ct": "San Sebastián",
+   "q": "Q4700586"
+  },
+  {
+   "n": "Quique Dacosta Restaurante",
+   "la": 38.85374,
+   "lo": 0.0852,
+   "c": "Spain",
+   "ct": "Dénia",
+   "q": "Q127688879"
+  },
+  {
+   "n": "Àbac",
+   "la": 41.41079,
+   "lo": 2.13632,
+   "c": "Spain",
+   "ct": "Sant Gervasi-la Bonanova",
+   "q": "Q16249980"
+  },
+  {
+   "n": "Frantzén",
+   "la": 59.33389,
+   "lo": 18.05861,
+   "c": "Sweden",
+   "ct": "Stockholm Municipality",
+   "q": "Q5492658"
+  },
+  {
+   "n": "Cheval Blanc",
+   "la": 47.5605,
+   "lo": 7.5877,
+   "c": "Switzerland",
+   "ct": "Basel",
+   "q": "Q84170548"
+  },
+  {
+   "n": "Restaurant de l'Hôtel de Ville",
+   "la": 46.55409,
+   "lo": 6.57679,
+   "c": "Switzerland",
+   "ct": "Crissier",
+   "q": "Q42802541"
+  },
+  {
+   "n": "Schauenstein Castle",
+   "la": 46.72126,
+   "lo": 9.44628,
+   "c": "Switzerland",
+   "ct": "Fürstenau",
+   "q": "Q1276044"
+  },
+  {
+   "n": "Le Palais",
+   "la": 25.0492,
+   "lo": 121.5173,
+   "c": "Taiwan",
+   "ct": "Taipei",
+   "q": "Q84956489"
+  },
+  {
+   "n": "Sorn",
+   "la": 13.7231,
+   "lo": 100.5685,
+   "c": "Thailand",
+   "ct": "Bangkok",
+   "q": "Q95588600"
+  },
+  {
+   "n": "Alain Ducasse at The Dorchester",
+   "la": 51.50722,
+   "lo": -0.1525,
+   "c": "United Kingdom",
+   "ct": "London",
+   "q": "Q4705649"
+  },
+  {
+   "n": "Restaurant Gordon Ramsay",
+   "la": 51.4855,
+   "lo": -0.162,
+   "c": "United Kingdom",
+   "ct": "London",
+   "q": "Q7316085"
+  },
+  {
+   "n": "Sketch",
+   "la": 51.5128,
+   "lo": -0.14159,
+   "c": "United Kingdom",
+   "ct": "City of Westminster",
+   "q": "Q14955160"
+  },
+  {
+   "n": "The Fat Duck",
+   "la": 51.50793,
+   "lo": -0.70176,
+   "c": "United Kingdom",
+   "ct": "Bray",
+   "q": "Q2300919"
+  },
+  {
+   "n": "The Waterside Inn",
+   "la": 51.5092,
+   "lo": -0.699,
+   "c": "United Kingdom",
+   "ct": "Bray",
+   "q": "Q7773745"
+  },
+  {
+   "n": "Alinea",
+   "la": 41.9134,
+   "lo": -87.6482,
+   "c": "United States",
+   "ct": "Chicago",
+   "q": "Q4726773"
+  },
+  {
+   "n": "Atelier Crenn",
+   "la": 37.7984,
+   "lo": -122.436,
+   "c": "United States",
+   "ct": "San Francisco",
+   "q": "Q60766970"
+  },
+  {
+   "n": "Benu",
+   "la": 37.78541,
+   "lo": -122.39911,
+   "c": "United States",
+   "ct": "San Francisco",
+   "q": "Q28226396"
+  },
+  {
+   "n": "Chef's Table at Brooklyn Fare",
+   "la": 40.6887,
+   "lo": -73.986,
+   "c": "United States",
+   "ct": "Brooklyn",
+   "q": "Q5089487"
+  },
+  {
+   "n": "Eleven Madison Park",
+   "la": 40.7417,
+   "lo": -73.9872,
+   "c": "United States",
+   "ct": "Manhattan",
+   "q": "Q5359767"
+  },
+  {
+   "n": "Le Bernardin",
+   "la": 40.7614,
+   "lo": -73.9817,
+   "c": "United States",
+   "ct": "Manhattan",
+   "q": "Q6506539"
+  },
+  {
+   "n": "Manresa",
+   "la": 37.2272,
+   "lo": -121.981,
+   "c": "United States",
+   "ct": "Los Gatos",
+   "q": "Q6751531"
+  },
+  {
+   "n": "Masa",
+   "la": 40.7681,
+   "lo": -73.9819,
+   "c": "United States",
+   "ct": "Manhattan",
+   "q": "Q12408773"
+  },
+  {
+   "n": "Per Se",
+   "la": 40.7687,
+   "lo": -73.9829,
+   "c": "United States",
+   "ct": "New York City",
+   "q": "Q1255039"
+  },
+  {
+   "n": "Quince",
+   "la": 37.79757,
+   "lo": -122.4034,
+   "c": "United States",
+   "ct": "San Francisco",
+   "q": "Q28452815"
+  },
+  {
+   "n": "SingleThread",
+   "la": 38.6123,
+   "lo": -122.8696,
+   "c": "United States",
+   "ct": "Healdsburg",
+   "q": "Q65052340"
+  },
+  {
+   "n": "Smyth",
+   "la": 41.88528,
+   "lo": -87.66058,
+   "c": "United States",
+   "ct": "",
+   "q": "Q55633370"
+  },
+  {
+   "n": "The French Laundry",
+   "la": 38.40444,
+   "lo": -122.36497,
+   "c": "United States",
+   "ct": "Yountville",
+   "q": "Q2364717"
+  },
+  {
+   "n": "The Inn at Little Washington",
+   "la": 38.7135,
+   "lo": -78.1595,
+   "c": "United States",
+   "ct": "Virginia",
+   "q": "Q7742075"
+  },
+  {
+   "n": "The Restaurant at Meadowood",
+   "la": 38.5222,
+   "lo": -122.467,
+   "c": "United States",
+   "ct": "St. Helena",
+   "q": "Q7760329"
+  }
+ ]
+}
