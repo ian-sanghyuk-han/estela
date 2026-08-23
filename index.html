@@ -103,6 +103,22 @@
   .lrow .ct{color:var(--dim);font-variant-numeric:tabular-nums}
   #layers .prov{margin-top:7px;padding-top:7px;border-top:1px solid var(--rule);
     font-size:9.5px;color:var(--dim);line-height:1.55}
+  #layers .add{margin-top:8px;padding-top:8px;border-top:1px solid var(--rule)}
+  #layers .addbtn{font:600 10.5px var(--sans);color:var(--wine);cursor:pointer;
+    letter-spacing:.5px;-webkit-tap-highlight-color:transparent}
+  #addbox{display:none;margin-top:7px}
+  #addbox.on{display:block}
+  #addq{width:100%;box-sizing:border-box;font:12px var(--sans);color:var(--ink);
+    background:var(--card);border:1px solid rgba(27,23,20,.22);padding:7px 8px}
+  #addres{margin-top:5px;max-height:168px;overflow:auto}
+  #addres .r{padding:6px 7px;font-size:11px;line-height:1.4;cursor:pointer;
+    border-bottom:1px solid var(--rule);color:var(--ink)}
+  #addres .r:hover{background:var(--sand)}
+  #addres .r small{display:block;color:var(--dim);font-size:9.5px}
+  #addres .msg{font-size:10px;color:var(--dim);padding:6px 2px}
+  .lrow.locked{opacity:.55;cursor:default}
+  .lrow.locked .ct{font-size:9px;letter-spacing:.4px}
+  #layers .attrib{font-size:8.5px;color:var(--mute);margin-top:6px;line-height:1.5}
   @media (max-width:560px){#layers{display:none}}
   /* ══ 여정 화면 — 전체를 차지한다. 지구본은 뒤에서 계속 돈다 ══ */
   #jview{position:fixed;inset:0;z-index:7;overflow:auto;
@@ -218,7 +234,12 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 경계 <b id="res">110
 
 <div id="card"></div>
 
-<div id="layers"><h4>레이어</h4><div id="lrows"></div><div class="prov" id="lprov"></div></div>
+<div id="layers"><h4>레이어</h4><div id="lrows"></div>
+  <div class="add"><span class="addbtn" id="addbtn">+ 내 장소 추가</span>
+    <div id="addbox"><input id="addq" placeholder="식당 이름이나 주소" autocomplete="off">
+      <div id="addres"></div>
+      <div class="attrib">검색 © OpenStreetMap contributors (ODbL)</div></div></div>
+  <div class="prov" id="lprov"></div></div>
 
 <div id="note">estela — P0 시작 베이스 (after-flight에서 분기 · 원류 batavia globe-base v4) · 여정은 샘플 도시 좌표이며 가이드 데이터 없음</div>
 <script type="importmap">
@@ -783,17 +804,81 @@ function paintLayerPanel(){
       if(!L.on){L.pts.forEach(p=>{p.s.material.opacity=0;});
                 L.bubbles.forEach(b=>{b.visible=false;});}
       markClusterDirty();}));
+  document.getElementById('lrows').innerHTML+=PENDING.map(p=>
+    '<div class="lrow locked"><span class="dot" style="background:transparent;'
+    +'border:1.5px dashed rgba(140,129,117,.7)"></span>'
+    +'<span class="nm">'+p.label+'</span><span class="ct">'+p.note+'</span></div>').join('');
   const gap=layerGroups.filter(L=>L.mapped<L.total);
   document.getElementById('lprov').innerHTML=
     '출처 Wikidata · CC0 · 최종확인 '+((layerGroups[0]||{def:{}}).def.lastVerified||'—')
     +(gap.length?'<br>'+gap.map(L=>L.def.label+' '+L.mapped+'/'+L.total).join(' · ')+' — 좌표 있는 것만 표시':'')
     +'<br>우리가 평가하지 않습니다';}
 
+/* ══ 내 장소 ══ 가이드에 없는 곳. 여기서부터가 우리 데이터다.
+   한 번에 한 곳씩, 사람이 직접 넣는다 — 목록 통째 가져오기는 만들지 않는다 (§4) */
+function myPlacesDef(){
+  return {layer:'mine',label:'내 장소',grain:'place',color:'#B2543A',
+    source:'직접 입력 · 좌표는 OpenStreetMap Nominatim',license:'ODbL (검색)',
+    lastVerified:'—',total:(store.places||[]).length,
+    items:(store.places||[]).map(p=>({n:p.n,la:p.la,lo:p.lo,ct:p.ct||'',c:p.c||'',q:p.id}))};}
+function rebuildMine(){
+  const i=layerGroups.findIndex(L=>L.def.layer==='mine');
+  if(i>=0){const L=layerGroups[i];layerG.remove(L.g);
+    L.g.traverse(o=>{if(o.material){if(o.material.map&&o.material.map.dispose)o.material.map.dispose();
+      o.material.dispose();}});
+    layerGroups.splice(i,1);}
+  addLayer(myPlacesDef());
+  paintLayerPanel();markClusterDirty();paintJourney();
+  const el=document.getElementById('nstar');
+  if(el)el.textContent=layerGroups.reduce((a,L)=>a+L.total,0);}
+
+/* 좌표는 검색으로 얻는다 — 우리가 지도를 만드는 게 아니라 지오코딩을 빌리는 것 */
+let addTimer=null;
+function wireAddPlace(){
+  const btn=document.getElementById('addbtn'),box=document.getElementById('addbox'),
+        q=document.getElementById('addq'),res=document.getElementById('addres');
+  btn.addEventListener('click',()=>{box.classList.toggle('on');
+    if(box.classList.contains('on'))q.focus();});
+  q.addEventListener('input',()=>{
+    clearTimeout(addTimer);
+    const t=q.value.trim();
+    if(t.length<2){res.innerHTML='';return;}
+    res.innerHTML='<div class="msg">찾는 중…</div>';
+    addTimer=setTimeout(()=>{                 /* Nominatim은 초당 1회를 넘기지 않는다 */
+      fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&addressdetails=1&q='
+            +encodeURIComponent(t))
+        .then(r=>r.json())
+        .then(list=>{
+          if(!list.length){res.innerHTML='<div class="msg">결과가 없습니다.</div>';return;}
+          res.innerHTML=list.map((r,i)=>{
+            const a=r.address||{};
+            const city=a.city||a.town||a.village||a.municipality||a.suburb||'';
+            const nm=(r.name||r.display_name.split(',')[0]).trim();
+            return '<div class="r" data-i="'+i+'"><b>'+esc(nm)+'</b>'
+              +'<small>'+esc(r.display_name)+'</small></div>';}).join('');
+          res.querySelectorAll('.r').forEach(el=>el.addEventListener('click',()=>{
+            const r=list[+el.dataset.i],a=r.address||{};
+            store.places=store.places||[];
+            store.places.push({id:'p'+Date.now(),
+              n:(r.name||r.display_name.split(',')[0]).trim(),
+              la:+parseFloat(r.lat).toFixed(6),lo:+parseFloat(r.lon).toFixed(6),
+              ct:a.city||a.town||a.village||a.municipality||a.suburb||'',
+              c:a.country||''});
+            saveStore();rebuildMine();
+            q.value='';res.innerHTML='<div class="msg">추가했습니다.</div>';}));})
+        .catch(()=>{res.innerHTML='<div class="msg">검색에 닿지 못했습니다.</div>';});},700);});}
+
+/* 아직 계정이 없어 켤 수 없는 레이어 — 자리를 비워두면 구조가 안 보인다 */
+const PENDING=[{label:'우리 그룹의 장소',note:'계정 필요'},
+               {label:'팔로우한 사람의 장소',note:'계정 필요'}];
+
 function loadLayers(){
   Promise.all(LAYER_FILES.map(f=>fetch(f).then(r=>r.json()).catch(e=>{
     console.warn('[estela] 레이어 로드 실패',f,e);return null;})))
     .then(defs=>{
       defs.filter(Boolean).forEach(d=>addLayer(d));
+      addLayer(myPlacesDef());          /* 내 장소는 파일이 아니라 내 기록에서 온다 */
+      wireAddPlace();
       promoteStarredCountries();
       paintLayerPanel();
       const el=document.getElementById('nstar');
@@ -1013,7 +1098,7 @@ window.__dbg={labelObjs,camera,jStars,jRings,layerGroups,recluster,setView,setSt
   LADDER,pickLadder,visibleSpanDeg,getLadderIdx:()=>ladderIdx,tuneControls,rescaleMarkers,
   getControls:()=>controls,
   selectPlace,paintJourney,myCounts,keyOf,stampsOf,isSaved,getStore:()=>store,
-  updateLabels,bandFade,
+  updateLabels,bandFade,rebuildMine,
   getMorph:()=>MORPH,getView:()=>VIEW,getMode:()=>MODE,
   setVIEW:v=>{VIEW=v;configCamera();refreshClones();}}; /* 검증용 훅 */
 

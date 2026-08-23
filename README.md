@@ -17,6 +17,10 @@ visited stars light up and connect into a personal trail — the *estela*.
   toggleable group each. Two ship today, both from Wikidata (CC0): the world's Michelin
   3-star restaurants (140, individually placed) and the UNESCO Cities of Gastronomy
   (36 of the official 56 carry coordinates; the panel shows both numbers).
+- `내 장소` is a fourth layer built from the browser's own store, not a file: a place is
+  added one at a time by searching Nominatim (OpenStreetMap, ODbL, attributed in the panel)
+  and picking a result, which supplies the coordinates. There is deliberately **no bulk
+  import** — see `docs/canon-sources.md` for why that line matters.
 - Markers are **one fixed size** — never scaled by count. Points that land within 52 screen
   pixels of each other collapse into a single count bubble, and separate again on zoom, so
   the globe shows "how many here" far out and "exactly where" close in. In MAP mode a point
