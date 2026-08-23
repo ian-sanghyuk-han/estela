@@ -407,8 +407,10 @@ function circlePoly(lon,lat,km,steps){
 function cityAreaFC(L){
   return {type:'FeatureCollection',features:(L.items||[]).map(it=>{
     const k=keyOf(L,it);
-    return {type:'Feature',properties:{done:stampsOf(k).length>0},
-      geometry:{type:'Polygon',coordinates:[circlePoly(it.lo,it.la,CITY_KM,72)]}};})};}
+    return {type:'Feature',
+      properties:{done:stampsOf(k).length>0,shaped:!!it.g},
+      geometry:it.g||{type:'Polygon',
+        coordinates:[circlePoly(it.lo,it.la,CITY_KM,72)]}};})};}
 
 /* 도시는 묶지 않는다. 36개를 뭉쳐 숫자를 붙이면 다시 가게 무더기처럼 보인다 */
 function addCityLayer(L){
@@ -420,24 +422,24 @@ function addCityLayer(L){
   map.addLayer({id:L.id+'-ar',type:'fill',source:L.id+'@a',
     paint:{'fill-color':OLIVE,
       'fill-opacity':['interpolate',['linear'],['zoom'],
-        6,0, 8.5,['case',['get','done'],.13,.05]]}});
+        5,0, 7.5,['case',['get','done'],.14,.055]]}});
   /* 점선/실선은 레이어를 나눈다. line-dasharray 는 지형별로 못 바꾸는 성질이라
      조건식을 넣으면 타일 계산 도중에 터진다 */
   map.addLayer({id:L.id+'-arl',type:'line',source:L.id+'@a',
     filter:['!',['get','done']],
     paint:{'line-color':OLIVE,'line-width':1.6,'line-dasharray':[2.4,2.2],
-      'line-opacity':['interpolate',['linear'],['zoom'],6,0,8.5,.9]}});
+      'line-opacity':['interpolate',['linear'],['zoom'],5,0,7.5,.9]}});
   map.addLayer({id:L.id+'-arls',type:'line',source:L.id+'@a',
     filter:['get','done'],
     paint:{'line-color':OLIVE,'line-width':2.4,
-      'line-opacity':['interpolate',['linear'],['zoom'],6,0,8.5,.95]}});
+      'line-opacity':['interpolate',['linear'],['zoom'],5,0,7.5,.95]}});
 
   map.addLayer({id:L.id+'-ring',type:'symbol',source:L.id,
     layout:{'icon-image':['case',['get','done'],'ucity-on',
                                  ['get','save'],'ucity-sv','ucity'],
       'icon-size':['interpolate',['linear'],['zoom'],1,.36,4,.58,6.5,.8],
       'icon-allow-overlap':true},
-    paint:{'icon-opacity':['interpolate',['linear'],['zoom'],6,1,8.5,0]}});
+    paint:{'icon-opacity':['interpolate',['linear'],['zoom'],5,1,7.5,0]}});
 
   /* 도시 이름은 가게 이름과 다르게 조판한다 — 자간을 벌리고 대문자로.
      같은 글꼴이라도 이렇게 짜면 '상호'가 아니라 '지명'으로 읽힌다 */
@@ -458,7 +460,7 @@ const layers=[];
 function featureOf(L,it){
   const k=keyOf(L,it);
   return {type:'Feature',properties:{n:it.n,ct:it.ct||'',c:it.c||'',q:it.q||it.n,cu:it.cu||'',w:it.w||'',
-    y:it.y||'',
+    y:it.y||'',sh:!!it.g,
     L:L.id,done:stampsOf(k).length>0,save:isSaved(k)},
     geometry:{type:'Point',coordinates:[it.lo,it.la]}};}
 function fcOf(L){return {type:'FeatureCollection',features:(L.items||[]).map(it=>featureOf(L,it))};}
@@ -557,7 +559,8 @@ function paintCard(){
     +(bits?'<div class="sub">'+esc(bits)+'</div>':'')
     +(city?'<div class="sub" style="color:var(--dim);font-size:11.5px;margin-top:6px">'
         +'가게가 아니라 <b>도시 전체</b>에 주어진 지정입니다. '
-        +'지도의 원은 행정 경계가 아니라 “이 도시”라는 표시입니다.</div>':'')
+        +(p.sh?'지도의 윤곽선은 이 도시의 실제 행정구역입니다.'
+              :'이 도시는 경계 자료가 없어, 원으로 자리만 표시합니다.')+'</div>':'')
     +'<div class="mystamps">'+(n?st.map(v=>'<span>'+v.d.replace('-',' · ')+'</span>').join('')
         :'<span style="border-color:rgba(140,129,117,.5);color:var(--dim)">'
          +(city?'아직 안 가봄':'아직 안 감')+'</span>')+'</div>'
@@ -744,8 +747,9 @@ function paintJourney(){
       :'<circle cx="14" cy="14" r="4" fill="'+WINE+'"/><circle cx="14" cy="14" r="9.5" fill="none" stroke="'+OLIVE+'" stroke-width="2.6"/>';
     return '<div class="brow"><svg width="28" height="28" viewBox="0 0 28 28">'+svg+'</svg>'
       +'<div><b>'+t+'</b><span>'+dsc+'</span></div></div>';};
-  $('jbond').innerHTML=ring('개척','나 혼자 뚫은 별','solo')+ring('분산','여럿이 따로','apart')
-    +ring('합동','같이 감 · 서로 확인됨','together')
+  $('jbond').innerHTML=ring('혼자','나만 다녀온 곳','solo')
+    +ring('따로','같은 곳을 각자','apart')
+    +ring('같이','한자리에 함께','together')
     +'<div class="hint">고리 두께 = 인원수 · 끊김/이어짐 = 함께 갔는가.<br>'
     +'그룹은 계정이 생기는 단계에서 열립니다. 그때 <b>“우리 모임 9명 중 4명”</b>이 여기 붙습니다.</div>'
     +(saved.length?'<div class="colh mt">가고 싶은 곳</div>'
