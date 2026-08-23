@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<!-- ESTELA — globe foundation. Map-only 3D globe (country fills + vector borders +
+     tiered labels for countries/cities). Forked from after-flight/index.html,
+     which was seeded from batavia-wtl labs/globe-base.html v4
+     (dateline unwrap + polar cap fixes included).
+     Canon-guide star layers (§3) and the journey line (§5.3) mount on top of this base.
+     Rendering engine: three.js r160 + topojson-client, both via CDN. -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Estela — Globe</title>
+<style>
+  body{margin:0;background:#05070c;color:#EAF9FF;font-family:'Segoe UI',sans-serif;overflow:hidden;height:100vh;height:100dvh}
+  #hud{position:fixed;top:10px;left:12px;z-index:5;font:12px/1.7 Consolas,monospace;color:#93a7b8;
+    background:rgba(7,10,16,.72);border:1px solid rgba(159,199,224,.22);padding:8px 12px}
+  #hud b{color:#CFE9F7}
+  #note{position:fixed;bottom:10px;left:12px;right:12px;z-index:5;font:10px Consolas,monospace;color:#5b6b7a}
+</style>
+</head>
+<body>
+<div id="hud"><b>ESTELA</b> · 글로브 베이스 — 미식 별 레이어는 이 위에 얹습니다<br>
+FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 드래그 회전 / 휠·핀치 줌</div>
+<div id="note">estela — P0 시작 베이스 (after-flight에서 분기 · 원류 batavia globe-base v4)</div>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+"three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+"topojson-client":"https://cdn.jsdelivr.net/npm/topojson-client@3/+esm"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as topojson from 'topojson-client';
+
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,.05,100);
+camera.position.set(0,0.5,2.9);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(1.75,devicePixelRatio));
+renderer.setClearColor(0x05070c);
+document.body.appendChild(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true;controls.dampingFactor=.06;
+controls.minDistance=1.4;controls.maxDistance=5.5;controls.enablePan=false;
+controls.autoRotate=!matchMedia('(prefers-reduced-motion: reduce)').matches;
+controls.autoRotateSpeed=.22;
+
+const R=1;
+const D2R=Math.PI/180;
+function toV3(la,lo,r){const phi=(90-la)*D2R,th=(lo+180)*D2R;
+  return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(th),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(th));}
+
+/* 별 */
+{const g=new THREE.BufferGeometry();const p=new Float32Array(900*3);
+ for(let i=0;i<900;i++){const v=new THREE.Vector3().randomDirection().multiplyScalar(42+Math.random()*26);p.set([v.x,v.y,v.z],i*3);}
+ g.setAttribute('position',new THREE.BufferAttribute(p,3));
+ scene.add(new THREE.Points(g,new THREE.PointsMaterial({color:0x6d8296,size:.05,transparent:true,opacity:.5})));}
+
+/* ── 바탕 구 + 국가 채움 텍스처 (채움만 래스터 — 경계는 아래 벡터) ── */
+const earthMat=new THREE.MeshBasicMaterial({color:0x0c141d});
+const earth=new THREE.Mesh(new THREE.SphereGeometry(R,96,96),earthMat);
+scene.add(earth);
+
+const atmMat=new THREE.ShaderMaterial({
+  transparent:true,side:THREE.BackSide,depthWrite:false,
+  uniforms:{c:{value:new THREE.Color(0x9fc7e0)}},
+  vertexShader:'varying vec3 vN;void main(){vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader:'uniform vec3 c;varying vec3 vN;void main(){float i=pow(.58-dot(vN,vec3(0.,0.,1.)),2.6);gl_FragColor=vec4(c,1.)*i*.7;}'});
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(R*1.09,64,64),atmMat));
+
+const COUNTRIES='https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
+fetch(COUNTRIES).then(r=>r.json()).then(topo=>{
+  const feats=topojson.feature(topo,topo.objects.countries).features;
+  document.getElementById('ncty').textContent=feats.length;
+  /* 채움: 등장방형 캔버스 → 텍스처 (나라별 미묘한 명도 차로 구분) */
+  const c=document.createElement('canvas');c.width=4096;c.height=2048;
+  const x=c.getContext('2d');
+  x.fillStyle='#0b131c';x.fillRect(0,0,4096,2048); /* 바다 */
+  const px=(lo)=> (lo+180)/360*4096, py=(la)=> (90-la)/180*2048;
+  feats.forEach((f,fi)=>{
+    const shade=0.85+((fi*2654435761)%1000)/1000*0.3; /* 나라별 결정적 음영 */
+    const g0=Math.round(24*shade),g1=Math.round(34*shade),g2=Math.round(44*shade);
+    x.fillStyle=`rgb(${g0},${g1},${g2})`;
+    const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+    /* 날짜변경선 처리: 경도 언랩(±360 연속화) 후 ±폭 오프셋 3회 드로잉 —
+       러시아·피지 등 ±180° 걸침 나라가 전폭 띠(극 도넛)로 새는 것을 방지.
+       예외: 남극은 하단 전폭 변이 극관을 정당하게 채우므로 원본 그대로 */
+    if((f.properties.name||'').toLowerCase()==='antarctica'){
+      polys.forEach(poly=>{
+        x.beginPath();
+        poly.forEach(ring=>{ring.forEach((p,i)=>{i?x.lineTo(px(p[0]),py(p[1])):x.moveTo(px(p[0]),py(p[1]));});x.closePath();});
+        x.fill('evenodd');});
+      /* 데이터가 남위 ~83° 이남을 안 갖고 있어 극점에 바다색 원반이 남음 — 극관 마저 채움 */
+      x.fillRect(0,py(-82.8),4096,2048-py(-82.8));
+      return;}
+    polys.forEach(poly=>{
+      [-4096,0,4096].forEach(off=>{
+        x.beginPath();
+        poly.forEach(ring=>{
+          let prev=null;
+          ring.forEach((p,i)=>{
+            let lo=p[0];
+            if(prev!==null){while(lo-prev>180)lo-=360;while(lo-prev<-180)lo+=360;}
+            prev=lo;
+            const X=(lo+180)/360*4096+off;
+            i?x.lineTo(X,py(p[1])):x.moveTo(X,py(p[1]));});
+          x.closePath();});
+        x.fill('evenodd');});});});
+  const t=new THREE.CanvasTexture(c);
+  t.colorSpace=THREE.SRGBColorSpace;
+  /* 극지 도넛 밴딩 제거: 채움 텍스처는 평탄색뿐이라 밉맵 불필요 — 끄면 위도 띠가 사라짐 */
+  t.generateMipmaps=false;t.minFilter=THREE.LinearFilter;
+  t.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  earth.material=new THREE.MeshBasicMaterial({map:t});
+  /* ── 벡터 경계: 내부 국경(밝게) + 해안선(은은) — 각 1드로콜 ── */
+  function meshToSegs(mesh,r){
+    const verts=[];
+    const lines=mesh.type==='MultiLineString'?mesh.coordinates:[mesh.coordinates];
+    lines.forEach(line=>{for(let i=0;i<line.length-1;i++){
+      if(line[i][1]<-82.8&&line[i+1][1]<-82.8)continue; /* 남극 데이터 절단선(인공 원) 제외 */
+      const a=toV3(line[i][1],line[i][0],r),b=toV3(line[i+1][1],line[i+1][0],r);
+      verts.push(a.x,a.y,a.z,b.x,b.y,b.z);}});
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(verts),3));
+    return g;}
+  const inner=topojson.mesh(topo,topo.objects.countries,(a,b)=>a!==b);
+  earth.add(new THREE.LineSegments(meshToSegs(inner,R*1.0018),
+    new THREE.LineBasicMaterial({color:0xBFD9EA,transparent:true,opacity:.55})));
+  const coast=topojson.mesh(topo,topo.objects.countries,(a,b)=>a===b);
+  earth.add(new THREE.LineSegments(meshToSegs(coast,R*1.0015),
+    new THREE.LineBasicMaterial({color:0x9FC0D6,transparent:true,opacity:.38})));
+  /* ── 전국 라벨 자동 생성: 경제 규모 티어 (T1 대국 상시 · T2 중견 · T3 전부) ── */
+  const T1=new Set(['united states of america','china','japan','germany','india',
+    'united kingdom','france','brazil','russia','canada','south korea','australia',
+    'mexico','saudi arabia','indonesia','italy']);
+  const T2=new Set(['spain','netherlands','turkey','switzerland','poland','argentina',
+    'sweden','belgium','ireland','norway','austria','israel','united arab emirates',
+    'thailand','egypt','denmark','malaysia','vietnam','philippines','bangladesh',
+    'south africa','nigeria','colombia','chile','finland','romania','czechia',
+    'portugal','new zealand','peru','greece','iraq','qatar','kazakhstan','hungary',
+    'kuwait','morocco','ukraine','iran','pakistan','algeria','ethiopia','venezuela',
+    'antarctica','greenland']);
+  function centroidOf(f){ /* 최대 폴리곤의 단위벡터 평균 — 경도 랩(러시아·피지) 안전 */
+    const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+    let ring=polys[0][0];
+    polys.forEach(p=>{if(p[0].length>ring.length)ring=p[0];});
+    const v=new THREE.Vector3();
+    ring.forEach(([lo,la])=>v.add(toV3(la,lo,1)));
+    v.normalize();
+    const la=Math.asin(v.y)/D2R;
+    const lo=Math.atan2(v.z,-v.x)/D2R-180;
+    return [la,((lo+540)%360)-180];}
+  feats.forEach(f=>{
+    const nm=f.properties&&f.properties.name;if(!nm)return;
+    const key=nm.toLowerCase();
+    const tier=T1.has(key)?1:T2.has(key)?2:3;
+    const c=centroidOf(f);
+    addLabel(nm.toUpperCase(),c[0],c[1],tier);});
+}).catch(e=>{document.getElementById('ncty').textContent='로드 실패';});
+
+/* ── 라벨: 경제 티어 + 줌 게이팅 + 크기 위계 ──
+   T1 대국 = 항상·큰 글씨 · T2 중견 = 줌<2.5 · T3 전국 = 줌<1.85
+   T4 주요 도시 = 줌<1.95 · T5 광역 도시 = 줌<1.6 */
+function labelSprite(txt,tier){
+  const c=document.createElement('canvas');c.width=640;c.height=96;
+  const x=c.getContext('2d');
+  const size=tier===1?40:tier===2?31:tier===4?28:tier===5?23:24; /* 크기 = 위계 */
+  x.font=`600 ${size}px Consolas,monospace`;x.textAlign='center';x.textBaseline='middle';
+  x.letterSpacing=tier===1?'5px':'3px';
+  x.lineWidth=7;x.strokeStyle='rgba(4,8,13,.85)';x.strokeText(txt,320,48); /* 헤일로 */
+  x.fillStyle=tier===1?'rgba(224,238,248,.95)':tier===2?'rgba(196,216,232,.88)'
+    :tier===4?'rgba(159,199,224,.95)':tier===5?'rgba(143,178,204,.85)':'rgba(158,180,198,.8)';
+  x.fillText(txt,320,48);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,
+    depthTest:false,opacity:0})); /* 구에 잘리지 않음 — 노출은 페이드가 결정 */
+  s.renderOrder=20;
+  const k=tier===1?.34:tier===2?.26:tier===4?.22:tier===5?.18:.20;
+  s.scale.set(k,k*96/640,1);return s;}
+const labelObjs=[];
+function addLabel(txt,la,lo,tier){
+  const s=labelSprite(txt,tier);
+  s.position.copy(toV3(la,lo,R*1.012));
+  labelObjs.push({s,tier,normal:s.position.clone().normalize()});
+  earth.add(s);}
+/* 도시 — T4 주요 도시(줌<1.95) · T5 광역 주요 도시(줌<1.6) */
+const CITY4=[['SEOUL',37.5,127],['TOKYO',35.7,139.7],['NEW YORK',40.7,-74],['LONDON',51.5,-.1],
+ ['SHANGHAI',31.2,121.5],['RIYADH',24.7,46.7],['SINGAPORE',1.35,103.8],
+ ['HONG KONG',22.3,114.2],['MUMBAI',19,72.8],['FRANKFURT',50.1,8.7],
+ ['SÃO PAULO',-23.5,-46.6],['SYDNEY',-33.9,151.2],
+ ['MOSCOW',55.75,37.62],['PARIS',48.86,2.35],['CHICAGO',41.88,-87.63],['BEIJING',39.9,116.4],
+ ['DUBAI',25.2,55.27],['ZURICH',47.37,8.54],['TORONTO',43.65,-79.38],['MEXICO CITY',19.43,-99.13],
+ ['ISTANBUL',41.01,28.98],['JAKARTA',-6.2,106.85],['JOHANNESBURG',-26.2,28.05],['CAIRO',30.04,31.24],
+ ['BUENOS AIRES',-34.6,-58.38],['LOS ANGELES',34.05,-118.24],['WASHINGTON',38.9,-77.04]];
+const CITY5=[['SAN FRANCISCO',37.77,-122.42],['HOUSTON',29.76,-95.37],['MIAMI',25.76,-80.19],
+ ['VANCOUVER',49.28,-123.12],['BOGOTÁ',4.71,-74.07],['LIMA',-12.05,-77.04],['SANTIAGO',-33.45,-70.67],
+ ['MADRID',40.42,-3.7],['AMSTERDAM',52.37,4.9],['MILAN',45.46,9.19],['STOCKHOLM',59.33,18.07],
+ ['WARSAW',52.23,21.01],['VIENNA',48.21,16.37],['ATHENS',37.98,23.73],['TEL AVIV',32.08,34.78],
+ ['DOHA',25.29,51.53],['TEHRAN',35.69,51.39],['KYIV',50.45,30.52],['LAGOS',6.52,3.38],
+ ['NAIROBI',-1.29,36.82],['CASABLANCA',33.57,-7.59],['KARACHI',24.86,67.01],['NEW DELHI',28.61,77.21],
+ ['DHAKA',23.81,90.41],['BANGKOK',13.76,100.5],['KUALA LUMPUR',3.14,101.69],['MANILA',14.6,120.98],
+ ['HO CHI MINH',10.82,106.63],['TAIPEI',25.03,121.57],['SHENZHEN',22.54,114.06],['OSAKA',34.69,135.5],
+ ['BUSAN',35.18,129.08],['MELBOURNE',-37.81,144.96],['AUCKLAND',-36.85,174.76],['VLADIVOSTOK',43.12,131.89]];
+CITY4.forEach(([n,la,lo])=>addLabel(n,la,lo,4));
+CITY5.forEach(([n,la,lo])=>addLabel(n,la,lo,5));
+/* 도시 점 — 옅게 (지리 참조) */
+{const geo=new THREE.SphereGeometry(.0042,8,8);
+ const all=[...CITY4,...CITY5];
+ const im=new THREE.InstancedMesh(geo,new THREE.MeshBasicMaterial({color:0x8fa6b8,transparent:true,opacity:.8}),all.length);
+ const d3=new THREE.Object3D();
+ all.forEach((c2,i)=>{d3.position.copy(toV3(c2[1],c2[2],R*1.0025));d3.updateMatrix();im.setMatrixAt(i,d3.matrix);});
+ im.instanceMatrix.needsUpdate=true;earth.add(im);}
+function updateLabels(){
+  const camDir=camera.position.clone().normalize();
+  const dist=camera.position.length();
+  labelObjs.forEach(o=>{
+    const facing=o.normal.dot(camDir);              /* 1=정면 · 0=림 · 음수=뒷면 */
+    const tierOn=o.tier===1||(o.tier===2&&dist<2.5)||(o.tier===3&&dist<1.85)
+      ||(o.tier===4&&dist<1.95)||(o.tier===5&&dist<1.6);
+    const fade=THREE.MathUtils.smoothstep(facing,.12,.35); /* 수평선 페이드 */
+    o.s.material.opacity=tierOn?fade*.95:0;});}
+window.__dbg={labelObjs,camera};
+
+/* ────────────────────────────────────────────────────────────────
+   ESTELA MOUNT POINTS — nothing built here yet, on purpose.
+   P1  canon layers  : static JSON snapshots (Michelin, Blue Ribbon, ...)
+                       → star points on `earth`, colour/size by grade,
+                         one toggleable THREE.Group per layer.
+   P2  camera        : country click → ease-in to city → restaurant cards.
+   P3  journey line   : visited stars in chronological order → THREE.Line
+                       following the sphere surface (the "estela").
+   Rule (§4): snapshots are static files in this repo. No live scraping,
+   no runtime calls to any guide's servers. Every record carries its
+   source layer and a last-verified date.
+   ──────────────────────────────────────────────────────────────── */
+
+let frames=0,fpsT=performance.now();
+const fpsEl=document.getElementById('fps');
+function loop(now){
+  controls.update();
+  updateLabels();
+  renderer.render(scene,camera);
+  frames++;if(now-fpsT>1000){fpsEl.textContent=frames;frames=0;fpsT=now;}
+  requestAnimationFrame(loop);}
+requestAnimationFrame(loop);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);});
+</script>
+</body>
+</html>
