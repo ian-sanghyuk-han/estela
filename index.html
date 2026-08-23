@@ -18,42 +18,83 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Estela — Globe</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500&family=Archivo:wght@400;500;600&display=swap">
 <style>
-  body{margin:0;background:#05070c;color:#EAF9FF;font-family:'Segoe UI',sans-serif;overflow:hidden;height:100vh;height:100dvh}
-  #hud{position:fixed;top:10px;left:12px;z-index:5;font:12px/1.7 Consolas,monospace;color:#93a7b8;
-    background:rgba(7,10,16,.72);border:1px solid rgba(159,199,224,.22);padding:8px 12px}
-  #hud b{color:#CFE9F7}
-  #note{position:fixed;bottom:10px;left:12px;right:12px;z-index:5;font:10px Consolas,monospace;color:#5b6b7a}
+  /* ── Direction C + olive. Wine is me, olive is together, ink is the map. ── */
+  :root{
+    --paper:#F2EEE6; --card:#FFFFFF; --sand:#E4DED2;
+    --ink:#1B1714;   --dim:#6B6259;  --mute:#8C8175;
+    --rule:rgba(27,23,20,.13);
+    --wine:#7A2233;  --olive:#6E7355;
+    --serif:Newsreader,Georgia,serif; --sans:Archivo,'Helvetica Neue',sans-serif;
+  }
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+    overflow:hidden;height:100vh;height:100dvh}
+  #hud{position:fixed;top:10px;left:12px;z-index:5;font:11px/1.7 var(--sans);color:var(--dim);
+    background:rgba(255,255,255,.72);border:1px solid var(--rule);padding:7px 12px;
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  #hud b{color:var(--ink);font-weight:600}
+  #hud .wm{font-family:var(--serif);font-size:14px;letter-spacing:3.4px;color:var(--ink)}
+  #note{position:fixed;bottom:10px;left:12px;right:12px;z-index:5;font:10px var(--sans);color:var(--dim)}
   /* ── 뷰 전환 바 ── */
-  #modebar{position:fixed;bottom:38px;left:50%;transform:translateX(-50%);z-index:6;display:flex;
-    background:rgba(7,10,16,.78);border:1px solid rgba(159,199,224,.22);border-radius:999px;
-    padding:4px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-  .mbtn{font:600 12px/1 Consolas,monospace;letter-spacing:1.5px;color:#7b8c9c;
-    padding:10px 18px;border-radius:999px;cursor:pointer;user-select:none;-webkit-user-select:none;
-    -webkit-tap-highlight-color:transparent;transition:color .25s,background .25s}
-  .mbtn.on{color:#05070c;background:#CFE9F7}
-  /* ── 여정 패널 ── */
-  #jpanel{position:fixed;top:10px;right:12px;z-index:6;width:216px;
-    background:rgba(7,10,16,.82);border:1px solid rgba(159,199,224,.22);padding:11px 13px;
-    font:11px/1.55 Consolas,monospace;color:#93a7b8;backdrop-filter:blur(8px);
-    -webkit-backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .4s}
-  #jpanel.on{opacity:1;pointer-events:auto}
-  #jpanel h3{margin:0 0 3px;font-size:12px;letter-spacing:2px;color:#CFE9F7}
-  #jpanel .tag{display:inline-block;font-size:9px;letter-spacing:1px;color:#E8D44D;
-    border:1px solid rgba(232,212,77,.45);padding:1px 5px;margin-bottom:8px}
-  #jpanel .stop{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
-  #jpanel .stop b{color:#CFE9F7;font-weight:600}
-  #jpanel .d{color:#5b6b7a}
-  #jpanel .float{color:#7b8c9c;border-top:1px solid rgba(159,199,224,.14);margin-top:7px;padding-top:6px}
-  #jpanel .foot{color:#5b6b7a;font-size:10px;margin-top:8px;line-height:1.5}
-  @media (max-width:520px){
-    #jpanel{width:auto;left:12px;right:12px;top:auto;bottom:96px}
-    #hud{font-size:11px;padding:6px 10px}
+  #modebar{position:fixed;bottom:34px;left:50%;transform:translateX(-50%);z-index:6;display:flex;
+    background:rgba(255,255,255,.82);border:1px solid rgba(27,23,20,.20);
+    padding:0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  .mbtn{font:500 11.5px/1 var(--sans);letter-spacing:2px;color:var(--dim);
+    padding:11px 20px;cursor:pointer;user-select:none;-webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;transition:color .3s,background .3s}
+  .mbtn+.mbtn{border-left:1px solid var(--rule)}
+  .mbtn.on{color:var(--paper);background:var(--ink);font-weight:600}
+  /* ── 여정 = 여권 한 페이지 ── */
+  #jpanel{position:fixed;top:12px;right:12px;z-index:6;width:286px;max-height:calc(100vh - 24px);overflow-y:auto;
+    background:var(--card);border:1px solid var(--rule);padding:15px 16px 13px;
+    font:11px/1.55 var(--sans);color:var(--dim);
+    box-shadow:0 10px 30px rgba(27,23,20,.10);
+    opacity:0;transform:translateY(-6px);pointer-events:none;
+    transition:opacity .45s ease,transform .45s ease}
+  #jpanel.on{opacity:1;transform:none;pointer-events:auto}
+  #jpanel h3{margin:0;font-family:var(--serif);font-size:19px;font-weight:400;letter-spacing:5px;color:var(--ink)}
+  #jpanel .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+  #jpanel .tag{font-size:8.5px;letter-spacing:1.6px;font-weight:600;color:var(--card);
+    background:var(--mute);padding:3px 8px}
+  /* 도장판 */
+  #jstops{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .stamp{aspect-ratio:1;border:1.5px solid var(--wine);color:var(--wine);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    text-align:center;transform:rotate(var(--r));transform-origin:50% 50%}
+  .stamp .n{font-family:var(--serif);font-size:11.5px;font-weight:500;line-height:1.12;padding:0 2px;
+    overflow-wrap:anywhere}   /* COPENHAGEN·SAN SEBASTIÁN 같은 긴 이름도 칸 안에서 접힌다 */
+  .stamp .d{font-size:8px;letter-spacing:.6px;opacity:.82}
+  /* 함께 간 도장에는 올리브 겹도장이 하나 더 찍힌다 */
+  .stamp.tg{border-color:var(--olive);color:var(--olive);box-shadow:2.5px 2.5px 0 rgba(110,115,85,.22)}
+  .stamp.empty{border:1.5px dashed rgba(140,129,117,.65);color:var(--dim);transform:none}
+  .stamp.float{border-style:dashed;border-color:rgba(140,129,117,.8);color:var(--dim)}
+  /* 찍히는 순간 — 위에서 내려와 눌린다 */
+  #jpanel.on .stamp{animation:press .5s cubic-bezier(.16,1.02,.3,1) backwards}
+  @keyframes press{
+    0%  {opacity:0;transform:rotate(var(--r)) scale(2.1)}
+    55% {opacity:1;transform:rotate(var(--r)) scale(.94)}
+    75% {transform:rotate(var(--r)) scale(1.03)}
+    100%{opacity:1;transform:rotate(var(--r)) scale(1)}}
+  @media (prefers-reduced-motion:reduce){#jpanel.on .stamp{animation:none}}
+  #jpanel .foot{color:var(--dim);font-size:9.5px;margin-top:11px;padding-top:9px;
+    border-top:1px solid var(--rule);line-height:1.6}
+  #jpanel .key{display:flex;gap:10px;margin-top:7px;font-size:9.5px;color:var(--dim)}
+  #jpanel .key i{font-style:normal;display:inline-flex;align-items:center;gap:4px}
+  #jpanel .sw{width:9px;height:9px;border:1.5px solid var(--wine);display:inline-block}
+  #jpanel .sw.o{border-color:var(--olive)}
+  #jpanel .sw.g{border-style:dashed;border-color:rgba(140,129,117,.7)}
+  @media (max-width:560px){
+    #jpanel{width:auto;left:12px;right:12px;top:auto;bottom:86px;transform:translateY(6px)}
+    #jpanel.on{transform:none}
+    #jstops{grid-template-columns:repeat(4,minmax(0,1fr))}
+    #hud{font-size:10px;padding:6px 10px}
+    .mbtn{padding:12px 16px}
   }
 </style>
 </head>
 <body>
-<div id="hud"><b>ESTELA</b> · 글로브 베이스 — 미식 별 레이어는 이 위에 얹습니다<br>
+<div id="hud"><span class="wm">ESTELA</span> — 미식 별 레이어는 이 위에 얹습니다<br>
 FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 경계 <b id="res">110m</b> · <span id="hint">드래그 회전 / 휠·핀치 줌</span></div>
 
 <div id="modebar">
@@ -63,11 +104,15 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 경계 <b id="res">110
 </div>
 
 <div id="jpanel">
-  <h3>여정</h3>
-  <div class="tag">샘플 · 실제 기록 아님</div>
+  <div class="head"><h3>여정</h3><span class="tag">샘플 · 실제 기록 아님</span></div>
   <div id="jstops"></div>
-  <div class="foot">선이 지나간 순서가 곧 여정입니다.<br>
-    날짜를 모르는 별은 선에 꿰이지 않고 혼자 떠 있습니다.</div>
+  <div class="key">
+    <i><span class="sw"></span>혼자</i>
+    <i><span class="sw o"></span>함께</i>
+    <i><span class="sw g"></span>날짜 미상</i>
+  </div>
+  <div class="foot">찍힌 순서가 곧 여정입니다. 날짜를 모르는 별은 선에 꿰이지 않고 혼자 떠 있습니다.<br>
+    지구본 위 올리브 고리 = 함께 간 별 · 끊긴 고리 = 여럿이 따로 다녀온 별.</div>
 </div>
 
 <div id="note">estela — P0 시작 베이스 (after-flight에서 분기 · 원류 batavia globe-base v4) · 여정은 샘플 도시 좌표이며 가이드 데이터 없음</div>
@@ -87,7 +132,7 @@ camera.position.set(0,0.5,2.9);
 const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
 renderer.setPixelRatio(Math.min(1.75,devicePixelRatio));
-renderer.setClearColor(0x05070c);
+renderer.setClearColor(0xF2EEE6);        /* 종이 */
 document.body.appendChild(renderer.domElement);
 const controls=new OrbitControls(camera,renderer.domElement);
 controls.enableDamping=true;controls.dampingFactor=.06;
@@ -123,11 +168,8 @@ function lineMat(color,opacity,onTop){
 function setLineK(l,k){if(l)l.material.uniforms.uK.value=k;}
 function setLineO(l,o){if(l)l.material.uniforms.uO.value=o;}
 
-/* 별 */
-{const g=new THREE.BufferGeometry();const p=new Float32Array(900*3);
- for(let i=0;i<900;i++){const v=new THREE.Vector3().randomDirection().multiplyScalar(42+Math.random()*26);p.set([v.x,v.y,v.z],i*3);}
- g.setAttribute('position',new THREE.BufferAttribute(p,3));
- scene.add(new THREE.Points(g,new THREE.PointsMaterial({color:0x6d8296,size:.05,transparent:true,opacity:.5})));}
+/* 배경 별은 뺐다 — 바탕이 종이가 된 이상 하늘의 별은 식당 별과 헷갈릴 뿐이다.
+   이 화면에서 별은 오직 다녀온 식당을 뜻한다 */
 
 /* ── 무대: 지도에 붙는 모든 것이 여기 담긴다 (통째로 접히고 펼쳐진다) ── */
 const stage=new THREE.Group();scene.add(stage);
@@ -141,7 +183,7 @@ function refreshClones(){ /* 지도 모드: 좌우 복제 — 끝이 없는 지�
     c.position.x=off;scene.add(c);stageClones.push(c);});}
 
 /* ── 바탕: 구가 아니라 격자다. 같은 정점이 구로 감기고 평면으로 펼쳐진다 ── */
-const baseMat=new THREE.MeshBasicMaterial({color:0x0c141d,side:THREE.DoubleSide});
+const baseMat=new THREE.MeshBasicMaterial({color:0xE2DACB,side:THREE.DoubleSide});
 const baseGeo=new THREE.PlaneGeometry(W2,H2,192,96);
 const BP0=new Float32Array(baseGeo.attributes.position.count*3);
 const BP1=new Float32Array(baseGeo.attributes.position.count*3);
@@ -156,13 +198,16 @@ const baseMesh=new THREE.Mesh(baseGeo,baseMat);
 setLerpGeo(baseGeo,BP0,BP1,0);
 stage.add(baseMesh);
 
-/* 대기 글로우 — 3D 전용이라 알파로 물러난다 */
+/* 종이 위에서는 파란 대기광이 어색하다. 대신 구 바깥으로 옅은 그림자를 깔아
+   지구본이 종이에서 살짝 떠 보이게 한다 — 3D 전용이라 펼쳐지면 알파로 물러난다 */
 const atmMat=new THREE.ShaderMaterial({
-  transparent:true,side:THREE.BackSide,depthWrite:false,
-  uniforms:{c:{value:new THREE.Color(0x9fc7e0)},a:{value:1}},
+  transparent:true,side:THREE.BackSide,depthWrite:false,blending:THREE.NormalBlending,
+  uniforms:{c:{value:new THREE.Color(0x6B6259)},a:{value:1}},
   vertexShader:'varying vec3 vN;void main(){vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-  fragmentShader:'uniform vec3 c;uniform float a;varying vec3 vN;void main(){float i=pow(.58-dot(vN,vec3(0.,0.,1.)),2.6);gl_FragColor=vec4(c,1.)*i*.7*a;}'});
-const atmMesh=new THREE.Mesh(new THREE.SphereGeometry(R*1.09,64,64),atmMat);
+  fragmentShader:'uniform vec3 c;uniform float a;varying vec3 vN;void main(){'+
+    'float d=dot(vN,vec3(0.,0.,1.));float i=pow(clamp(.62-d,0.,1.),2.2)*smoothstep(0.,.30,-d);'+
+    'gl_FragColor=vec4(c,clamp(i*.34*a,0.,1.));}'});
+const atmMesh=new THREE.Mesh(new THREE.SphereGeometry(R*1.055,64,64),atmMat);
 scene.add(atmMesh);
 
 let innerL=null,coastL=null;           /* 국경·해안선 — 지도 로드 후 채워진다 */
@@ -177,11 +222,12 @@ fetch(TOPO_FAST).then(r=>r.json()).then(topo=>{
   /* 채움: 등장방형 캔버스 → 텍스처 (나라별 미묘한 명도 차로 구분) */
   const c=document.createElement('canvas');c.width=4096;c.height=2048;
   const x=c.getContext('2d');
-  x.fillStyle='#0b131c';x.fillRect(0,0,4096,2048); /* 바다 */
+  x.fillStyle='#E2DACB';x.fillRect(0,0,4096,2048); /* 바다 — 살짝 짙은 종이 */
   const px=(lo)=> (lo+180)/360*4096, py=(la)=> (90-la)/180*2048;
   feats.forEach((f,fi)=>{
-    const shade=0.85+((fi*2654435761)%1000)/1000*0.3; /* 나라별 결정적 음영 */
-    const g0=Math.round(24*shade),g1=Math.round(34*shade),g2=Math.round(44*shade);
+    /* 육지는 바다보다 밝다 — 종이에 찍은 지도의 결. 나라별 음영은 아주 옅게만 */
+    const shade=0.965+((fi*2654435761)%1000)/1000*0.035; /* 나라별 결정적 음영 */
+    const g0=Math.round(250*shade),g1=Math.round(247*shade),g2=Math.round(240*shade);
     x.fillStyle=`rgb(${g0},${g1},${g2})`;
     const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
     /* 날짜변경선 처리: 경도 언랩(±360 연속화) 후 ±폭 오프셋 3회 드로잉 —
@@ -274,12 +320,14 @@ function meshToSegs(mesh,r){
   return g;}
 function addLine(geo,mat){            /* 평면에서는 경계 밖으로 흐르므로 절두체 컬링을 끈다 */
   const l=new THREE.LineSegments(geo,mat);l.frustumCulled=false;stage.add(l);return l;}
+/* 종이 지도에서는 해안선이 주인공이고 국경은 거들 뿐 — 어두운 배경일 때와 반대다 */
+const O_INNER=.34,O_COAST=.58;
 function buildBorders(topo){          /* 해상도가 바뀌면 통째로 다시 굽는다 */
   [innerL,coastL].forEach(l=>{if(l){stage.remove(l);l.geometry.dispose();l.material.dispose();}});
   const inner=topojson.mesh(topo,topo.objects.countries,(a,b)=>a!==b);
-  innerL=addLine(meshToSegs(inner,R*1.0018),lineMat(0xBFD9EA,.55,false));
+  innerL=addLine(meshToSegs(inner,R*1.0018),lineMat(0x6B6259,O_INNER,false));
   const coast=topojson.mesh(topo,topo.objects.countries,(a,b)=>a===b);
-  coastL=addLine(meshToSegs(coast,R*1.0015),lineMat(0x9FC0D6,.38,false));}
+  coastL=addLine(meshToSegs(coast,R*1.0015),lineMat(0x1B1714,O_COAST,false));}
 
 /* ── 라벨: 경제 티어 + 줌 게이팅 + 크기 위계 ──
    T1 대국 = 항상·큰 글씨 · T2 중견 = 줌<2.5 · T3 전국 = 줌<1.85
@@ -287,12 +335,14 @@ function buildBorders(topo){          /* 해상도가 바뀌면 통째로 다시
 function labelSprite(txt,tier){
   const c=document.createElement('canvas');c.width=640;c.height=96;
   const x=c.getContext('2d');
-  const size=tier===1?40:tier===2?31:tier===4?28:tier===5?23:24; /* 크기 = 위계 */
-  x.font=`600 ${size}px Consolas,monospace`;x.textAlign='center';x.textBaseline='middle';
-  x.letterSpacing=tier===1?'5px':'3px';
-  x.lineWidth=7;x.strokeStyle='rgba(4,8,13,.85)';x.strokeText(txt,320,48); /* 헤일로 */
-  x.fillStyle=tier===1?'rgba(224,238,248,.95)':tier===2?'rgba(196,216,232,.88)'
-    :tier===4?'rgba(159,199,224,.95)':tier===5?'rgba(143,178,204,.85)':'rgba(158,180,198,.8)';
+  const size=tier===1?38:tier===2?30:tier===4?27:tier===5?22:23; /* 크기 = 위계 */
+  x.font=`${tier<=2?600:500} ${size}px Archivo,'Segoe UI',sans-serif`;
+  x.textAlign='center';x.textBaseline='middle';
+  x.letterSpacing=tier===1?'4px':'2.5px';
+  x.lineWidth=7;x.strokeStyle='rgba(250,247,240,.92)';x.strokeText(txt,320,48); /* 종이색 헤일로 */
+  /* 나라 이름은 먹빛, 도시 이름은 와인빛 — 축이 다르면 색도 다르다 */
+  x.fillStyle=tier===1?'rgba(27,23,20,.92)':tier===2?'rgba(27,23,20,.78)'
+    :tier===4?'rgba(122,34,51,.90)':tier===5?'rgba(122,34,51,.72)':'rgba(107,98,89,.72)';
   x.fillText(txt,320,48);
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,
@@ -328,8 +378,9 @@ CITY4.forEach(([n,la,lo])=>addLabel(n,la,lo,4));
 CITY5.forEach(([n,la,lo])=>addLabel(n,la,lo,5));
 /* 도시 점 — 옅게 (지리 참조) */
 const ALLCITY=[...CITY4,...CITY5];
-const cityIM=new THREE.InstancedMesh(new THREE.SphereGeometry(.0042,8,8),
-  new THREE.MeshBasicMaterial({color:0x8fa6b8,transparent:true,opacity:.8}),ALLCITY.length);
+const O_CITY=.55;
+const cityIM=new THREE.InstancedMesh(new THREE.SphereGeometry(.0038,8,8),
+  new THREE.MeshBasicMaterial({color:0x8C8175,transparent:true,opacity:O_CITY}),ALLCITY.length);
 {const d3=new THREE.Object3D();
  ALLCITY.forEach((c2,i)=>{d3.position.copy(toV3(c2[1],c2[2],R*1.0025));d3.updateMatrix();cityIM.setMatrixAt(i,d3.matrix);});
  cityIM.instanceMatrix.needsUpdate=true;stage.add(cityIM);}
@@ -340,19 +391,23 @@ const cityIM=new THREE.InstancedMesh(new THREE.SphereGeometry(.0042,8,8),
    ⚠️ 아래 좌표는 전부 도시 좌표다. 식당·등급·가이드 데이터는 이 파일에 없다 (§4, §F).
    P1에서 정본 스냅샷이 들어오면 이 배열만 갈아끼우면 된다.
    ══════════════════════════════════════════════════════════════════ */
-const JOURNEY=[            /* [도시, 위도, 경도, 날짜] — 시간 순 */
-  ['TOKYO',        35.68, 139.70,'2023-05'],
-  ['PARIS',        48.86,   2.35,'2023-11'],
-  ['SAN SEBASTIÁN',43.32,  -1.98,'2024-04'],
-  ['LIMA',        -12.05, -77.04,'2024-09'],
-  ['NEW YORK',     40.71, -74.01,'2025-02'],
-  ['SEOUL',        37.57, 126.98,'2025-08']];
+/* with: 'solo' 나 혼자 · 'together' 함께 갔고 서로 확인됨 · 'apart' 여럿이 따로 갔음.
+   함께 여부는 §5.4대로 상호 확인만이 판정한다 — 선이 겹친다고 함께 간 것이 아니다 */
+const JOURNEY=[            /* [도시, 위도, 경도, 날짜, 동행상태] — 시간 순 */
+  ['TOKYO',        35.68, 139.70,'2023-05','together'],
+  ['PARIS',        48.86,   2.35,'2023-11','solo'],
+  ['SAN SEBASTIÁN',43.32,  -1.98,'2024-04','apart'],
+  ['LIMA',        -12.05, -77.04,'2024-09','solo'],
+  ['NEW YORK',     40.71, -74.01,'2025-02','together'],
+  ['SEOUL',        37.57, 126.98,'2025-08','solo']];
 const FLOATING=[           /* 떠 있는 별 — 갔지만 언제였는지 기억이 안 나는 곳 (§5.3.3) */
   ['COPENHAGEN',   55.68,  12.57],
   ['HONG KONG',    22.30, 114.17]];
+const EMPTY_SLOTS=4;       /* 아직 안 간 칸 — 빈칸이 남아 있는 게 보여야 채우고 싶어진다 */
 
 const journeyG=new THREE.Group();stage.add(journeyG);
 const jStars=[];           /* {la,lo,mesh,lift} — 모핑 때 자리를 다시 잡아야 한다 */
+const jRings=[];           /* 함께 간 별에 두르는 고리 */
 let jLine=null;
 
 function greatCircle(la1,lo1,la2,lo2,steps){
@@ -392,11 +447,11 @@ function buildJourney(){
   g.setAttribute('position',new THREE.BufferAttribute(jp0,3));
   g.setAttribute('aP1',new THREE.BufferAttribute(jp1,3));
   g.userData={p0:jp0,p1:jp1};
-  jLine=new THREE.LineSegments(g,lineMat(0xFFD98A,0,true));
+  jLine=new THREE.LineSegments(g,lineMat(0x7A2233,0,true));
   jLine.frustumCulled=false;jLine.renderOrder=14;
   journeyG.add(jLine);
   /* 별: 다녀온 곳 = 켜진 별. 우리가 그린 별이지 남의 도안이 아니다 (§3.1) */
-  const starGeo=new THREE.SphereGeometry(.011,12,12);
+  const starGeo=new THREE.SphereGeometry(.010,12,12);
   const mkStar=(la,lo,col,lift)=>{
     const m=new THREE.Mesh(starGeo,new THREE.MeshBasicMaterial({
       color:col,transparent:true,opacity:0,depthTest:false}));
@@ -405,14 +460,53 @@ function buildJourney(){
     journeyG.add(m);
     jStars.push({la,lo,mesh:m,lift});
     return m;};
-  JOURNEY.forEach(j=>mkStar(j[1],j[2],0xFFD98A,.004));
-  FLOATING.forEach(f=>mkStar(f[1],f[2],0x8FB2CC,.030)); /* 떠 있는 별 — 지면에서 살짝 띄운다 */
-  /* 패널 목록 */
-  const el=document.getElementById('jstops');
-  el.innerHTML=JOURNEY.map(j=>
-    `<div class="stop"><b>${j[0]}</b><span class="d">${j[3]}</span></div>`).join('')
-    +`<div class="float">떠 있는 별 · 날짜 미상<br>`
-    +FLOATING.map(f=>`<span style="color:#9FC0D6">${f[0]}</span>`).join(' · ')+`</div>`;}
+  JOURNEY.forEach(j=>mkStar(j[1],j[2],0x7A2233,.004));
+  FLOATING.forEach(f=>mkStar(f[1],f[2],0x8C8175,.028)); /* 떠 있는 별 — 지면에서 살짝 띄운다 */
+  /* 고리: 관계를 그래프가 아니라 지도 위에 그린다 (§5.4의 다섯 상태).
+     이어진 고리 = 함께 감 · 끊긴 고리 = 여럿이 따로 감 · 고리 없음 = 나 혼자 */
+  JOURNEY.forEach(j=>{
+    if(j[4]==='together')buildRing(j[1],j[2],2.6,false);
+    else if(j[4]==='apart')buildRing(j[1],j[2],2.6,true);});
+  paintPassport();}
+
+/* 구면 위의 작은 원 — 위경도로 걸어 그리므로 모핑을 그대로 탄다 */
+function buildRing(la0,lo0,degR,dashed){
+  const N=72,v0=[],v1=[],lift=.006;
+  const coslat=Math.max(.12,Math.cos(la0*D2R));
+  const pt=t=>{const a=t/N*Math.PI*2;
+    return [la0+degR*Math.cos(a), lo0+degR*Math.sin(a)/coslat];};
+  for(let i=0;i<N;i++){
+    if(dashed&&i%2)continue;                      /* 끊긴 고리 */
+    const [laA,loA]=pt(i),[laB,loB]=pt(i+1);
+    const a0=sphV3(laA,loA,R+lift),b0=sphV3(laB,loB,R+lift);
+    v0.push(a0.x,a0.y,a0.z,b0.x,b0.y,b0.z);
+    const a1=flatV3(laA,loA,R+lift),b1=flatV3(laB,loB,R+lift);
+    v1.push(a1.x,a1.y,a1.z,b1.x,b1.y,b1.z);}
+  const p0=new Float32Array(v0),p1=new Float32Array(v1);
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(p0,3));
+  g.setAttribute('aP1',new THREE.BufferAttribute(p1,3));
+  g.userData={p0,p1};
+  const l=new THREE.LineSegments(g,lineMat(0x6E7355,0,true)); /* 올리브 = 함께 */
+  l.frustumCulled=false;l.renderOrder=13;
+  journeyG.add(l);jRings.push(l);
+  return l;}
+
+/* 여권 한 페이지 — 도장이 하나씩 눌린다 */
+function paintPassport(){
+  const cells=[];
+  const rot=i=>(((i*2654435761)%1000)/1000*8-4).toFixed(2)+'deg'; /* -4°~+4°, 매번 같은 각도 */
+  JOURNEY.forEach((j,i)=>{
+    const tg=j[4]==='together';
+    cells.push(`<div class="stamp${tg?' tg':''}" style="--r:${rot(i)};animation-delay:${(i*70)}ms">`
+      +`<span class="n">${j[0]}</span><span class="d">${j[3].replace('-',' · ')}</span></div>`);});
+  FLOATING.forEach((f,i)=>{
+    cells.push(`<div class="stamp float" style="--r:${rot(i+40)};animation-delay:${((JOURNEY.length+i)*70)}ms">`
+      +`<span class="n">${f[0]}</span><span class="d">날짜 미상</span></div>`);});
+  const base=JOURNEY.length+FLOATING.length;
+  for(let i=0;i<EMPTY_SLOTS;i++)
+    cells.push(`<div class="stamp empty" style="animation-delay:${((base+i)*70)}ms"><span class="d">빈칸</span></div>`);
+  document.getElementById('jstops').innerHTML=cells.join('');}
 buildJourney();
 
 let journeyAlpha=0,jTween=null;        /* 여정 레이어의 등장·퇴장 */
@@ -423,6 +517,7 @@ function setStageMorph(k){
   MORPH=k;
   setLerpGeo(baseGeo,BP0,BP1,k);      /* 바탕 격자만 CPU — 5.6만 개라 가볍다 */
   setLineK(innerL,k);setLineK(coastL,k);setLineK(jLine,k); /* 선은 GPU가 접는다 */
+  jRings.forEach(l=>setLineK(l,k));
   labelObjs.forEach(o=>o.s.position.copy(blendV3(o.la,o.lo,R*1.012,k)));
   jStars.forEach(s=>s.mesh.position.copy(blendV3(s.la,s.lo,R+s.lift,k)));
   const d3=new THREE.Object3D();
@@ -549,11 +644,12 @@ function loop(now){
     const p=Math.min(1,(now-jTween.t0)/jTween.dur);
     journeyAlpha=jTween.from+(jTween.to-jTween.from)*p;
     if(p>=1)jTween=null;}
-  setLineO(jLine,journeyAlpha*.85);
+  setLineO(jLine,journeyAlpha*.90);
+  jRings.forEach(l=>setLineO(l,journeyAlpha*.85));
   jStars.forEach(s=>{s.mesh.material.opacity=journeyAlpha;});
   const dim=1-journeyAlpha*.55;                       /* 여정에서는 지도가 한 발 물러선다 */
-  setLineO(innerL,.55*dim);setLineO(coastL,.38*dim);
-  cityIM.material.opacity=.8*dim;
+  setLineO(innerL,O_INNER*dim);setLineO(coastL,O_COAST*dim);
+  cityIM.material.opacity=O_CITY*dim;
   atmMat.uniforms.a.value=(1-MORPH)*dim;
   atmMesh.visible=MORPH<.99;
 
