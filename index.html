@@ -694,7 +694,7 @@ function rebuildClusters(){
 
 const _v=new THREE.Vector3();
 /* 이름표가 붙기 시작하는 각도 — 지구 전체가 보일 때는 아무것도 안 쓴다 */
-const SHOW_NAME_DEG=40, NAME_DISTRICT_DEG=1.2, NAME_PLACE_DEG=.35;
+const SHOW_NAME_DEG=12, NAME_DISTRICT_DEG=1.2, NAME_PLACE_DEG=.35;
 function recluster(){
   const span=visibleSpanDeg();
   const li=pickLadder();
@@ -1013,6 +1013,7 @@ window.__dbg={labelObjs,camera,jStars,jRings,layerGroups,recluster,setView,setSt
   LADDER,pickLadder,visibleSpanDeg,getLadderIdx:()=>ladderIdx,tuneControls,rescaleMarkers,
   getControls:()=>controls,
   selectPlace,paintJourney,myCounts,keyOf,stampsOf,isSaved,getStore:()=>store,
+  updateLabels,bandFade,
   getMorph:()=>MORPH,getView:()=>VIEW,getMode:()=>MODE,
   setVIEW:v=>{VIEW=v;configCamera();refreshClones();}}; /* 검증용 훅 */
 
@@ -1068,15 +1069,51 @@ function tuneControls(){
   if(VIEW!=='2d')controls.autoRotate=AUTOROT&&far&&MODE!=='journey';
   driftOn=far;}
 
+/* ── 라벨 위계 ──
+   지도 라벨은 '언제 나타나는가'만큼 '언제 사라지는가'가 중요하다.
+   나라 이름은 멀리서 볼 때의 길잡이지, 파리 골목을 들여다보는 중에
+   화면 한가운데 'FRANCE'가 떠 있으면 방해물일 뿐이다.
+
+   그리고 이름표가 두 벌이다 — 손으로 넣은 도시 62개와, 데이터에서 나온
+   지역 이름. 같은 배율에서 둘 다 켜지면 'PARIS'와 'Paris (11)'이 겹친다.
+   배율 12°를 경계로 손잡이를 넘긴다: 위쪽은 손으로 넣은 도시, 아래쪽은 데이터.
+
+     배율(화면에 담긴 각도)   나라        도시(고정)   지역 이름(데이터)
+     90° 이상                 큰 나라만    —            —
+     40 ~ 90                  + 중견국     —            —
+     12 ~ 40                  + 전부       주요 도시     —
+     3 ~ 12                   사라지는 중  + 광역 도시   도시명
+     1.2 ~ 3                  —            —            도시명
+     0.35 ~ 1.2               —            —            구
+     0.35 미만                —            —            식당 이름          */
+const LB=[null,
+  {in:200,out:26},   /* T1 큰 나라 */
+  {in:85, out:26},   /* T2 중견국 */
+  {in:34, out:11},   /* T3 나머지 */
+  {in:30, out:2.5},  /* T4 주요 도시 */
+  {in:12, out:2.5}]; /* T5 광역 도시 */
+/* three.js의 smoothstep은 min<max를 전제한다. 여기서는 배율이 '줄어들면서'
+   켜지는 구간이 있어 방향이 뒤집히므로, 양방향을 다루는 램프를 따로 쓴다.
+   (뒤집힌 채로 두면 모든 라벨이 모든 배율에서 켜져 화면이 글자로 덮인다) */
+function ramp(x,a,b){const t=THREE.MathUtils.clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);}
+function bandFade(span,b){
+  return Math.min(ramp(span,b.in*1.3,b.in*.8),    /* 좁아지면 켜진다 */
+                  ramp(span,b.out*.7,b.out*1.35));} /* 더 좁아지면 꺼진다 */
+const _lv=new THREE.Vector3();
 function updateLabels(){
   const camDir=camera.position.clone().normalize();
-  const dist=VIEW==='2d'?camera.position.z+1.2:camera.position.length();
+  const span=visibleSpanDeg();
   labelObjs.forEach(o=>{
+    const band=bandFade(span,LB[o.tier]||LB[3]);
+    if(band<=0){o.s.material.opacity=0;return;}
     const facing=VIEW==='2d'?1:o.normal.dot(camDir); /* 1=정면 · 0=림 · 음수=뒷면 */
-    const tierOn=o.tier===1||(o.tier===2&&dist<2.5)||(o.tier===3&&dist<1.85)
-      ||(o.tier===4&&dist<1.95)||(o.tier===5&&dist<1.6);
-    const fade=VIEW==='2d'?1:THREE.MathUtils.smoothstep(facing,.12,.35); /* 수평선 페이드 */
-    o.s.material.opacity=tierOn?fade*.95:0;});}
+    const horizon=VIEW==='2d'?1:THREE.MathUtils.smoothstep(facing,.12,.35);
+    if(horizon<=0){o.s.material.opacity=0;return;}
+    /* 화면 밖 라벨은 그리지 않는다. 지구 앞면이라도 프레임 밖이면 낭비이고,
+       가까이 갈수록 앞면 판정만으로는 백 개 넘게 살아남는다 */
+    _lv.copy(o.s.position).project(camera);
+    if(_lv.z>1||_lv.x<-1.1||_lv.x>1.1||_lv.y<-1.1||_lv.y>1.1){o.s.material.opacity=0;return;}
+    o.s.material.opacity=band*horizon*.95;});}
 
 /* ══════════════════════════════════════════════════════════════════
    내 기록 — 브라우저에 저장한다. 서버는 P4에 온다.
