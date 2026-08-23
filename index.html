@@ -104,6 +104,74 @@
   #layers .prov{margin-top:7px;padding-top:7px;border-top:1px solid var(--rule);
     font-size:9.5px;color:var(--dim);line-height:1.55}
   @media (max-width:560px){#layers{display:none}}
+  /* ══ 여정 화면 — 전체를 차지한다. 지구본은 뒤에서 계속 돈다 ══ */
+  #jview{position:fixed;inset:0;z-index:7;overflow:auto;
+    background:linear-gradient(180deg,rgba(242,238,230,.90),rgba(242,238,230,.97) 22%);
+    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+    visibility:hidden;opacity:0;transform:translateY(14px);pointer-events:none;
+    transition:opacity .45s ease,transform .45s ease,visibility 0s .45s}
+  #jview.on{visibility:visible;opacity:1;transform:none;pointer-events:auto;
+    transition:opacity .45s ease,transform .45s ease}
+  #jwrap{max-width:1180px;margin:0 auto;padding:34px 22px 110px}
+  #jhead{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;
+    flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--rule);margin-bottom:22px}
+  #jhead .ttl{font-family:var(--serif);font-size:40px;font-weight:400;letter-spacing:12px;color:var(--ink)}
+  #jsum{display:flex;gap:22px;flex-wrap:wrap}
+  #jsum .st{display:flex;flex-direction:column;font-size:10px;letter-spacing:1.4px;color:var(--dim)}
+  #jsum .st b{font-family:var(--serif);font-size:25px;font-weight:400;letter-spacing:0;color:var(--ink)}
+  #jstage{display:grid;grid-template-columns:minmax(320px,1.45fr) minmax(220px,1fr) minmax(220px,1fr);
+    gap:26px 30px;align-items:start}
+  .jcol{min-width:0}
+  .colh{font-size:9px;letter-spacing:2.4px;font-weight:600;color:var(--mute);
+    text-transform:uppercase;margin-bottom:10px}
+  .colh.mt{margin-top:20px}
+  #jsample{font-size:10px;color:var(--dim);margin-top:10px;line-height:1.6}
+  /* 진행률 */
+  .prow{margin-bottom:13px}
+  .prow .pl{display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px;
+    color:var(--dim);margin-bottom:5px}
+  .prow .pl b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .prow .bar{height:6px;background:var(--sand)}
+  .prow .bar i{display:block;height:6px}
+  .hint{font-size:9.5px;color:var(--dim);line-height:1.65;margin-top:10px}
+  /* 함께 */
+  .brow{display:flex;gap:11px;align-items:center;padding:6px 0}
+  .brow b{display:block;font-size:12px;color:var(--ink);font-weight:600}
+  .brow span{font-size:10.5px;color:var(--dim)}
+  .wrow{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink);padding:3px 0}
+  .wrow .wd{width:8px;height:8px;border-radius:999px;flex-shrink:0}
+  .wrow i{margin-left:auto;font-style:normal;font-size:10px;color:var(--dim)}
+  /* ══ 고른 곳 카드 ══ */
+  #card{position:fixed;right:12px;bottom:88px;z-index:9;width:288px;
+    background:var(--card);border:1px solid var(--rule);padding:16px 17px 14px;
+    box-shadow:0 12px 34px rgba(27,23,20,.14);
+    opacity:0;transform:translateY(8px);pointer-events:none;
+    transition:opacity .3s ease,transform .3s ease}
+  #card.on{opacity:1;transform:none;pointer-events:auto}
+  #card h3{margin:2px 0 3px;font-family:var(--serif);font-size:23px;font-weight:400;
+    line-height:1.15;color:var(--ink)}
+  #card .src{font-size:8.5px;letter-spacing:2px;font-weight:600;color:var(--wine);text-transform:uppercase}
+  #card .sub{font-size:11.5px;color:var(--dim);margin-bottom:11px}
+  #card .mystamps{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:11px}
+  #card .mystamps span{font-size:9px;letter-spacing:.6px;color:var(--wine);
+    border:1px solid var(--wine);padding:2px 6px}
+  #card .acts{display:flex;flex-direction:column;gap:7px}
+  #card button{font:500 12px var(--sans);padding:11px 0;cursor:pointer;
+    border:1px solid rgba(27,23,20,.22);background:transparent;color:var(--ink);
+    -webkit-tap-highlight-color:transparent}
+  #card button.primary{background:var(--wine);border-color:var(--wine);color:#fff;font-weight:600}
+  #card button.on{border-color:var(--olive);color:var(--olive)}
+  #card button.quiet{border:0;color:var(--dim);font-size:10.5px;padding:4px 0}
+  #card #cx{position:absolute;top:6px;right:8px;border:0;background:0;font-size:17px;
+    color:var(--mute);padding:2px 6px;line-height:1}
+  #card .prov{font-size:9px;color:var(--dim);line-height:1.55;margin-top:11px;
+    padding-top:9px;border-top:1px solid var(--rule)}
+  @media (max-width:900px){
+    #jstage{grid-template-columns:1fr}
+    #jhead .ttl{font-size:30px;letter-spacing:8px}
+    #jwrap{padding:22px 14px 110px}
+    #card{left:12px;right:12px;width:auto;bottom:84px}
+  }
   @media (max-width:560px){
     #jpanel{width:auto;left:12px;right:12px;top:auto;bottom:86px;transform:translateY(6px)}
     #jpanel.on{transform:none}
@@ -115,7 +183,7 @@
 </head>
 <body>
 <div id="hud"><span class="wm">ESTELA</span> — 미식 별 레이어는 이 위에 얹습니다<br>
-FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 경계 <b id="res">110m</b> · 별 <b id="nstar">—</b> · 단위 <b id="lvl">—</b> · <span id="hint">드래그 회전 / 휠·핀치 줌</span></div>
+FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 경계 <b id="res">110m</b> · 별 <b id="nstar">—</b> · 단위 <b id="lvl">—</b> · 내 기록 <b id="mine">0</b> · <span id="hint">드래그 회전 / 휠·핀치 줌</span></div>
 
 <div id="modebar">
   <span class="mbtn on" data-v="3d">3D</span>
@@ -123,17 +191,32 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 경계 <b id="res">110
   <span class="mbtn" data-v="journey">여정</span>
 </div>
 
-<div id="jpanel">
-  <div class="head"><h3>여정</h3><span class="tag">샘플 · 실제 기록 아님</span></div>
-  <div id="jstops"></div>
-  <div class="key">
-    <i><span class="sw"></span>혼자</i>
-    <i><span class="sw o"></span>함께</i>
-    <i><span class="sw g"></span>날짜 미상</i>
+<div id="jview">
+  <div id="jwrap">
+    <div id="jhead">
+      <div class="ttl">여정</div>
+      <div id="jsum"></div>
+    </div>
+    <div id="jstage">
+      <section class="jcol">
+        <div class="colh">여권</div>
+        <div id="jstops"></div>
+        <div id="jsample">아직 도장이 없어 <b>샘플</b>이 서 있습니다. 지구본에서 별을 눌러
+          첫 도장을 찍으면 이 자리는 선장님 기록으로 바뀝니다.</div>
+      </section>
+      <section class="jcol">
+        <div class="colh">진행률</div>
+        <div id="jprog"></div>
+      </section>
+      <section class="jcol">
+        <div class="colh">함께 — bond</div>
+        <div id="jbond"></div>
+      </section>
+    </div>
   </div>
-  <div class="foot">찍힌 순서가 곧 여정입니다. 날짜를 모르는 별은 선에 꿰이지 않고 혼자 떠 있습니다.<br>
-    지구본 위 올리브 고리 = 함께 간 별 · 끊긴 고리 = 여럿이 따로 다녀온 별.</div>
 </div>
+
+<div id="card"></div>
 
 <div id="layers"><h4>레이어</h4><div id="lrows"></div><div class="prov" id="lprov"></div></div>
 
@@ -430,20 +513,35 @@ const layerGroups=[];
 const PT_LIFT=R*1.016;
 const DOT_K=.026,BUB_K=.062;            /* 점·묶음의 화면 크기 — 개수와 무관하게 고정 */
 
-function dotTexture(rgb){               /* 점 하나: 어느 레이어든 같은 크기 */
+function dotTexture(rgb,kind){          /* 점 하나: 어느 레이어든 같은 크기 */
   const S=64,c=document.createElement('canvas');c.width=c.height=S;
   const x=c.getContext('2d');
+  const solid=kind!=='saved';
   x.beginPath();x.arc(S/2,S/2,S*.30,0,Math.PI*2);
-  x.fillStyle='rgb('+rgb+')';x.fill();
+  if(solid){x.fillStyle='rgb('+rgb+')';x.fill();}
   x.lineWidth=S*.075;x.strokeStyle='rgba(247,244,238,.92)';x.stroke();
+  if(kind==='stamped'){        /* 찍힌 곳 — 바깥에 고리를 두른다 */
+    x.beginPath();x.arc(S/2,S/2,S*.44,0,Math.PI*2);
+    x.lineWidth=S*.075;x.strokeStyle='rgb('+rgb+')';x.stroke();}
+  if(kind==='saved'){          /* 가고 싶은 곳 — 속이 비고 테두리만 */
+    x.beginPath();x.arc(S/2,S/2,S*.30,0,Math.PI*2);
+    x.lineWidth=S*.10;x.strokeStyle='rgb('+rgb+')';x.stroke();}
+  if(kind==='sel'){            /* 고른 곳 — 먹빛 테 */
+    x.beginPath();x.arc(S/2,S/2,S*.44,0,Math.PI*2);
+    x.lineWidth=S*.085;x.strokeStyle='#1B1714';x.stroke();}
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;}
 
 const bubbleCache=new Map();
-function bubbleTexture(n,rgb){          /* 묶음 표식: 개수가 몇이든 크기가 같다 */
-  const key=n+'|'+rgb;if(bubbleCache.has(key))return bubbleCache.get(key);
+function bubbleTexture(n,rgb,done){     /* 묶음 표식: 개수가 몇이든 크기가 같다 */
+  done=done||0;
+  const key=n+'|'+done+'|'+rgb;if(bubbleCache.has(key))return bubbleCache.get(key);
   const S=128,c=document.createElement('canvas');c.width=c.height=S;
   const x=c.getContext('2d'),cx=S/2;
   x.beginPath();x.arc(cx,cx,S*.44,0,Math.PI*2);x.fillStyle='rgba('+rgb+',.15)';x.fill();
+  /* 이 무리에서 몇 곳을 찍었는지 — 테두리를 채워 나가는 눈금 */
+  if(done>0){
+    x.beginPath();x.arc(cx,cx,S*.415,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.min(1,done/n));
+    x.lineWidth=S*.055;x.strokeStyle='#1B1714';x.lineCap='butt';x.stroke();}
   x.beginPath();x.arc(cx,cx,S*.335,0,Math.PI*2);x.fillStyle='rgb('+rgb+')';x.fill();
   x.lineWidth=S*.035;x.strokeStyle='rgba(247,244,238,.92)';x.stroke();
   const txt=n>999?'999+':String(n);
@@ -459,9 +557,10 @@ function hexToRgb(h){h=h.replace('#','');
 function addLayer(def){
   const rgb=hexToRgb(def.color||'#7A2233');
   const g=new THREE.Group();layerG.add(g);
-  const tex=dotTexture(rgb);
+  const mk=k=>new THREE.SpriteMaterial({map:dotTexture(rgb,k),transparent:true,depthTest:false,opacity:0});
+  const matPlain=mk(),matStamped=mk('stamped'),matSaved=mk('saved'),matSel=mk('sel');
   const pts=(def.items||[]).filter(it=>isFinite(it.la)&&isFinite(it.lo)).map(it=>{
-    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false,opacity:0}));
+    const s=new THREE.Sprite(matPlain);
     s.renderOrder=22;s.scale.set(DOT_K,DOT_K,1);
     s.position.copy(blendV3(it.la,it.lo,PT_LIFT,MORPH));
     g.add(s);
@@ -472,7 +571,8 @@ function addLayer(def){
   for(let i=0;i<need;i++){
     const s=new THREE.Sprite(new THREE.SpriteMaterial({transparent:true,depthTest:false,opacity:0}));
     s.renderOrder=25;s.scale.set(BUB_K,BUB_K,1);s.visible=false;g.add(s);bubbles.push(s);}
-  const L={def,g,rgb,pts,bubbles,on:true,mapped:pts.length,total:def.total||pts.length};
+  const L={def,g,rgb,pts,bubbles,matPlain,matStamped,matSaved,matSel,
+           on:true,mapped:pts.length,total:def.total||pts.length};
   layerGroups.push(L);return L;}
 
 /* ── 묶기 ──
@@ -551,6 +651,7 @@ function recluster(){
     if(!L.on)return;
     if(!L.clusters)L.clusters=buildClusters(L,LADDER[ladderIdx].deg);
     L.pts.forEach(p=>{p.s.material.opacity=0;});
+    L.hosts=[];
     let bi=0;
     L.clusters.forEach(c=>{
       /* 무리의 한가운데가 지구 뒷면이면 통째로 감춘다 — 숫자는 안 바뀐다 */
@@ -563,11 +664,18 @@ function recluster(){
         host.position.copy(blendV3(c.la,c.lo,PT_LIFT,MORPH));
         if(VIEW==='2d'){const base=flatV3(c.la,c.lo,PT_LIFT).x;
           host.position.x=base+W2*Math.round((camera.position.x-base)/W2);}
-        host.material.map=bubbleTexture(c.m.length,L.rgb);
+        const done=c.m.reduce((t,m)=>t+(stampsOf(keyOf(L,m.it)).length?1:0),0);
+        host.material.map=bubbleTexture(c.m.length,L.rgb,done);
         host.material.needsUpdate=true;host.visible=true;
       }else if(VIEW==='2d'){
         const base=flatV3(c.la,c.lo,PT_LIFT).x;
         host.position.x=base+W2*Math.round((camera.position.x-base)/W2);}
+      if(single){    /* 도장 찍은 곳 · 가고 싶은 곳 · 고른 곳은 다르게 보인다 */
+        const k=keyOf(L,c.m[0].it);
+        host.material=stampsOf(k).length?L.matStamped
+          :isSaved(k)?L.matSaved
+          :(selected&&selected.key===k)?L.matSel:L.matPlain;}
+      L.hosts.push({host,c});
       /* 화면 밖이면 그린 값만 0으로 */
       _v.copy(host.position).project(camera);
       const onScreen=_v.z<=1&&_v.x>-1.3&&_v.x<1.3&&_v.y>-1.3&&_v.y<1.3;
@@ -631,7 +739,7 @@ function loadLayers(){
       paintLayerPanel();
       const el=document.getElementById('nstar');
       if(el)el.textContent=layerGroups.reduce((a,L)=>a+L.total,0);
-      relayoutLayers(MORPH);});}
+      relayoutLayers(MORPH);paintMine();paintJourney();});}
 
 /* ══════════════════════════════════════════════════════════════════
    여정 (§5.3) — 도장(사실)과 여정선(서사)은 다른 물건이다.
@@ -725,8 +833,8 @@ function buildJourney(){
     /* 여러 번 갔으면 그중 한 번이라도 함께갔으면 이어진 고리다 */
     const ws=j[3].map(v=>v[1]);
     if(ws.includes('together'))buildRing(j[1],j[2],2.6,false);
-    else if(ws.includes('apart'))buildRing(j[1],j[2],2.6,true);});
-  paintPassport();}
+    else if(ws.includes('apart'))buildRing(j[1],j[2],2.6,true);});}
+  /* 여권은 여기서 그리지 않는다 — 내 기록(store)이 아래에서 선언되기 때문이다 */
 
 /* 구면 위의 작은 원 — 위경도로 걸어 그리므로 모핑을 그대로 탄다 */
 function buildRing(la0,lo0,degR,dashed){
@@ -751,27 +859,6 @@ function buildRing(la0,lo0,degR,dashed){
   journeyG.add(l);jRings.push(l);
   return l;}
 
-/* 여권 한 페이지 — 도장이 하나씩 눌린다 */
-function paintPassport(){
-  const cells=[];
-  const rot=i=>(((i*2654435761)%1000)/1000*8-4).toFixed(2)+'deg'; /* -4°~+4°, 매번 같은 각도 */
-  JOURNEY.forEach((j,i)=>{
-    const vs=j[3].slice().sort((a,b)=>a[0]<b[0]?-1:1);
-    const tg=vs.some(v=>v[1]==='together');
-    const n=vs.length;
-    const dates=vs.map(v=>v[0].replace('-',' · ')).join('  /  ');
-    cells.push(`<div class="stamp${tg?' tg':''}${n>1?' again':''}" title="${dates}"`
-      +` style="--r:${rot(i)};animation-delay:${(i*70)}ms">`
-      +(n>1?`<span class="x">×${n}</span>`:'')
-      +`<span class="n">${j[0]}</span>`
-      +`<span class="d">${vs[n-1][0].replace('-',' · ')}</span></div>`);});
-  FLOATING.forEach((f,i)=>{
-    cells.push(`<div class="stamp float" style="--r:${rot(i+40)};animation-delay:${((JOURNEY.length+i)*70)}ms">`
-      +`<span class="n">${f[0]}</span><span class="d">날짜 미상</span></div>`);});
-  const base=JOURNEY.length+FLOATING.length;
-  for(let i=0;i<EMPTY_SLOTS;i++)
-    cells.push(`<div class="stamp empty" style="animation-delay:${((base+i)*70)}ms"><span class="d">빈칸</span></div>`);
-  document.getElementById('jstops').innerHTML=cells.join('');}
 buildJourney();
 
 let journeyAlpha=0,jTween=null;        /* 여정 레이어의 등장·퇴장 */
@@ -852,7 +939,8 @@ function setView(v){
   MODE=v;
   document.querySelectorAll('#modebar .mbtn').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   document.getElementById('hint').textContent=HINT[v];
-  document.getElementById('jpanel').classList.toggle('on',v==='journey');
+  document.getElementById('jview').classList.toggle('on',v==='journey');
+  if(v==='journey')paintJourney();
   tweenJourney(v==='journey'?1:0,520);
   const wantFlat=(v==='2d');
   if(wantFlat!==(VIEW==='2d')){startMorph(wantFlat?1:0,v);return;} /* 투영이 바뀐다 → 모핑 */
@@ -862,6 +950,7 @@ document.querySelectorAll('#modebar .mbtn').forEach(b=>
 
 window.__dbg={labelObjs,camera,jStars,jRings,layerGroups,recluster,setView,setStageMorph,
   LADDER,pickLadder,visibleSpanDeg,getLadderIdx:()=>ladderIdx,maybeAutoFlatten,
+  selectPlace,paintJourney,myCounts,keyOf,stampsOf,isSaved,getStore:()=>store,
   getMorph:()=>MORPH,getView:()=>VIEW,getMode:()=>MODE,
   setVIEW:v=>{VIEW=v;configCamera();refreshClones();}}; /* 검증용 훅 */
 
@@ -890,6 +979,222 @@ function updateLabels(){
       ||(o.tier===4&&dist<1.95)||(o.tier===5&&dist<1.6);
     const fade=VIEW==='2d'?1:THREE.MathUtils.smoothstep(facing,.12,.35); /* 수평선 페이드 */
     o.s.material.opacity=tierOn?fade*.95:0;});}
+
+/* ══════════════════════════════════════════════════════════════════
+   내 기록 — 브라우저에 저장한다. 서버는 P4에 온다.
+   도장은 사실이고 여러 번 찍힌다. 가고 싶은 곳은 후보일 뿐이다.
+   ══════════════════════════════════════════════════════════════════ */
+const STORE_KEY='estela.v1';
+const store=(()=>{
+  let s={stamps:{},saved:{}};
+  try{const raw=localStorage.getItem(STORE_KEY);if(raw)s=Object.assign(s,JSON.parse(raw));}catch(e){}
+  return s;})();
+function saveStore(){try{localStorage.setItem(STORE_KEY,JSON.stringify(store));}catch(e){}}
+function keyOf(L,it){return L.def.layer+'|'+(it.q||it.n);}
+function stampsOf(k){return store.stamps[k]||[];}
+function isSaved(k){return !!store.saved[k];}
+function todayISO(){const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function addStamp(k,when){
+  const a=store.stamps[k]||(store.stamps[k]=[]);
+  a.push({d:when||todayISO()});
+  a.sort((x,y)=>x.d<y.d?-1:1);saveStore();}
+function removeLastStamp(k){
+  const a=store.stamps[k];if(!a||!a.length)return;
+  a.pop();if(!a.length)delete store.stamps[k];saveStore();}
+function toggleSaved(k){
+  if(store.saved[k])delete store.saved[k];else store.saved[k]=1;saveStore();}
+function myCounts(){
+  const places=Object.keys(store.stamps).length;
+  const visits=Object.values(store.stamps).reduce((a,b)=>a+b.length,0);
+  return {places,visits,saved:Object.keys(store.saved).length};}
+
+/* ── 고르기 ── 낱개 점은 카드를 열고, 묶음은 한 계단 파고든다 ── */
+const ray=new THREE.Raycaster();
+const ndc=new THREE.Vector2();
+let selected=null;                      /* {L,it,key} */
+let downX=0,downY=0,downT=0;
+renderer.domElement.addEventListener('pointerdown',e=>{
+  downX=e.clientX;downY=e.clientY;downT=performance.now();});
+renderer.domElement.addEventListener('pointerup',e=>{
+  if(Math.abs(e.clientX-downX)>5||Math.abs(e.clientY-downY)>5)return; /* 끌기였다 */
+  if(performance.now()-downT>600)return;
+  ndc.x=(e.clientX/innerWidth)*2-1;ndc.y=-(e.clientY/innerHeight)*2+1;
+  ray.setFromCamera(ndc,camera);
+  let best=null,bestD=Infinity;
+  layerGroups.forEach(L=>{
+    if(!L.on||!L.hosts)return;
+    L.hosts.forEach(h=>{
+      if(!h.host.visible||h.host.material.opacity<.05)return;
+      const hit=ray.intersectObject(h.host,false);
+      if(hit.length&&hit[0].distance<bestD){bestD=hit[0].distance;best={L,...h};}});});
+  if(!best){closeCard();return;}
+  if(best.c.m.length>1)flyTo(best.c.la,best.c.lo);
+  else selectPlace(best.L,best.c.m[0].it);});
+
+/* 묶음을 누르면 그 자리로 한 계단 내려간다 */
+let flyAnim=null;
+function flyTo(la,lo){
+  const step=LADDER[Math.min(LADDER.length-1,ladderIdx+1)];
+  if(VIEW==='2d'){
+    const p=flatV3(la,lo,R);
+    const z=Math.max(.02,camera.position.z*.45);
+    flyAnim={mode:'flat',t0:performance.now(),dur:900,
+      from:camera.position.clone(),to:new THREE.Vector3(p.x,p.y,z)};
+  }else{
+    const d=Math.max(1.02,camera.position.length()*.55);
+    flyAnim={mode:'orbit',t0:performance.now(),dur:900,
+      from:camera.position.clone(),to:sphV3(la,lo,d)};}
+  controls.enabled=false;}
+function stepFly(now){
+  if(!flyAnim)return;
+  const p=Math.min(1,(now-flyAnim.t0)/flyAnim.dur);
+  const e=p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;
+  if(flyAnim.mode==='orbit'){
+    const a=flyAnim.from.clone().normalize(),b=flyAnim.to.clone().normalize();
+    const len=flyAnim.from.length()+(flyAnim.to.length()-flyAnim.from.length())*e;
+    camera.position.copy(a.lerp(b,e).normalize().multiplyScalar(len));
+    camera.lookAt(0,0,0);
+  }else{
+    camera.position.lerpVectors(flyAnim.from,flyAnim.to,e);
+    controls.target.set(camera.position.x,camera.position.y,0);
+    camera.lookAt(controls.target);}
+  markClusterDirty();
+  if(p>=1){flyAnim=null;controls.enabled=true;configCamera();}}
+
+/* ── 고른 곳 카드 ── */
+function selectPlace(L,it){
+  selected={L,it,key:keyOf(L,it)};
+  paintCard();markClusterDirty();}
+function closeCard(){selected=null;paintCard();markClusterDirty();}
+function paintCard(){
+  const el=document.getElementById('card');
+  if(!selected){el.classList.remove('on');return;}
+  const {L,it,key}=selected;
+  const st=stampsOf(key),n=st.length;
+  el.classList.add('on');
+  el.innerHTML=
+    '<button id="cx" aria-label="닫기">×</button>'
+    +'<div class="src">'+L.def.label+(L.def.grade?' · '+L.def.grade:'')+'</div>'
+    +'<h3>'+esc(it.n)+'</h3>'
+    +'<div class="sub">'+esc([it.ct,it.c].filter(Boolean).join(' · '))+'</div>'
+    +(n?'<div class="mystamps">'+st.map(v=>'<span>'+v.d.replace('-',' · ')+'</span>').join('')
+        +'</div>':'')
+    +'<div class="acts">'
+    +'<button id="cstamp" class="primary">'+(n?'또 도장 찍기':'도장 찍기')+'</button>'
+    +'<button id="csave" class="'+(isSaved(key)?'on':'')+'">'
+      +(isSaved(key)?'가고 싶은 곳에서 빼기':'가고 싶은 곳에 담기')+'</button>'
+    +(n?'<button id="cundo" class="quiet">마지막 도장 취소</button>':'')
+    +'</div>'
+    +'<div class="prov">출처 '+esc((L.def.source||'').split('—')[0].split('(')[0].trim())
+      +' · '+esc(L.def.license||'')+'<br>최종확인 '+esc(L.def.lastVerified||'—')
+      +' · 우리가 평가하지 않습니다</div>';
+  document.getElementById('cx').onclick=closeCard;
+  document.getElementById('cstamp').onclick=()=>{addStamp(key);paintCard();afterRecord();};
+  document.getElementById('csave').onclick=()=>{toggleSaved(key);paintCard();afterRecord();};
+  const u=document.getElementById('cundo');
+  if(u)u.onclick=()=>{removeLastStamp(key);paintCard();afterRecord();};}
+function esc(t){return String(t==null?'':t).replace(/[&<>"]/g,
+  c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function afterRecord(){paintMine();markClusterDirty();paintJourney();}
+
+/* HUD의 내 기록 요약 */
+function paintMine(){
+  const c=myCounts(),el=document.getElementById('mine');
+  if(el)el.textContent=c.places?(c.places+'곳 · '+c.visits+'번'):'0';}
+
+/* ── 여정 화면 ── 지구본은 뒤로 물러나 배경이 되고, 기록이 무대를 차지한다.
+   Batavia의 ENGINE 화면과 같은 구조: 전체 화면 오버레이 + 가운데 정렬 다단 그리드. */
+function rot(i){return (((i*2654435761)%1000)/1000*8-4).toFixed(2)+'deg';}
+
+function myPlaces(){                    /* 내가 도장 찍은 곳을 레이어에서 되찾는다 */
+  const out=[];
+  layerGroups.forEach(L=>L.pts.forEach(p=>{
+    const k=keyOf(L,p.it),st=stampsOf(k);
+    if(st.length)out.push({L,it:p.it,key:k,st});}));
+  out.sort((a,b)=>{const x=a.st[a.st.length-1].d,y=b.st[b.st.length-1].d;
+    return x<y?-1:x>y?1:0;});
+  return out;}
+
+function paintJourney(){
+  const mine=myPlaces(),c=myCounts();
+  const savedList=[];
+  layerGroups.forEach(L=>L.pts.forEach(p=>{
+    if(isSaved(keyOf(L,p.it)))savedList.push({L,it:p.it});}));
+
+  /* 머리말 — 다른 축도 센다 (§5.9-3) */
+  const countries=new Set(mine.map(m=>m.it.c).filter(Boolean)).size;
+  const cities=new Set(mine.map(m=>m.it.ct).filter(Boolean)).size;
+  document.getElementById('jsum').innerHTML=
+     stat(countries,'나라')+stat(cities,'도시')
+    +stat(c.places,'도장 찍은 곳')+stat(c.visits,'찍은 횟수')
+    +stat(c.saved,'가고 싶은 곳');
+
+  /* 여권 — 내 도장. 없으면 샘플이 대신 서 있는다 */
+  const el=document.getElementById('jstops');
+  if(mine.length){
+    el.innerHTML=mine.map((m,i)=>{
+      const n=m.st.length,last=m.st[n-1].d.replace('-',' · ');
+      return '<div class="stamp'+(n>1?' again':'')+'" title="'+esc(m.st.map(v=>v.d).join(' / '))+'"'
+        +' style="--r:'+rot(i)+';animation-delay:'+(i*60)+'ms">'
+        +(n>1?'<span class="x">×'+n+'</span>':'')
+        +'<span class="n">'+esc(m.it.n)+'</span>'
+        +'<span class="d">'+last+'</span></div>';}).join('')
+      +emptySlots(mine.length,Math.max(3,6-mine.length%6));
+    document.getElementById('jsample').style.display='none';
+  }else{
+    el.innerHTML=SAMPLE_STAMPS;
+    document.getElementById('jsample').style.display='';}
+
+  /* 진행률 — 분모가 진짜다 */
+  document.getElementById('jprog').innerHTML=layerGroups.map(L=>{
+    const got=L.pts.filter(p=>stampsOf(keyOf(L,p.it)).length).length;
+    const pct=L.total?Math.round(got/L.total*100):0;
+    return '<div class="prow"><div class="pl"><span>'+esc(L.def.label)+'</span>'
+      +'<b>'+got+' / '+L.total+'</b></div>'
+      +'<div class="bar"><i style="width:'+Math.max(pct,got?2:0)+'%;background:'+L.def.color+'"></i></div>'
+      +'</div>';}).join('')
+    +'<div class="hint">분모는 그 목록의 전체 수입니다. 우리가 정한 숫자가 아닙니다.</div>';
+
+  /* 함께 — bond */
+  document.getElementById('jbond').innerHTML=
+     ringRow('개척','나 혼자 뚫은 별','solo')
+    +ringRow('분산','여럿이 따로','apart')
+    +ringRow('합동','같이 감 · 서로 확인됨','together')
+    +'<div class="hint">고리 두께 = 인원수 · 끊김/이어짐 = 함께 갔는가.<br>'
+    +'그룹은 계정이 생기는 단계에서 열립니다. 그때 <b>“우리 모임 9명 중 4명”</b>이 여기 붙습니다.</div>'
+    +(savedList.length?'<div class="colh mt">가고 싶은 곳</div>'
+      +savedList.slice(0,8).map(s=>'<div class="wrow"><span class="wd" style="background:'
+        +s.L.def.color+'"></span>'+esc(s.it.n)+'<i>'+esc(s.it.ct||'')+'</i></div>').join(''):'');}
+
+function stat(v,label){return '<span class="st"><b>'+v+'</b>'+label+'</span>';}
+function emptySlots(from,n){let o='';
+  for(let i=0;i<n;i++)o+='<div class="stamp empty" style="animation-delay:'+((from+i)*60)+'ms">'
+    +'<span class="d">빈칸</span></div>';return o;}
+function ringRow(t,d,kind){
+  const svg=kind==='solo'
+    ?'<circle cx="14" cy="14" r="4" fill="var(--wine)"/>'
+    :kind==='apart'
+    ?'<circle cx="14" cy="14" r="4" fill="var(--wine)"/><circle cx="14" cy="14" r="9.5" fill="none" stroke="var(--olive)" stroke-width="1.8" stroke-dasharray="3 3"/>'
+    :'<circle cx="14" cy="14" r="4" fill="var(--wine)"/><circle cx="14" cy="14" r="9.5" fill="none" stroke="var(--olive)" stroke-width="2.6"/>';
+  return '<div class="brow"><svg width="28" height="28" viewBox="0 0 28 28">'+svg+'</svg>'
+    +'<div><b>'+t+'</b><span>'+d+'</span></div></div>';}
+
+/* 첫 도장을 찍기 전까지 서 있는 샘플 */
+const SAMPLE_STAMPS=(function(){
+  const S=[['TOKYO','2023 · 05',2,true],['PARIS','2023 · 11',1,false],
+           ['SAN SEBASTIÁN','2024 · 04',1,false],['LIMA','2024 · 09',1,false],
+           ['NEW YORK','2025 · 02',1,true],['SEOUL','2026 · 03',2,true]];
+  return S.map((s,i)=>'<div class="stamp'+(s[3]?' tg':'')+(s[2]>1?' again':'')
+    +'" style="--r:'+rot(i)+';animation-delay:'+(i*60)+'ms">'
+    +(s[2]>1?'<span class="x">×'+s[2]+'</span>':'')
+    +'<span class="n">'+s[0]+'</span><span class="d">'+s[1]+'</span></div>').join('')
+    +'<div class="stamp float" style="--r:'+rot(40)+';animation-delay:360ms">'
+    +'<span class="n">COPENHAGEN</span><span class="d">날짜 미상</span></div>'
+    +'<div class="stamp float" style="--r:'+rot(41)+';animation-delay:420ms">'
+    +'<span class="n">HONG KONG</span><span class="d">날짜 미상</span></div>';})();
+
+paintMine();paintJourney();          /* 선언이 모두 끝난 뒤 첫 그리기 */
 
 let frames=0,fpsT=performance.now(),lastT=performance.now();
 const fpsEl=document.getElementById('fps');
@@ -922,6 +1227,7 @@ function loop(now){
   atmMat.uniforms.a.value=(1-MORPH)*dim;
   atmMesh.visible=MORPH<.99;
 
+  stepFly(now);
   if(controls.enabled){driftMap(dt);controls.update();}
   updateNear();
   updateLabels();
