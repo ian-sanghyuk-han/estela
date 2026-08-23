@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,500;0,600;1,300&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #C9A227; } a:hover { color: #E0BC4A; }
+  </style>
+</helmet>
+
+<div style="width: 560px; height: 900px; box-sizing: border-box; background: #0C0A08; color: #EDE4D3; font-family: Spectral, Georgia, serif; padding: 38px 34px; display: flex; flex-direction: column; gap: 26px; overflow: hidden;">
+
+  <div style="display: flex; flex-direction: column; gap: 7px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 3.4px; color: #9A8B74; text-transform: uppercase;">Direction A</div>
+    <div style="font-size: 40px; font-weight: 600; letter-spacing: 9px; line-height: 1;">ESTELA</div>
+    <div style="font-size: 14.5px; font-style: italic; font-weight: 300; color: #B8A88E;">항해일지 — 배가 지나간 자국을 해도에 새긴다</div>
+  </div>
+
+  <div style="height: 1px; background: linear-gradient(90deg, #C9A227 0%, rgba(201,162,39,0.12) 70%, transparent 100%);"></div>
+
+  <div style="display: flex; gap: 22px; align-items: flex-start;">
+    <svg width="150" height="150" viewBox="0 0 150 150" style="flex-shrink: 0;">
+      <circle cx="75" cy="75" r="62" fill="#12100B" stroke="rgba(201,162,39,0.30)" stroke-width="1"/>
+      <ellipse cx="75" cy="75" rx="62" ry="21" fill="none" stroke="rgba(201,162,39,0.16)" stroke-width="0.75"/>
+      <ellipse cx="75" cy="75" rx="24" ry="62" fill="none" stroke="rgba(201,162,39,0.16)" stroke-width="0.75"/>
+      <path d="M 38 96 Q 74 44 116 66" fill="none" stroke="#C9A227" stroke-width="1.4" stroke-linecap="round"/>
+      <circle cx="38" cy="96" r="3.2" fill="#E8C87A"/>
+      <circle cx="76" cy="63" r="2.6" fill="#E8C87A"/>
+      <circle cx="116" cy="66" r="3.2" fill="#E8C87A"/>
+      <circle cx="99" cy="106" r="2.4" fill="none" stroke="#9A8B74" stroke-width="1.1"/>
+    </svg>
+    <div style="display: flex; flex-direction: column; gap: 13px; flex-grow: 1;">
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: #9A8B74; letter-spacing: 0.6px; line-height: 1.85; border: 1px solid rgba(201,162,39,0.18); padding: 9px 11px; background: #100D09;">
+        FPS <span style="color:#EDE4D3">60</span> · 국가 <span style="color:#EDE4D3">177</span><br>경계 <span style="color:#EDE4D3">50m</span> · 도장 <span style="color:#C9A227">18</span>
+      </div>
+      <div style="display: flex; gap: 0; border: 1px solid rgba(201,162,39,0.30);">
+        <div style="flex-grow: 1; text-align: center; padding: 9px 0; font-size: 12px; letter-spacing: 2.6px; background: #C9A227; color: #0C0A08; font-weight: 600;">3D</div>
+        <div style="flex-grow: 1; text-align: center; padding: 9px 0; font-size: 12px; letter-spacing: 2.6px; color: #9A8B74;">지도</div>
+        <div style="flex-grow: 1; text-align: center; padding: 9px 0; font-size: 12px; letter-spacing: 2.6px; color: #9A8B74;">여정</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="border: 1px solid rgba(201,162,39,0.18); background: #100D09; padding: 17px 18px; display: flex; flex-direction: column; gap: 11px;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+      <div style="font-size: 17px; letter-spacing: 4.5px; font-weight: 500;">여정</div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 1.4px; color: #0C0A08; background: #9A8B74; padding: 2px 7px;">샘플</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px;">
+      <div style="display: flex; justify-content: space-between;"><span>TOKYO</span><span style="color:#9A8B74">2023-05</span></div>
+      <div style="display: flex; justify-content: space-between;"><span>PARIS</span><span style="color:#9A8B74">2023-11</span></div>
+      <div style="display: flex; justify-content: space-between;"><span>SAN SEBASTIÁN</span><span style="color:#9A8B74">2024-04</span></div>
+    </div>
+    <div style="border-top: 1px solid rgba(201,162,39,0.14); padding-top: 9px; font-size: 12.5px; font-style: italic; font-weight: 300; color: #9A8B74;">떠 있는 별 · 날짜 미상 — COPENHAGEN</div>
+  </div>
+
+  <div style="border-left: 2px solid #C9A227; padding: 3px 0 3px 15px; display: flex; flex-direction: column; gap: 5px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 2.2px; color: #9A8B74;">정본 레이어 · 최종확인 [날짜]</div>
+    <div style="font-size: 21px; font-weight: 500;">[ 식당 이름 ]</div>
+    <div style="font-size: 13px; color: #B8A88E; font-style: italic; font-weight: 300;">[ 도시 ] · [ 요리 장르 ]</div>
+  </div>
+
+  <div style="margin-top: auto; display: flex; flex-direction: column; gap: 13px;">
+    <div style="display: flex; gap: 7px;">
+      <div style="flex-grow: 1; height: 34px; background: #0C0A08; border: 1px solid rgba(237,228,211,0.14);"></div>
+      <div style="flex-grow: 1; height: 34px; background: #15110C;"></div>
+      <div style="flex-grow: 1; height: 34px; background: #9A8B74;"></div>
+      <div style="flex-grow: 1; height: 34px; background: #C9A227;"></div>
+      <div style="flex-grow: 1; height: 34px; background: #EDE4D3;"></div>
+    </div>
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: #9A8B74; letter-spacing: 0.8px; line-height: 1.7;">
+      SPECTRAL · 본문과 제목 &nbsp;|&nbsp; IBM PLEX MONO · 좌표와 날짜<br>황동 #C9A227 · 상아 #EDE4D3 · 그을린 검정 #0C0A08
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":560,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
