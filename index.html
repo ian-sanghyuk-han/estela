@@ -54,7 +54,7 @@
 </head>
 <body>
 <div id="hud"><b>ESTELA</b> · 글로브 베이스 — 미식 별 레이어는 이 위에 얹습니다<br>
-FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · <span id="hint">드래그 회전 / 휠·핀치 줌</span></div>
+FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 경계 <b id="res">110m</b> · <span id="hint">드래그 회전 / 휠·핀치 줌</span></div>
 
 <div id="modebar">
   <span class="mbtn on" data-v="3d">3D</span>
@@ -106,11 +106,22 @@ function sphV3(la,lo,r){const phi=(90-la)*D2R,th=(lo+180)*D2R;
 function flatV3(la,lo,r){return new THREE.Vector3(lo/180*(W2/2),la/90*(H2/2),(r-R)*2.2);}
 function blendV3(la,lo,r,k){return sphV3(la,lo,r).lerp(flatV3(la,lo,r),k);}
 function toV3(la,lo,r){return blendV3(la,lo,r,MORPH);}
-function setLerpGeo(geo,p0,p1,k){      /* 정점 배열 두 벌 사이를 선형 보간 */
+function setLerpGeo(geo,p0,p1,k){      /* 정점 배열 두 벌 사이를 선형 보간 (CPU) */
   const a=geo.attributes.position.array;
   for(let i=0;i<a.length;i++)a[i]=p0[i]+(p1[i]-p0[i])*k;
   geo.attributes.position.needsUpdate=true;
   geo.computeBoundingSphere();}
+/* 선(국경·해안선·여정선)은 정점이 15만 개라 CPU로 접으면 폰에서 버벅인다.
+   두 자리를 attribute 두 벌로 넘겨두고 그래픽카드가 직접 섞게 한다 — CPU 비용 0 */
+function lineMat(color,opacity,onTop){
+  return new THREE.ShaderMaterial({
+    transparent:true,depthTest:!onTop,depthWrite:false,
+    uniforms:{uC:{value:new THREE.Color(color)},uO:{value:opacity},uK:{value:MORPH}},
+    vertexShader:'attribute vec3 aP1;uniform float uK;void main(){'+
+      'vec3 p=mix(position,aP1,uK);gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}',
+    fragmentShader:'uniform vec3 uC;uniform float uO;void main(){gl_FragColor=vec4(uC,uO);}'});}
+function setLineK(l,k){if(l)l.material.uniforms.uK.value=k;}
+function setLineO(l,o){if(l)l.material.uniforms.uO.value=o;}
 
 /* 별 */
 {const g=new THREE.BufferGeometry();const p=new Float32Array(900*3);
@@ -155,8 +166,12 @@ const atmMesh=new THREE.Mesh(new THREE.SphereGeometry(R*1.09,64,64),atmMat);
 scene.add(atmMesh);
 
 let innerL=null,coastL=null;           /* 국경·해안선 — 지도 로드 후 채워진다 */
-const COUNTRIES='https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
-fetch(COUNTRIES).then(r=>r.json()).then(topo=>{
+/* 지도는 두 번에 나눠 온다: 가벼운 110m으로 즉시 그리고, 첫 화면이 뜬 뒤
+   정밀한 50m 경계선을 조용히 갈아끼운다. 채움 텍스처는 4096px에서 이미 한계라
+   정밀본을 다시 구워도 얻는 게 없다 — 확대에서 선명해지는 것은 벡터 경계선뿐이다 */
+const TOPO_FAST='https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
+const TOPO_FINE='https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
+fetch(TOPO_FAST).then(r=>r.json()).then(topo=>{
   const feats=topojson.feature(topo,topo.objects.countries).features;
   document.getElementById('ncty').textContent=feats.length;
   /* 채움: 등장방형 캔버스 → 텍스처 (나라별 미묘한 명도 차로 구분) */
@@ -199,32 +214,7 @@ fetch(COUNTRIES).then(r=>r.json()).then(topo=>{
   t.generateMipmaps=false;t.minFilter=THREE.LinearFilter;
   t.anisotropy=renderer.capabilities.getMaxAnisotropy();
   baseMesh.material=new THREE.MeshBasicMaterial({map:t,side:THREE.DoubleSide});
-  /* ── 벡터 경계: 내부 국경(밝게) + 해안선(은은) — 각 1드로콜 ── */
-  function meshToSegs(mesh,r){
-    const verts0=[],verts1=[];        /* 구 좌표 · 평면 좌표를 나란히 굽는다 */
-    const lines=mesh.type==='MultiLineString'?mesh.coordinates:[mesh.coordinates];
-    lines.forEach(line=>{for(let i=0;i<line.length-1;i++){
-      if(line[i][1]<-82.8&&line[i+1][1]<-82.8)continue; /* 남극 데이터 절단선(인공 원) 제외 */
-      const a0=sphV3(line[i][1],line[i][0],r),b0=sphV3(line[i+1][1],line[i+1][0],r);
-      verts0.push(a0.x,a0.y,a0.z,b0.x,b0.y,b0.z);
-      /* 평면에서는 ±180° 걸침 선분이 지도를 가로지르므로 경도를 언랩해 바깥으로 흘린다
-         (넘친 부분은 좌우 복제 무대가 받아준다 — 채움 텍스처와 같은 해법) */
-      let loA=line[i][0],loB=line[i+1][0];
-      if(loB-loA>180)loB-=360; else if(loB-loA<-180)loB+=360;
-      const a1=flatV3(line[i][1],loA,r),b1=flatV3(line[i+1][1],loB,r);
-      verts1.push(a1.x,a1.y,a1.z,b1.x,b1.y,b1.z);}});
-    const g=new THREE.BufferGeometry();
-    g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(verts0),3));
-    g.userData={p0:new Float32Array(verts0),p1:new Float32Array(verts1)};
-    return g;}
-  const inner=topojson.mesh(topo,topo.objects.countries,(a,b)=>a!==b);
-  innerL=new THREE.LineSegments(meshToSegs(inner,R*1.0018),
-    new THREE.LineBasicMaterial({color:0xBFD9EA,transparent:true,opacity:.55}));
-  stage.add(innerL);
-  const coast=topojson.mesh(topo,topo.objects.countries,(a,b)=>a===b);
-  coastL=new THREE.LineSegments(meshToSegs(coast,R*1.0015),
-    new THREE.LineBasicMaterial({color:0x9FC0D6,transparent:true,opacity:.38}));
-  stage.add(coastL);
+  buildBorders(topo);
   /* ── 전국 라벨 자동 생성: 경제 규모 티어 (T1 대국 상시 · T2 중견 · T3 전부) ── */
   const T1=new Set(['united states of america','china','japan','germany','india',
     'united kingdom','france','brazil','russia','canada','south korea','australia',
@@ -254,7 +244,42 @@ fetch(COUNTRIES).then(r=>r.json()).then(topo=>{
     addLabel(nm.toUpperCase(),c[0],c[1],tier);});
   setStageMorph(MORPH);                /* 새로 생긴 국경·라벨을 현재 뷰에 맞춘다 */
   refreshClones();
+  /* 첫 화면이 뜬 뒤 정밀 경계선으로 조용히 교체 — 확대해도 해안선이 각지지 않는다 */
+  fetch(TOPO_FINE).then(r=>r.json()).then(fine=>{
+    buildBorders(fine);
+    setStageMorph(MORPH);refreshClones();
+    document.getElementById('res').textContent='50m';
+  }).catch(()=>{});                    /* 실패해도 110m 경계선이 그대로 남는다 */
 }).catch(e=>{document.getElementById('ncty').textContent='로드 실패';});
+
+/* ── 벡터 경계: 내부 국경(밝게) + 해안선(은은) — 각 1드로콜 ── */
+function meshToSegs(mesh,r){
+  const verts0=[],verts1=[];          /* 구 좌표 · 평면 좌표를 나란히 굽는다 */
+  const lines=mesh.type==='MultiLineString'?mesh.coordinates:[mesh.coordinates];
+  lines.forEach(line=>{for(let i=0;i<line.length-1;i++){
+    if(line[i][1]<-82.8&&line[i+1][1]<-82.8)continue; /* 남극 데이터 절단선(인공 원) 제외 */
+    const a0=sphV3(line[i][1],line[i][0],r),b0=sphV3(line[i+1][1],line[i+1][0],r);
+    verts0.push(a0.x,a0.y,a0.z,b0.x,b0.y,b0.z);
+    /* 평면에서는 ±180° 걸침 선분이 지도를 가로지르므로 경도를 언랩해 바깥으로 흘린다
+       (넘친 부분은 좌우 복제 무대가 받아준다 — 채움 텍스처와 같은 해법) */
+    let loA=line[i][0],loB=line[i+1][0];
+    if(loB-loA>180)loB-=360; else if(loB-loA<-180)loB+=360;
+    const a1=flatV3(line[i][1],loA,r),b1=flatV3(line[i+1][1],loB,r);
+    verts1.push(a1.x,a1.y,a1.z,b1.x,b1.y,b1.z);}});
+  const p0=new Float32Array(verts0),p1=new Float32Array(verts1);
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(p0,3));   /* 구 좌표 */
+  g.setAttribute('aP1',new THREE.BufferAttribute(p1,3));        /* 평면 좌표 — 셰이더가 섞는다 */
+  g.userData={p0,p1};
+  return g;}
+function addLine(geo,mat){            /* 평면에서는 경계 밖으로 흐르므로 절두체 컬링을 끈다 */
+  const l=new THREE.LineSegments(geo,mat);l.frustumCulled=false;stage.add(l);return l;}
+function buildBorders(topo){          /* 해상도가 바뀌면 통째로 다시 굽는다 */
+  [innerL,coastL].forEach(l=>{if(l){stage.remove(l);l.geometry.dispose();l.material.dispose();}});
+  const inner=topojson.mesh(topo,topo.objects.countries,(a,b)=>a!==b);
+  innerL=addLine(meshToSegs(inner,R*1.0018),lineMat(0xBFD9EA,.55,false));
+  const coast=topojson.mesh(topo,topo.objects.countries,(a,b)=>a===b);
+  coastL=addLine(meshToSegs(coast,R*1.0015),lineMat(0x9FC0D6,.38,false));}
 
 /* ── 라벨: 경제 티어 + 줌 게이팅 + 크기 위계 ──
    T1 대국 = 항상·큰 글씨 · T2 중견 = 줌<2.5 · T3 전국 = 줌<1.85
@@ -362,12 +387,13 @@ function buildJourney(){
       const loBu=loB+unwrap;
       const a1=flatV3(laA,loAu,R+lfA),b1=flatV3(laB,loBu,R+lfB);
       v1.push(a1.x,a1.y,a1.z,b1.x,b1.y,b1.z);}}
+  const jp0=new Float32Array(v0),jp1=new Float32Array(v1);
   const g=new THREE.BufferGeometry();
-  g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(v0),3));
-  g.userData={p0:new Float32Array(v0),p1:new Float32Array(v1)};
-  jLine=new THREE.LineSegments(g,new THREE.LineBasicMaterial({
-    color:0xFFD98A,transparent:true,opacity:0,depthTest:false}));
-  jLine.renderOrder=14;
+  g.setAttribute('position',new THREE.BufferAttribute(jp0,3));
+  g.setAttribute('aP1',new THREE.BufferAttribute(jp1,3));
+  g.userData={p0:jp0,p1:jp1};
+  jLine=new THREE.LineSegments(g,lineMat(0xFFD98A,0,true));
+  jLine.frustumCulled=false;jLine.renderOrder=14;
   journeyG.add(jLine);
   /* 별: 다녀온 곳 = 켜진 별. 우리가 그린 별이지 남의 도안이 아니다 (§3.1) */
   const starGeo=new THREE.SphereGeometry(.011,12,12);
@@ -395,10 +421,8 @@ function tweenJourney(to,dur){jTween={from:journeyAlpha,to,t0:performance.now(),
 /* ── 모핑: 지구본이 펼쳐지고(→평면) 접힌다(→구) ── */
 function setStageMorph(k){
   MORPH=k;
-  setLerpGeo(baseGeo,BP0,BP1,k);
-  [innerL,coastL,jLine].forEach(l=>{
-    if(l&&l.geometry.userData&&l.geometry.userData.p0)
-      setLerpGeo(l.geometry,l.geometry.userData.p0,l.geometry.userData.p1,k);});
+  setLerpGeo(baseGeo,BP0,BP1,k);      /* 바탕 격자만 CPU — 5.6만 개라 가볍다 */
+  setLineK(innerL,k);setLineK(coastL,k);setLineK(jLine,k); /* 선은 GPU가 접는다 */
   labelObjs.forEach(o=>o.s.position.copy(blendV3(o.la,o.lo,R*1.012,k)));
   jStars.forEach(s=>s.mesh.position.copy(blendV3(s.la,s.lo,R+s.lift,k)));
   const d3=new THREE.Object3D();
@@ -422,7 +446,7 @@ function configCamera(){
     controls.mouseButtons={LEFT:THREE.MOUSE.PAN,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.PAN};
     controls.touches={ONE:THREE.TOUCH.PAN,TWO:THREE.TOUCH.DOLLY_PAN};
     controls.autoRotate=false;
-    controls.minDistance=.6;controls.maxDistance=4;
+    controls.minDistance=.012;controls.maxDistance=4;   /* 화면 세로 ≈ 90km — 도시 하나 크기 */
     controls.target.set(camera.position.x,camera.position.y,0);
     camera.position.z=Math.max(camera.position.z,1.2);
     camera.lookAt(controls.target);
@@ -430,10 +454,34 @@ function configCamera(){
     controls.enableRotate=true;controls.enablePan=false;
     controls.mouseButtons={LEFT:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.ROTATE};
     controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};
-    controls.autoRotate=(MODE!=='journey')&&AUTOROT;
-    controls.minDistance=1.4;controls.maxDistance=5.5;
+    controls.autoRotate=AUTOROT;
+    controls.minDistance=1.008;controls.maxDistance=5.5; /* 고도 ≈ 51km (기존 2,548km의 1/50) */
     controls.target.set(0,0,0);
     if(camera.position.length()<1.5)camera.position.set(0,.5,3.8);}}
+
+/* 가까이 갈수록 앞유리(near plane)를 좁힌다 — 안 그러면 지표가 잘려 나가고,
+   반대로 항상 좁혀두면 깊이 정밀도가 떨어져 국경선이 지면과 싸운다(z-fighting) */
+function updateNear(){
+  const d=VIEW==='2d'?Math.abs(camera.position.z):Math.max(0,camera.position.length()-R);
+  const n=THREE.MathUtils.clamp(d*.3,.0008,.05);
+  if(Math.abs(camera.near-n)>n*.15){camera.near=n;camera.updateProjectionMatrix();}}
+
+/* ── 지도도 지구본처럼 계속 흐른다 ──
+   무대가 ±W2에 복제돼 있으므로 카메라 x를 W2만큼 되감으면 화면은 완전히 동일하다.
+   이음매 없이 영원히 서쪽으로 흘러가는 지도가 된다 */
+/* 지구본은 autoRotateSpeed .22로 한 바퀴에 약 273초가 걸린다.
+   지도도 같은 속도로 느껴지도록 W2(=지구 한 바퀴)를 273초에 지나가게 맞춘다 */
+const DRIFT=W2/273;
+let userHold=0;                       /* 사람이 만지는 동안은 흐름을 멈춘다 */
+controls.addEventListener('start',()=>{userHold=1;});
+controls.addEventListener('end',()=>{userHold=performance.now();});
+function driftMap(dt){
+  if(VIEW!=='2d'||!AUTOROT||morphAnim)return;
+  if(userHold===1)return;                                   /* 잡고 있는 중 */
+  if(userHold&&performance.now()-userHold<2500)return;      /* 놓은 뒤 2.5초는 쉰다 */
+  const dx=DRIFT*dt;
+  camera.position.x+=dx;controls.target.x+=dx;
+  if(camera.position.x>W2/2){camera.position.x-=W2;controls.target.x-=W2;} /* 되감기 */}
 
 /* ── 뷰 전환: 3D↔지도는 접고 펴기, 여정은 같은 투영 위에 얹기 ── */
 const HINT={'3d':'드래그 회전 / 휠·핀치 줌','2d':'드래그 이동 / 휠·핀치 줌',
@@ -481,9 +529,10 @@ function updateLabels(){
     const fade=VIEW==='2d'?1:THREE.MathUtils.smoothstep(facing,.12,.35); /* 수평선 페이드 */
     o.s.material.opacity=tierOn?fade*.95:0;});}
 
-let frames=0,fpsT=performance.now();
+let frames=0,fpsT=performance.now(),lastT=performance.now();
 const fpsEl=document.getElementById('fps');
 function loop(now){
+  const dt=Math.min(.05,(now-lastT)/1000);lastT=now;
   /* 모핑 진행 */
   if(morphAnim){
     const p=Math.min(1,(now-morphAnim.t0)/morphAnim.dur);
@@ -500,16 +549,16 @@ function loop(now){
     const p=Math.min(1,(now-jTween.t0)/jTween.dur);
     journeyAlpha=jTween.from+(jTween.to-jTween.from)*p;
     if(p>=1)jTween=null;}
-  if(jLine)jLine.material.opacity=journeyAlpha*.85;
+  setLineO(jLine,journeyAlpha*.85);
   jStars.forEach(s=>{s.mesh.material.opacity=journeyAlpha;});
   const dim=1-journeyAlpha*.55;                       /* 여정에서는 지도가 한 발 물러선다 */
-  if(innerL)innerL.material.opacity=.55*dim;
-  if(coastL)coastL.material.opacity=.38*dim;
+  setLineO(innerL,.55*dim);setLineO(coastL,.38*dim);
   cityIM.material.opacity=.8*dim;
   atmMat.uniforms.a.value=(1-MORPH)*dim;
   atmMesh.visible=MORPH<.99;
 
-  if(controls.enabled)controls.update();
+  if(controls.enabled){driftMap(dt);controls.update();}
+  updateNear();
   updateLabels();
   renderer.render(scene,camera);
   frames++;if(now-fpsT>1000){fpsEl.textContent=frames;frames=0;fpsT=now;}
