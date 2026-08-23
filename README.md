@@ -1,55 +1,43 @@
 # Estela
 
-A gastronomic journey log built on a reusable 3D globe.
-Finite canon guides (Michelin, Blue Ribbon, 50 Best, ...) become stars on a globe;
-visited stars light up and connect into a personal trail — the *estela*.
+A gastronomic journey log built on a map. Finite canon guides (Michelin, UNESCO, ...) become
+stars; visited stars light up and connect into a personal trail — the *estela*.
 
-- `index.html` — the globe foundation: country fills, crisp vector borders, tiered labels
-  (16 major countries always visible → all 177 on zoom; 62 major cities in two tiers).
-  Forked from `after-flight/index.html`, itself seeded from the Batavia `globe-base.html` v4
-  (includes dateline-unwrap fill and polar-cap fixes).
-- Three view modes, ported from `batavia-wtl/site/index.html`:
-  **GLOBE ↔ MAP** is a morph, not two renderers — the base is a `PlaneGeometry` grid whose
-  vertices lerp between a wrapped and an unfolded position, and borders, labels, city dots
-  and the trail all carry the same `p0`/`p1` pair. **JOURNEY** draws great-circle arcs
-  between visited stars in date order, with undated stars left lit but unthreaded (§5.3.3).
-- `data/*.json` — canon layers as **static snapshots**, read at load and drawn as one
-  toggleable group each. Two ship today, both from Wikidata (CC0): the world's Michelin
-  3-star restaurants (140, individually placed) and the UNESCO Cities of Gastronomy
-  (36 of the official 56 carry coordinates; the panel shows both numbers).
-- **Street handover.** Below a 1.6° view the flat map hands the stage to MapLibre, which
-  draws a real street map and re-pins the same stars as HTML markers; above 4° it hands back.
-  It is a handover rather than an overlay because our flat projection is equirectangular and
-  web maps are Web Mercator — at Paris latitude the two do not line up. Tiles are OSM raster
-  for now (keyless, attributed, tone-matched to the paper palette with a CSS filter on the
-  tile canvas only); swapping in self-hosted per-city PMTiles is a one-line source change.
-- `내 장소` is a fourth layer built from the browser's own store, not a file: a place is
-  added one at a time by searching Nominatim (OpenStreetMap, ODbL, attributed in the panel)
-  and picking a result, which supplies the coordinates. There is deliberately **no bulk
-  import** — see `docs/canon-sources.md` for why that line matters.
-- Markers are **one fixed size** — never scaled by count. Points that land within 52 screen
-  pixels of each other collapse into a single count bubble, and separate again on zoom, so
-  the globe shows "how many here" far out and "exactly where" close in. In MAP mode a point
-  is shifted to whichever ±W2 period is nearest the camera, so the endlessly tiling map
-  never runs out of points.
-- The JOURNEY trail runs on a labelled **sample** of city coordinates. No restaurant names
-  and no guide-sourced text exist anywhere in this repo.
-- `check.html` — device diagnostic (iOS version, import-map support, WebGL, CDN reach).
-  Written in ES5 with no modules so it still renders where the globe cannot.
 - Live: https://ian-sanghyuk-han.github.io/estela/
-
-## Hard rules (from ESTELA-HANDOFF-v1 §4)
-
-- Canon data ships as **static JSON snapshots** in this repo. No live scraping, no runtime
-  calls to any guide's servers. Manual refresh, once or twice a year.
-- **Facts only** — name, address, coordinates, grade, cuisine, year.
-  Never copy review text, inspector notes, or photos.
-- Every star displays its **source layer** and a **last-verified date**.
-- Guide trademarks are never used in the product name or logo.
 
 ## Stack
 
-three.js r160 + topojson-client (CDN, import map) · world-atlas 110m country topology.
-No build step: `index.html` is the whole app.
+**MapLibre GL JS 5** (BSD-3-Clause) with `projection: 'globe'` — one map that unrolls from a
+globe to a flat map to a street map as you zoom, with label collision and clustering built in.
+`topojson-client` supplies the world outline. No build step: `index.html` is the whole app.
+
+An earlier version hand-rolled the globe in three.js with its own morph, clustering and a
+separate street map bolted on below city zoom. Every seam in that chain misbehaved, and all of
+it turned out to be work the library already does. That version is in the history at
+`d954376` if the three.js globe is ever wanted again (After Flight may still want it).
+
+- `index.html` — the whole app.
+- `data/*.json` — canon layers as **static snapshots**, one file per layer, each a toggleable
+  map source. Two ship today, both Wikidata (CC0): the world's Michelin 3-star restaurants
+  (140) and the UNESCO Cities of Gastronomy (36 of the official 56; the panel shows both).
+- `내 장소` is a third layer built from the browser's own store: places are added one at a
+  time by searching Nominatim and picking a result, which supplies the coordinates. There is
+  deliberately **no bulk import** — see `docs/canon-sources.md` for why that line matters.
+- `docs/canon-sources.md` — what each country offers as a finite list, and under what licence.
+- `check.html` — device diagnostic, written in ES5 so it renders where the map cannot.
+
+## Licences
+
+MapLibre GL JS BSD-3-Clause · map tiles and place search © OpenStreetMap contributors (ODbL) ·
+star data Wikidata (CC0). Attribution is shown in the app.
+
+## Hard rules (handoff §4)
+
+- Canon data ships as **static JSON snapshots**. No live scraping, no runtime calls to any
+  guide's servers. Manual refresh, once or twice a year.
+- **Facts only** — name, address, coordinates, grade, cuisine, year. Never review text,
+  inspector notes, or photos.
+- Every star shows its **source layer** and a **last-verified date**.
+- Guide trademarks are never used in the product name or logo.
 
 Conventions: code and docs in English; reports to the owner in Korean.
