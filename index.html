@@ -348,6 +348,56 @@ const TOPO_FINE='https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
 fetch(TOPO_FAST).then(r=>r.json()).then(topo=>{
   const feats=topojson.feature(topo,topo.objects.countries).features;
   document.getElementById('ncty').textContent=feats.length;
+  baseMesh.material=new THREE.MeshBasicMaterial({map:buildFill(topo),side:THREE.DoubleSide});
+  buildBorders(topo);
+  /* ── 전국 라벨 자동 생성: 경제 규모 티어 (T1 대국 상시 · T2 중견 · T3 전부) ── */
+  const T1=new Set(['united states of america','china','japan','germany','india',
+    'united kingdom','france','brazil','russia','canada','south korea','australia',
+    'mexico','saudi arabia','indonesia','italy']);
+  const T2=new Set(['spain','netherlands','turkey','switzerland','poland','argentina',
+    'sweden','belgium','ireland','norway','austria','israel','united arab emirates',
+    'thailand','egypt','denmark','malaysia','vietnam','philippines','bangladesh',
+    'south africa','nigeria','colombia','chile','finland','romania','czechia',
+    'portugal','new zealand','peru','greece','iraq','qatar','kazakhstan','hungary',
+    'kuwait','morocco','ukraine','iran','pakistan','algeria','ethiopia','venezuela',
+    'antarctica','greenland']);
+  function centroidOf(f){ /* 최대 폴리곤의 단위벡터 평균 — 경도 랩(러시아·피지) 안전 */
+    const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+    let ring=polys[0][0];
+    polys.forEach(p=>{if(p[0].length>ring.length)ring=p[0];});
+    const v=new THREE.Vector3();
+    ring.forEach(([lo,la])=>v.add(sphV3(la,lo,1)));   /* 반드시 구 좌표로 평균 */
+    v.normalize();
+    const la=Math.asin(v.y)/D2R;
+    const lo=Math.atan2(v.z,-v.x)/D2R-180;
+    return [la,((lo+540)%360)-180];}
+  feats.forEach(f=>{
+    const nm=f.properties&&f.properties.name;if(!nm)return;
+    const key=nm.toLowerCase();
+    const tier=T1.has(key)?1:T2.has(key)?2:3;
+    const c=centroidOf(f);
+    CENTROID.set(key,c);                /* 레이어 덩어리를 앉힐 자리 */
+    addLabel(nm.toUpperCase(),c[0],c[1],tier,key);});
+  loadLayers();                         /* 국경이 준비된 다음에 별을 얹는다 */
+  setStageMorph(MORPH);                /* 새로 생긴 국경·라벨을 현재 뷰에 맞춘다 */
+  refreshClones();
+  /* 첫 화면이 뜬 뒤 정밀 경계선으로 조용히 교체 — 확대해도 해안선이 각지지 않는다 */
+  fetch(TOPO_FINE).then(r=>r.json()).then(fine=>{
+    const old=baseMesh.material;
+    baseMesh.material=new THREE.MeshBasicMaterial({map:buildFill(fine),side:THREE.DoubleSide});
+    if(old){if(old.map)old.map.dispose();old.dispose();}
+    buildBorders(fine);
+    setStageMorph(MORPH);refreshClones();
+    document.getElementById('res').textContent='50m';
+  }).catch(()=>{});                    /* 실패해도 110m 경계선이 그대로 남는다 */
+}).catch(e=>{document.getElementById('ncty').textContent='로드 실패';});
+
+/* ── 국가 채움 텍스처 ──
+   해상도가 바뀌면 이것도 같이 다시 구워야 한다. 채움만 110m으로 두고 해안선만
+   50m으로 올리면 두 그림이 서로 어긋나 물가가 지저분해진다 — 정밀도의 문제가
+   아니라 정렬의 문제다. */
+function buildFill(topo){
+  const feats=topojson.feature(topo,topo.objects.countries).features;
   /* 채움: 등장방형 캔버스 → 텍스처 (나라별 미묘한 명도 차로 구분) */
   const c=document.createElement('canvas');c.width=4096;c.height=2048;
   const x=c.getContext('2d');
@@ -388,46 +438,7 @@ fetch(TOPO_FAST).then(r=>r.json()).then(topo=>{
   /* 극지 도넛 밴딩 제거: 채움 텍스처는 평탄색뿐이라 밉맵 불필요 — 끄면 위도 띠가 사라짐 */
   t.generateMipmaps=false;t.minFilter=THREE.LinearFilter;
   t.anisotropy=renderer.capabilities.getMaxAnisotropy();
-  baseMesh.material=new THREE.MeshBasicMaterial({map:t,side:THREE.DoubleSide});
-  buildBorders(topo);
-  /* ── 전국 라벨 자동 생성: 경제 규모 티어 (T1 대국 상시 · T2 중견 · T3 전부) ── */
-  const T1=new Set(['united states of america','china','japan','germany','india',
-    'united kingdom','france','brazil','russia','canada','south korea','australia',
-    'mexico','saudi arabia','indonesia','italy']);
-  const T2=new Set(['spain','netherlands','turkey','switzerland','poland','argentina',
-    'sweden','belgium','ireland','norway','austria','israel','united arab emirates',
-    'thailand','egypt','denmark','malaysia','vietnam','philippines','bangladesh',
-    'south africa','nigeria','colombia','chile','finland','romania','czechia',
-    'portugal','new zealand','peru','greece','iraq','qatar','kazakhstan','hungary',
-    'kuwait','morocco','ukraine','iran','pakistan','algeria','ethiopia','venezuela',
-    'antarctica','greenland']);
-  function centroidOf(f){ /* 최대 폴리곤의 단위벡터 평균 — 경도 랩(러시아·피지) 안전 */
-    const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
-    let ring=polys[0][0];
-    polys.forEach(p=>{if(p[0].length>ring.length)ring=p[0];});
-    const v=new THREE.Vector3();
-    ring.forEach(([lo,la])=>v.add(sphV3(la,lo,1)));   /* 반드시 구 좌표로 평균 */
-    v.normalize();
-    const la=Math.asin(v.y)/D2R;
-    const lo=Math.atan2(v.z,-v.x)/D2R-180;
-    return [la,((lo+540)%360)-180];}
-  feats.forEach(f=>{
-    const nm=f.properties&&f.properties.name;if(!nm)return;
-    const key=nm.toLowerCase();
-    const tier=T1.has(key)?1:T2.has(key)?2:3;
-    const c=centroidOf(f);
-    CENTROID.set(key,c);                /* 레이어 덩어리를 앉힐 자리 */
-    addLabel(nm.toUpperCase(),c[0],c[1],tier,key);});
-  loadLayers();                         /* 국경이 준비된 다음에 별을 얹는다 */
-  setStageMorph(MORPH);                /* 새로 생긴 국경·라벨을 현재 뷰에 맞춘다 */
-  refreshClones();
-  /* 첫 화면이 뜬 뒤 정밀 경계선으로 조용히 교체 — 확대해도 해안선이 각지지 않는다 */
-  fetch(TOPO_FINE).then(r=>r.json()).then(fine=>{
-    buildBorders(fine);
-    setStageMorph(MORPH);refreshClones();
-    document.getElementById('res').textContent='50m';
-  }).catch(()=>{});                    /* 실패해도 110m 경계선이 그대로 남는다 */
-}).catch(e=>{document.getElementById('ncty').textContent='로드 실패';});
+  return t;}
 
 /* ── 벡터 경계: 내부 국경(밝게) + 해안선(은은) — 각 1드로콜 ── */
 function meshToSegs(mesh,r){
@@ -476,8 +487,10 @@ function labelSprite(txt,tier){
   /* 헤일로 — 지도 라벨은 어떤 바탕 위에도 서야 하므로 종이색 테두리를 두른다 */
   x.lineWidth=6;x.strokeStyle='rgba(250,247,240,.94)';x.strokeText(txt,320,22);
   /* 나라 이름은 먹빛, 도시 이름은 와인빛 — 축이 다르면 색도 다르다 */
-  x.fillStyle=tier===4?'rgba(122,34,51,.90)':tier===5?'rgba(122,34,51,.72)'
-    :'rgba(27,23,20,.86)';   /* 나라는 먹빛 하나, 도시는 와인빛 */
+  /* 지명은 전부 먹빛 계열이다. 와인은 '내 기록'과 레이어의 색이라 지명이 쓰면
+     색이 뜻을 잃는다 — 도시는 나라보다 옅게만 한다 */
+  x.fillStyle=tier===4?'rgba(27,23,20,.70)':tier===5?'rgba(27,23,20,.58)'
+    :'rgba(27,23,20,.86)';
   x.fillText(txt,320,22);
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,
@@ -641,7 +654,7 @@ function addLayer(def){
   const names=[];
   for(let i=0;i<40;i++){
     const t=new THREE.Sprite(new THREE.SpriteMaterial({transparent:true,depthTest:false,opacity:0}));
-    t.renderOrder=26;t.center.set(.5,1.35);   /* 표식 아래에 붙는다 */
+    t.renderOrder=26;t.center.set(.5,2.25);   /* 묶음 원(30px) 아래로 완전히 비켜난다 */
     t.visible=false;g.add(t);names.push(t);}
   const L={def,g,rgb,pts,bubbles,names,texPlain,texStamped,texSaved,texSel,
            on:true,mapped:pts.length,total:def.total||pts.length};
