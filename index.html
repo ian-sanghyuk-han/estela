@@ -6,7 +6,15 @@
      which was seeded from batavia-wtl labs/globe-base.html v4
      (dateline unwrap + polar cap fixes included).
      Canon-guide star layers (§3) and the journey line (§5.3) mount on top of this base.
-     Rendering engine: three.js r160 + topojson-client, both via CDN. -->
+     Rendering engine: three.js r160 + topojson-client, both via CDN.
+
+     v0.2 — three view modes (GLOBE / MAP / JOURNEY), ported from
+     batavia-wtl site/index.html. The morph works because the base is NOT a sphere:
+     it is one PlaneGeometry grid whose every vertex is lerped between a wrapped
+     (spherical) and an unfolded (flat) position. Borders, labels, city dots and the
+     journey trail all carry the same p0/p1 pair, so the whole stage folds as one.
+     The JOURNEY sample trail uses CITY coordinates only — no guide data of any kind
+     is present in this file (§4, §F). -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Estela — Globe</title>
@@ -16,12 +24,53 @@
     background:rgba(7,10,16,.72);border:1px solid rgba(159,199,224,.22);padding:8px 12px}
   #hud b{color:#CFE9F7}
   #note{position:fixed;bottom:10px;left:12px;right:12px;z-index:5;font:10px Consolas,monospace;color:#5b6b7a}
+  /* ── 뷰 전환 바 ── */
+  #modebar{position:fixed;bottom:38px;left:50%;transform:translateX(-50%);z-index:6;display:flex;
+    background:rgba(7,10,16,.78);border:1px solid rgba(159,199,224,.22);border-radius:999px;
+    padding:4px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  .mbtn{font:600 12px/1 Consolas,monospace;letter-spacing:1.5px;color:#7b8c9c;
+    padding:10px 18px;border-radius:999px;cursor:pointer;user-select:none;-webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;transition:color .25s,background .25s}
+  .mbtn.on{color:#05070c;background:#CFE9F7}
+  /* ── 여정 패널 ── */
+  #jpanel{position:fixed;top:10px;right:12px;z-index:6;width:216px;
+    background:rgba(7,10,16,.82);border:1px solid rgba(159,199,224,.22);padding:11px 13px;
+    font:11px/1.55 Consolas,monospace;color:#93a7b8;backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .4s}
+  #jpanel.on{opacity:1;pointer-events:auto}
+  #jpanel h3{margin:0 0 3px;font-size:12px;letter-spacing:2px;color:#CFE9F7}
+  #jpanel .tag{display:inline-block;font-size:9px;letter-spacing:1px;color:#E8D44D;
+    border:1px solid rgba(232,212,77,.45);padding:1px 5px;margin-bottom:8px}
+  #jpanel .stop{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
+  #jpanel .stop b{color:#CFE9F7;font-weight:600}
+  #jpanel .d{color:#5b6b7a}
+  #jpanel .float{color:#7b8c9c;border-top:1px solid rgba(159,199,224,.14);margin-top:7px;padding-top:6px}
+  #jpanel .foot{color:#5b6b7a;font-size:10px;margin-top:8px;line-height:1.5}
+  @media (max-width:520px){
+    #jpanel{width:auto;left:12px;right:12px;top:auto;bottom:96px}
+    #hud{font-size:11px;padding:6px 10px}
+  }
 </style>
 </head>
 <body>
 <div id="hud"><b>ESTELA</b> · 글로브 베이스 — 미식 별 레이어는 이 위에 얹습니다<br>
-FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 드래그 회전 / 휠·핀치 줌</div>
-<div id="note">estela — P0 시작 베이스 (after-flight에서 분기 · 원류 batavia globe-base v4)</div>
+FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · <span id="hint">드래그 회전 / 휠·핀치 줌</span></div>
+
+<div id="modebar">
+  <span class="mbtn on" data-v="3d">3D</span>
+  <span class="mbtn" data-v="2d">지도</span>
+  <span class="mbtn" data-v="journey">여정</span>
+</div>
+
+<div id="jpanel">
+  <h3>여정</h3>
+  <div class="tag">샘플 · 실제 기록 아님</div>
+  <div id="jstops"></div>
+  <div class="foot">선이 지나간 순서가 곧 여정입니다.<br>
+    날짜를 모르는 별은 선에 꿰이지 않고 혼자 떠 있습니다.</div>
+</div>
+
+<div id="note">estela — P0 시작 베이스 (after-flight에서 분기 · 원류 batavia globe-base v4) · 여정은 샘플 도시 좌표이며 가이드 데이터 없음</div>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
 "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
@@ -43,13 +92,25 @@ document.body.appendChild(renderer.domElement);
 const controls=new OrbitControls(camera,renderer.domElement);
 controls.enableDamping=true;controls.dampingFactor=.06;
 controls.minDistance=1.4;controls.maxDistance=5.5;controls.enablePan=false;
-controls.autoRotate=!matchMedia('(prefers-reduced-motion: reduce)').matches;
+const AUTOROT=!matchMedia('(prefers-reduced-motion: reduce)').matches;
+controls.autoRotate=AUTOROT;
 controls.autoRotateSpeed=.22;
 
+/* ══ 투영: '3d' 구 | '2d' 평면 — 같은 정점이 감기고 펼쳐진다 (모핑의 심장) ══ */
 const R=1;
 const D2R=Math.PI/180;
-function toV3(la,lo,r){const phi=(90-la)*D2R,th=(lo+180)*D2R;
+const W2=4,H2=2;                       /* 펼친 지도의 폭·높이 */
+let VIEW='3d',MODE='3d',MORPH=0;       /* MORPH 0=구 · 1=평면 */
+function sphV3(la,lo,r){const phi=(90-la)*D2R,th=(lo+180)*D2R;
   return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(th),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(th));}
+function flatV3(la,lo,r){return new THREE.Vector3(lo/180*(W2/2),la/90*(H2/2),(r-R)*2.2);}
+function blendV3(la,lo,r,k){return sphV3(la,lo,r).lerp(flatV3(la,lo,r),k);}
+function toV3(la,lo,r){return blendV3(la,lo,r,MORPH);}
+function setLerpGeo(geo,p0,p1,k){      /* 정점 배열 두 벌 사이를 선형 보간 */
+  const a=geo.attributes.position.array;
+  for(let i=0;i<a.length;i++)a[i]=p0[i]+(p1[i]-p0[i])*k;
+  geo.attributes.position.needsUpdate=true;
+  geo.computeBoundingSphere();}
 
 /* 별 */
 {const g=new THREE.BufferGeometry();const p=new Float32Array(900*3);
@@ -57,18 +118,43 @@ function toV3(la,lo,r){const phi=(90-la)*D2R,th=(lo+180)*D2R;
  g.setAttribute('position',new THREE.BufferAttribute(p,3));
  scene.add(new THREE.Points(g,new THREE.PointsMaterial({color:0x6d8296,size:.05,transparent:true,opacity:.5})));}
 
-/* ── 바탕 구 + 국가 채움 텍스처 (채움만 래스터 — 경계는 아래 벡터) ── */
-const earthMat=new THREE.MeshBasicMaterial({color:0x0c141d});
-const earth=new THREE.Mesh(new THREE.SphereGeometry(R,96,96),earthMat);
-scene.add(earth);
+/* ── 무대: 지도에 붙는 모든 것이 여기 담긴다 (통째로 접히고 펼쳐진다) ── */
+const stage=new THREE.Group();scene.add(stage);
+let stageClones=[];
+function refreshClones(){ /* 지도 모드: 좌우 복제 — 끝이 없는 지도 */
+  stageClones.forEach(c=>scene.remove(c));
+  stageClones=[];
+  if(VIEW!=='2d')return;
+  [-W2,W2].forEach(off=>{
+    const c=stage.clone(true);         /* 재질·기하는 공유되므로 페이드가 함께 먹는다 */
+    c.position.x=off;scene.add(c);stageClones.push(c);});}
 
+/* ── 바탕: 구가 아니라 격자다. 같은 정점이 구로 감기고 평면으로 펼쳐진다 ── */
+const baseMat=new THREE.MeshBasicMaterial({color:0x0c141d,side:THREE.DoubleSide});
+const baseGeo=new THREE.PlaneGeometry(W2,H2,192,96);
+const BP0=new Float32Array(baseGeo.attributes.position.count*3);
+const BP1=new Float32Array(baseGeo.attributes.position.count*3);
+{const pos=baseGeo.attributes.position;
+ for(let i=0;i<pos.count;i++){
+   const x=pos.getX(i),y=pos.getY(i);
+   const lo=x/(W2/2)*180,la=y/(H2/2)*90;
+   const s=sphV3(la,lo,R);
+   BP0[i*3]=s.x;BP0[i*3+1]=s.y;BP0[i*3+2]=s.z;
+   BP1[i*3]=x;BP1[i*3+1]=y;BP1[i*3+2]=0;}}
+const baseMesh=new THREE.Mesh(baseGeo,baseMat);
+setLerpGeo(baseGeo,BP0,BP1,0);
+stage.add(baseMesh);
+
+/* 대기 글로우 — 3D 전용이라 알파로 물러난다 */
 const atmMat=new THREE.ShaderMaterial({
   transparent:true,side:THREE.BackSide,depthWrite:false,
-  uniforms:{c:{value:new THREE.Color(0x9fc7e0)}},
+  uniforms:{c:{value:new THREE.Color(0x9fc7e0)},a:{value:1}},
   vertexShader:'varying vec3 vN;void main(){vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-  fragmentShader:'uniform vec3 c;varying vec3 vN;void main(){float i=pow(.58-dot(vN,vec3(0.,0.,1.)),2.6);gl_FragColor=vec4(c,1.)*i*.7;}'});
-scene.add(new THREE.Mesh(new THREE.SphereGeometry(R*1.09,64,64),atmMat));
+  fragmentShader:'uniform vec3 c;uniform float a;varying vec3 vN;void main(){float i=pow(.58-dot(vN,vec3(0.,0.,1.)),2.6);gl_FragColor=vec4(c,1.)*i*.7*a;}'});
+const atmMesh=new THREE.Mesh(new THREE.SphereGeometry(R*1.09,64,64),atmMat);
+scene.add(atmMesh);
 
+let innerL=null,coastL=null;           /* 국경·해안선 — 지도 로드 후 채워진다 */
 const COUNTRIES='https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 fetch(COUNTRIES).then(r=>r.json()).then(topo=>{
   const feats=topojson.feature(topo,topo.objects.countries).features;
@@ -112,24 +198,33 @@ fetch(COUNTRIES).then(r=>r.json()).then(topo=>{
   /* 극지 도넛 밴딩 제거: 채움 텍스처는 평탄색뿐이라 밉맵 불필요 — 끄면 위도 띠가 사라짐 */
   t.generateMipmaps=false;t.minFilter=THREE.LinearFilter;
   t.anisotropy=renderer.capabilities.getMaxAnisotropy();
-  earth.material=new THREE.MeshBasicMaterial({map:t});
+  baseMesh.material=new THREE.MeshBasicMaterial({map:t,side:THREE.DoubleSide});
   /* ── 벡터 경계: 내부 국경(밝게) + 해안선(은은) — 각 1드로콜 ── */
   function meshToSegs(mesh,r){
-    const verts=[];
+    const verts0=[],verts1=[];        /* 구 좌표 · 평면 좌표를 나란히 굽는다 */
     const lines=mesh.type==='MultiLineString'?mesh.coordinates:[mesh.coordinates];
     lines.forEach(line=>{for(let i=0;i<line.length-1;i++){
       if(line[i][1]<-82.8&&line[i+1][1]<-82.8)continue; /* 남극 데이터 절단선(인공 원) 제외 */
-      const a=toV3(line[i][1],line[i][0],r),b=toV3(line[i+1][1],line[i+1][0],r);
-      verts.push(a.x,a.y,a.z,b.x,b.y,b.z);}});
+      const a0=sphV3(line[i][1],line[i][0],r),b0=sphV3(line[i+1][1],line[i+1][0],r);
+      verts0.push(a0.x,a0.y,a0.z,b0.x,b0.y,b0.z);
+      /* 평면에서는 ±180° 걸침 선분이 지도를 가로지르므로 경도를 언랩해 바깥으로 흘린다
+         (넘친 부분은 좌우 복제 무대가 받아준다 — 채움 텍스처와 같은 해법) */
+      let loA=line[i][0],loB=line[i+1][0];
+      if(loB-loA>180)loB-=360; else if(loB-loA<-180)loB+=360;
+      const a1=flatV3(line[i][1],loA,r),b1=flatV3(line[i+1][1],loB,r);
+      verts1.push(a1.x,a1.y,a1.z,b1.x,b1.y,b1.z);}});
     const g=new THREE.BufferGeometry();
-    g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(verts),3));
+    g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(verts0),3));
+    g.userData={p0:new Float32Array(verts0),p1:new Float32Array(verts1)};
     return g;}
   const inner=topojson.mesh(topo,topo.objects.countries,(a,b)=>a!==b);
-  earth.add(new THREE.LineSegments(meshToSegs(inner,R*1.0018),
-    new THREE.LineBasicMaterial({color:0xBFD9EA,transparent:true,opacity:.55})));
+  innerL=new THREE.LineSegments(meshToSegs(inner,R*1.0018),
+    new THREE.LineBasicMaterial({color:0xBFD9EA,transparent:true,opacity:.55}));
+  stage.add(innerL);
   const coast=topojson.mesh(topo,topo.objects.countries,(a,b)=>a===b);
-  earth.add(new THREE.LineSegments(meshToSegs(coast,R*1.0015),
-    new THREE.LineBasicMaterial({color:0x9FC0D6,transparent:true,opacity:.38})));
+  coastL=new THREE.LineSegments(meshToSegs(coast,R*1.0015),
+    new THREE.LineBasicMaterial({color:0x9FC0D6,transparent:true,opacity:.38}));
+  stage.add(coastL);
   /* ── 전국 라벨 자동 생성: 경제 규모 티어 (T1 대국 상시 · T2 중견 · T3 전부) ── */
   const T1=new Set(['united states of america','china','japan','germany','india',
     'united kingdom','france','brazil','russia','canada','south korea','australia',
@@ -146,7 +241,7 @@ fetch(COUNTRIES).then(r=>r.json()).then(topo=>{
     let ring=polys[0][0];
     polys.forEach(p=>{if(p[0].length>ring.length)ring=p[0];});
     const v=new THREE.Vector3();
-    ring.forEach(([lo,la])=>v.add(toV3(la,lo,1)));
+    ring.forEach(([lo,la])=>v.add(sphV3(la,lo,1)));   /* 반드시 구 좌표로 평균 */
     v.normalize();
     const la=Math.asin(v.y)/D2R;
     const lo=Math.atan2(v.z,-v.x)/D2R-180;
@@ -157,6 +252,8 @@ fetch(COUNTRIES).then(r=>r.json()).then(topo=>{
     const tier=T1.has(key)?1:T2.has(key)?2:3;
     const c=centroidOf(f);
     addLabel(nm.toUpperCase(),c[0],c[1],tier);});
+  setStageMorph(MORPH);                /* 새로 생긴 국경·라벨을 현재 뷰에 맞춘다 */
+  refreshClones();
 }).catch(e=>{document.getElementById('ncty').textContent='로드 실패';});
 
 /* ── 라벨: 경제 티어 + 줌 게이팅 + 크기 위계 ──
@@ -182,8 +279,8 @@ const labelObjs=[];
 function addLabel(txt,la,lo,tier){
   const s=labelSprite(txt,tier);
   s.position.copy(toV3(la,lo,R*1.012));
-  labelObjs.push({s,tier,normal:s.position.clone().normalize()});
-  earth.add(s);}
+  labelObjs.push({s,tier,la,lo,normal:sphV3(la,lo,1)});
+  stage.add(s);}
 /* 도시 — T4 주요 도시(줌<1.95) · T5 광역 주요 도시(줌<1.6) */
 const CITY4=[['SEOUL',37.5,127],['TOKYO',35.7,139.7],['NEW YORK',40.7,-74],['LONDON',51.5,-.1],
  ['SHANGHAI',31.2,121.5],['RIYADH',24.7,46.7],['SINGAPORE',1.35,103.8],
@@ -205,40 +302,214 @@ const CITY5=[['SAN FRANCISCO',37.77,-122.42],['HOUSTON',29.76,-95.37],['MIAMI',2
 CITY4.forEach(([n,la,lo])=>addLabel(n,la,lo,4));
 CITY5.forEach(([n,la,lo])=>addLabel(n,la,lo,5));
 /* 도시 점 — 옅게 (지리 참조) */
-{const geo=new THREE.SphereGeometry(.0042,8,8);
- const all=[...CITY4,...CITY5];
- const im=new THREE.InstancedMesh(geo,new THREE.MeshBasicMaterial({color:0x8fa6b8,transparent:true,opacity:.8}),all.length);
- const d3=new THREE.Object3D();
- all.forEach((c2,i)=>{d3.position.copy(toV3(c2[1],c2[2],R*1.0025));d3.updateMatrix();im.setMatrixAt(i,d3.matrix);});
- im.instanceMatrix.needsUpdate=true;earth.add(im);}
-function updateLabels(){
-  const camDir=camera.position.clone().normalize();
-  const dist=camera.position.length();
-  labelObjs.forEach(o=>{
-    const facing=o.normal.dot(camDir);              /* 1=정면 · 0=림 · 음수=뒷면 */
-    const tierOn=o.tier===1||(o.tier===2&&dist<2.5)||(o.tier===3&&dist<1.85)
-      ||(o.tier===4&&dist<1.95)||(o.tier===5&&dist<1.6);
-    const fade=THREE.MathUtils.smoothstep(facing,.12,.35); /* 수평선 페이드 */
-    o.s.material.opacity=tierOn?fade*.95:0;});}
-window.__dbg={labelObjs,camera};
+const ALLCITY=[...CITY4,...CITY5];
+const cityIM=new THREE.InstancedMesh(new THREE.SphereGeometry(.0042,8,8),
+  new THREE.MeshBasicMaterial({color:0x8fa6b8,transparent:true,opacity:.8}),ALLCITY.length);
+{const d3=new THREE.Object3D();
+ ALLCITY.forEach((c2,i)=>{d3.position.copy(toV3(c2[1],c2[2],R*1.0025));d3.updateMatrix();cityIM.setMatrixAt(i,d3.matrix);});
+ cityIM.instanceMatrix.needsUpdate=true;stage.add(cityIM);}
+
+/* ══════════════════════════════════════════════════════════════════
+   여정 (§5.3) — 도장(사실)과 여정선(서사)은 다른 물건이다.
+   날짜가 있는 별은 순서대로 꿰이고, 날짜가 없는 별은 "떠 있는 별"로 남는다.
+   ⚠️ 아래 좌표는 전부 도시 좌표다. 식당·등급·가이드 데이터는 이 파일에 없다 (§4, §F).
+   P1에서 정본 스냅샷이 들어오면 이 배열만 갈아끼우면 된다.
+   ══════════════════════════════════════════════════════════════════ */
+const JOURNEY=[            /* [도시, 위도, 경도, 날짜] — 시간 순 */
+  ['TOKYO',        35.68, 139.70,'2023-05'],
+  ['PARIS',        48.86,   2.35,'2023-11'],
+  ['SAN SEBASTIÁN',43.32,  -1.98,'2024-04'],
+  ['LIMA',        -12.05, -77.04,'2024-09'],
+  ['NEW YORK',     40.71, -74.01,'2025-02'],
+  ['SEOUL',        37.57, 126.98,'2025-08']];
+const FLOATING=[           /* 떠 있는 별 — 갔지만 언제였는지 기억이 안 나는 곳 (§5.3.3) */
+  ['COPENHAGEN',   55.68,  12.57],
+  ['HONG KONG',    22.30, 114.17]];
+
+const journeyG=new THREE.Group();stage.add(journeyG);
+const jStars=[];           /* {la,lo,mesh,lift} — 모핑 때 자리를 다시 잡아야 한다 */
+let jLine=null;
+
+function greatCircle(la1,lo1,la2,lo2,steps){
+  /* 두 점 사이 대권(great circle) — 지구 위 실제 최단 경로. 지도에서는 곡선으로 보인다 */
+  const a=sphV3(la1,lo1,1),b=sphV3(la2,lo2,1);
+  const out=[];
+  for(let i=0;i<=steps;i++){
+    const t=i/steps;
+    const v=a.clone().lerp(b,t).normalize();          /* 구면 보간 */
+    const la=Math.asin(THREE.MathUtils.clamp(v.y,-1,1))/D2R;
+    let lo=Math.atan2(v.z,-v.x)/D2R-180;
+    lo=((lo+540)%360)-180;
+    const lift=Math.sin(t*Math.PI)*.055;              /* 가운데가 들리는 활 모양 */
+    out.push([la,lo,lift]);}
+  return out;}
+
+function buildJourney(){
+  /* 여정선: 대권 궤적을 잘게 쪼개 LineSegments로. 구·평면 두 벌 좌표를 같이 굽는다 */
+  const v0=[],v1=[];
+  for(let s=0;s<JOURNEY.length-1;s++){
+    const pts=greatCircle(JOURNEY[s][1],JOURNEY[s][2],JOURNEY[s+1][1],JOURNEY[s+1][2],48);
+    let unwrap=0;                                     /* 평면용 경도 연속화 */
+    for(let i=0;i<pts.length-1;i++){
+      const [laA,loA,lfA]=pts[i];
+      let [laB,loB,lfB]=pts[i+1];
+      const a0=sphV3(laA,loA,R+lfA),b0=sphV3(laB,loB,R+lfB);
+      v0.push(a0.x,a0.y,a0.z,b0.x,b0.y,b0.z);
+      /* 평면: ±180°를 넘어가면 지도 밖으로 계속 흘려보낸다. 좌우 복제본이 이어받는다 */
+      const loAu=loA+unwrap;
+      let d=loB-loA;
+      if(d>180)unwrap-=360; else if(d<-180)unwrap+=360;
+      const loBu=loB+unwrap;
+      const a1=flatV3(laA,loAu,R+lfA),b1=flatV3(laB,loBu,R+lfB);
+      v1.push(a1.x,a1.y,a1.z,b1.x,b1.y,b1.z);}}
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(v0),3));
+  g.userData={p0:new Float32Array(v0),p1:new Float32Array(v1)};
+  jLine=new THREE.LineSegments(g,new THREE.LineBasicMaterial({
+    color:0xFFD98A,transparent:true,opacity:0,depthTest:false}));
+  jLine.renderOrder=14;
+  journeyG.add(jLine);
+  /* 별: 다녀온 곳 = 켜진 별. 우리가 그린 별이지 남의 도안이 아니다 (§3.1) */
+  const starGeo=new THREE.SphereGeometry(.011,12,12);
+  const mkStar=(la,lo,col,lift)=>{
+    const m=new THREE.Mesh(starGeo,new THREE.MeshBasicMaterial({
+      color:col,transparent:true,opacity:0,depthTest:false}));
+    m.renderOrder=15;
+    m.position.copy(blendV3(la,lo,R+lift,MORPH));
+    journeyG.add(m);
+    jStars.push({la,lo,mesh:m,lift});
+    return m;};
+  JOURNEY.forEach(j=>mkStar(j[1],j[2],0xFFD98A,.004));
+  FLOATING.forEach(f=>mkStar(f[1],f[2],0x8FB2CC,.030)); /* 떠 있는 별 — 지면에서 살짝 띄운다 */
+  /* 패널 목록 */
+  const el=document.getElementById('jstops');
+  el.innerHTML=JOURNEY.map(j=>
+    `<div class="stop"><b>${j[0]}</b><span class="d">${j[3]}</span></div>`).join('')
+    +`<div class="float">떠 있는 별 · 날짜 미상<br>`
+    +FLOATING.map(f=>`<span style="color:#9FC0D6">${f[0]}</span>`).join(' · ')+`</div>`;}
+buildJourney();
+
+let journeyAlpha=0,jTween=null;        /* 여정 레이어의 등장·퇴장 */
+function tweenJourney(to,dur){jTween={from:journeyAlpha,to,t0:performance.now(),dur:dur||520};}
+
+/* ── 모핑: 지구본이 펼쳐지고(→평면) 접힌다(→구) ── */
+function setStageMorph(k){
+  MORPH=k;
+  setLerpGeo(baseGeo,BP0,BP1,k);
+  [innerL,coastL,jLine].forEach(l=>{
+    if(l&&l.geometry.userData&&l.geometry.userData.p0)
+      setLerpGeo(l.geometry,l.geometry.userData.p0,l.geometry.userData.p1,k);});
+  labelObjs.forEach(o=>o.s.position.copy(blendV3(o.la,o.lo,R*1.012,k)));
+  jStars.forEach(s=>s.mesh.position.copy(blendV3(s.la,s.lo,R+s.lift,k)));
+  const d3=new THREE.Object3D();
+  ALLCITY.forEach((c2,i)=>{d3.position.copy(blendV3(c2[1],c2[2],R*1.0025,k));
+    d3.updateMatrix();cityIM.setMatrixAt(i,d3.matrix);});
+  cityIM.instanceMatrix.needsUpdate=true;}
+
+let morphAnim=null;
+function startMorph(k1,vFinal){
+  controls.enabled=false;
+  stageClones.forEach(c=>scene.remove(c));stageClones=[];
+  morphAnim={k0:MORPH,k1,t0:performance.now(),dur:1200,vFinal,
+    camFrom:camera.position.clone(),
+    camTo:k1===1?new THREE.Vector3(0,0,2.6):new THREE.Vector3(0,.5,3.8)};}
+
+/* ── 카메라: 뷰별 조작 ── */
+function configCamera(){
+  if(VIEW==='2d'){
+    /* 왼쪽 드래그 = 끌기(팬). 회전만 꺼두면 왼쪽 버튼이 죽어 있게 된다 */
+    controls.enableRotate=false;controls.enablePan=true;controls.screenSpacePanning=true;
+    controls.mouseButtons={LEFT:THREE.MOUSE.PAN,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.PAN};
+    controls.touches={ONE:THREE.TOUCH.PAN,TWO:THREE.TOUCH.DOLLY_PAN};
+    controls.autoRotate=false;
+    controls.minDistance=.6;controls.maxDistance=4;
+    controls.target.set(camera.position.x,camera.position.y,0);
+    camera.position.z=Math.max(camera.position.z,1.2);
+    camera.lookAt(controls.target);
+  }else{
+    controls.enableRotate=true;controls.enablePan=false;
+    controls.mouseButtons={LEFT:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.ROTATE};
+    controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};
+    controls.autoRotate=(MODE!=='journey')&&AUTOROT;
+    controls.minDistance=1.4;controls.maxDistance=5.5;
+    controls.target.set(0,0,0);
+    if(camera.position.length()<1.5)camera.position.set(0,.5,3.8);}}
+
+/* ── 뷰 전환: 3D↔지도는 접고 펴기, 여정은 같은 투영 위에 얹기 ── */
+const HINT={'3d':'드래그 회전 / 휠·핀치 줌','2d':'드래그 이동 / 휠·핀치 줌',
+  'journey':'다녀온 별이 순서대로 이어집니다'};
+function setView(v){
+  if(v===MODE||morphAnim)return;
+  MODE=v;
+  document.querySelectorAll('#modebar .mbtn').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  document.getElementById('hint').textContent=HINT[v];
+  document.getElementById('jpanel').classList.toggle('on',v==='journey');
+  tweenJourney(v==='journey'?1:0,520);
+  const wantFlat=(v==='2d');
+  if(wantFlat!==(VIEW==='2d')){startMorph(wantFlat?1:0,v);return;} /* 투영이 바뀐다 → 모핑 */
+  configCamera();}                                                 /* 같은 투영 → 즉시 */
+document.querySelectorAll('#modebar .mbtn').forEach(b=>
+  b.addEventListener('click',()=>setView(b.dataset.v)));
+
+window.__dbg={labelObjs,camera,jStars,setView,setStageMorph,
+  getMorph:()=>MORPH,getView:()=>VIEW,getMode:()=>MODE,
+  setVIEW:v=>{VIEW=v;configCamera();refreshClones();}}; /* 검증용 훅 */
 
 /* ────────────────────────────────────────────────────────────────
-   ESTELA MOUNT POINTS — nothing built here yet, on purpose.
+   ESTELA MOUNT POINTS — the star layers are still empty, on purpose.
    P1  canon layers  : static JSON snapshots (Michelin, Blue Ribbon, ...)
-                       → star points on `earth`, colour/size by grade,
-                         one toggleable THREE.Group per layer.
+                       → star points on `stage`, colour by layer, size by
+                         the 3-step intensity of §3.1, one toggleable
+                         THREE.Group per layer. Give every point the same
+                         {la,lo} + blendV3 treatment as `jStars` so it folds
+                         with the map.
    P2  camera        : country click → ease-in to city → restaurant cards.
-   P3  journey line   : visited stars in chronological order → THREE.Line
-                       following the sphere surface (the "estela").
+   P3  journey line  : replace the JOURNEY / FLOATING sample arrays above
+                       with the member's own visits. The rendering is done.
    Rule (§4): snapshots are static files in this repo. No live scraping,
    no runtime calls to any guide's servers. Every record carries its
    source layer and a last-verified date.
    ──────────────────────────────────────────────────────────────── */
 
+function updateLabels(){
+  const camDir=camera.position.clone().normalize();
+  const dist=VIEW==='2d'?camera.position.z+1.2:camera.position.length();
+  labelObjs.forEach(o=>{
+    const facing=VIEW==='2d'?1:o.normal.dot(camDir); /* 1=정면 · 0=림 · 음수=뒷면 */
+    const tierOn=o.tier===1||(o.tier===2&&dist<2.5)||(o.tier===3&&dist<1.85)
+      ||(o.tier===4&&dist<1.95)||(o.tier===5&&dist<1.6);
+    const fade=VIEW==='2d'?1:THREE.MathUtils.smoothstep(facing,.12,.35); /* 수평선 페이드 */
+    o.s.material.opacity=tierOn?fade*.95:0;});}
+
 let frames=0,fpsT=performance.now();
 const fpsEl=document.getElementById('fps');
 function loop(now){
-  controls.update();
+  /* 모핑 진행 */
+  if(morphAnim){
+    const p=Math.min(1,(now-morphAnim.t0)/morphAnim.dur);
+    const e=p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;     /* ease-in-out */
+    setStageMorph(morphAnim.k0+(morphAnim.k1-morphAnim.k0)*e);
+    camera.position.lerpVectors(morphAnim.camFrom,morphAnim.camTo,e);
+    camera.lookAt(0,0,0);
+    if(p>=1){
+      VIEW=morphAnim.k1===1?'2d':'3d';
+      morphAnim=null;controls.enabled=true;
+      configCamera();refreshClones();}}
+  /* 여정 레이어 페이드 + 지도 물러남 */
+  if(jTween){
+    const p=Math.min(1,(now-jTween.t0)/jTween.dur);
+    journeyAlpha=jTween.from+(jTween.to-jTween.from)*p;
+    if(p>=1)jTween=null;}
+  if(jLine)jLine.material.opacity=journeyAlpha*.85;
+  jStars.forEach(s=>{s.mesh.material.opacity=journeyAlpha;});
+  const dim=1-journeyAlpha*.55;                       /* 여정에서는 지도가 한 발 물러선다 */
+  if(innerL)innerL.material.opacity=.55*dim;
+  if(coastL)coastL.material.opacity=.38*dim;
+  cityIM.material.opacity=.8*dim;
+  atmMat.uniforms.a.value=(1-MORPH)*dim;
+  atmMesh.visible=MORPH<.99;
+
+  if(controls.enabled)controls.update();
   updateLabels();
   renderer.render(scene,camera);
   frames++;if(now-fpsT>1000){fpsEl.textContent=frames;frames=0;fpsT=now;}
