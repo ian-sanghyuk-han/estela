@@ -84,6 +84,21 @@
   #jpanel .sw{width:9px;height:9px;border:1.5px solid var(--wine);display:inline-block}
   #jpanel .sw.o{border-color:var(--olive)}
   #jpanel .sw.g{border-style:dashed;border-color:rgba(140,129,117,.7)}
+  /* ── 레이어 패널 ── */
+  #layers{position:fixed;bottom:34px;left:12px;z-index:6;background:rgba(255,255,255,.86);
+    border:1px solid var(--rule);padding:10px 12px;font:11px/1.5 var(--sans);color:var(--dim);
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);max-width:230px}
+  #layers h4{margin:0 0 7px;font-size:9px;letter-spacing:2.2px;color:var(--mute);font-weight:600}
+  .lrow{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;
+    -webkit-user-select:none;-webkit-tap-highlight-color:transparent;padding:3px 0}
+  .lrow .dot{width:10px;height:10px;border-radius:999px;background:var(--wine);flex-shrink:0}
+  .lrow.off .dot{background:transparent;border:1.5px solid rgba(140,129,117,.7)}
+  .lrow.off .nm{color:var(--mute)}
+  .lrow .nm{color:var(--ink);font-weight:500;flex-grow:1}
+  .lrow .ct{color:var(--dim);font-variant-numeric:tabular-nums}
+  #layers .prov{margin-top:7px;padding-top:7px;border-top:1px solid var(--rule);
+    font-size:9.5px;color:var(--dim);line-height:1.55}
+  @media (max-width:560px){#layers{display:none}}
   @media (max-width:560px){
     #jpanel{width:auto;left:12px;right:12px;top:auto;bottom:86px;transform:translateY(6px)}
     #jpanel.on{transform:none}
@@ -95,7 +110,7 @@
 </head>
 <body>
 <div id="hud"><span class="wm">ESTELA</span> — 미식 별 레이어는 이 위에 얹습니다<br>
-FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 경계 <b id="res">110m</b> · <span id="hint">드래그 회전 / 휠·핀치 줌</span></div>
+FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 경계 <b id="res">110m</b> · 별 <b id="nstar">—</b> · <span id="hint">드래그 회전 / 휠·핀치 줌</span></div>
 
 <div id="modebar">
   <span class="mbtn on" data-v="3d">3D</span>
@@ -114,6 +129,8 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 경계 <b id="res">110
   <div class="foot">찍힌 순서가 곧 여정입니다. 날짜를 모르는 별은 선에 꿰이지 않고 혼자 떠 있습니다.<br>
     지구본 위 올리브 고리 = 함께 간 별 · 끊긴 고리 = 여럿이 따로 다녀온 별.</div>
 </div>
+
+<div id="layers"><h4>레이어</h4><div id="lrows"></div><div class="prov" id="lprov"></div></div>
 
 <div id="note">estela — P0 시작 베이스 (after-flight에서 분기 · 원류 batavia globe-base v4) · 여정은 샘플 도시 좌표이며 가이드 데이터 없음</div>
 <script type="importmap">
@@ -287,7 +304,9 @@ fetch(TOPO_FAST).then(r=>r.json()).then(topo=>{
     const key=nm.toLowerCase();
     const tier=T1.has(key)?1:T2.has(key)?2:3;
     const c=centroidOf(f);
+    CENTROID.set(key,c);                /* 레이어 덩어리를 앉힐 자리 */
     addLabel(nm.toUpperCase(),c[0],c[1],tier);});
+  loadLayers();                         /* 국경이 준비된 다음에 별을 얹는다 */
   setStageMorph(MORPH);                /* 새로 생긴 국경·라벨을 현재 뷰에 맞춘다 */
   refreshClones();
   /* 첫 화면이 뜬 뒤 정밀 경계선으로 조용히 교체 — 확대해도 해안선이 각지지 않는다 */
@@ -384,6 +403,82 @@ const cityIM=new THREE.InstancedMesh(new THREE.SphereGeometry(.0038,8,8),
 {const d3=new THREE.Object3D();
  ALLCITY.forEach((c2,i)=>{d3.position.copy(toV3(c2[1],c2[2],R*1.0025));d3.updateMatrix();cityIM.setMatrixAt(i,d3.matrix);});
  cityIM.instanceMatrix.needsUpdate=true;stage.add(cityIM);}
+
+/* ══════════════════════════════════════════════════════════════════
+   정본 레이어 (§3) — 정적 JSON 스냅샷을 읽어 지구본에 얹는 장치.
+   가이드 서버에 실시간으로 접속하지 않는다. 파일만 갈아끼우면 된다.
+
+   지금 실린 것은 국가별 집계뿐이다 (grain:"country"). §5.6/화면규칙대로
+   지구본 배율에서는 개별 별이 아니라 덩어리와 개수만 보여주는 것이 맞고,
+   개별 좌표는 오너 승인 후 같은 형식의 파일로 추가된다 (grain:"place").
+   ══════════════════════════════════════════════════════════════════ */
+const LAYER_FILES=['data/michelin-3star-by-country.json'];
+const CENTROID=new Map();               /* 나라 이름(소문자) → [위도, 경도] */
+const layerG=new THREE.Group();stage.add(layerG);
+const layerMarks=[];                    /* {la,lo,s,lift,group} — 모핑 때 자리를 다시 잡는다 */
+const layerGroups=[];
+
+function clusterSprite(n,rgb){
+  /* 덩어리 표식: 옅은 후광 + 진한 알 + 개수. 크기는 √n — 31곳이 1곳의 31배가 되면 안 된다 */
+  const S=160,c=document.createElement('canvas');c.width=c.height=S;
+  const x=c.getContext('2d'),cx=S/2;
+  x.beginPath();x.arc(cx,cx,S*.40,0,Math.PI*2);x.fillStyle=`rgba(${rgb},.16)`;x.fill();
+  x.beginPath();x.arc(cx,cx,S*.40,0,Math.PI*2);x.strokeStyle=`rgba(${rgb},.42)`;x.lineWidth=2;x.stroke();
+  const rr=n>=10?S*.255:n>=3?S*.215:S*.175;
+  x.beginPath();x.arc(cx,cx,rr,0,Math.PI*2);x.fillStyle=`rgb(${rgb})`;x.fill();
+  x.font=`600 ${n>=10?46:52}px Archivo,'Segoe UI',sans-serif`;
+  x.textAlign='center';x.textBaseline='middle';x.fillStyle='#F7F4EE';
+  x.fillText(String(n),cx,cx+1);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false,opacity:0}));
+  s.renderOrder=18;
+  const k=.052+.030*Math.sqrt(n)/Math.sqrt(31);
+  s.scale.set(k,k,1);return s;}
+
+function hexToRgb(h){h=h.replace('#','');
+  return [0,2,4].map(i=>parseInt(h.slice(i,i+2),16)).join(',');}
+
+function addLayer(def){
+  const rgb=hexToRgb(def.color||'#7A2233');
+  const g=new THREE.Group();layerG.add(g);
+  let placed=0,missed=[];
+  (def.counts||[]).forEach(row=>{
+    let la=row.la,lo=row.lo;
+    if(row.match){const c=CENTROID.get(row.match.toLowerCase());
+      if(c){la=c[0];lo=c[1];}}
+    if(la===undefined||lo===undefined){missed.push(row.country);return;}
+    const s=clusterSprite(row.n,rgb);
+    s.position.copy(blendV3(la,lo,R*1.020,MORPH));
+    g.add(s);
+    layerMarks.push({la,lo,s,lift:R*1.020,group:g,normal:sphV3(la,lo,1)});
+    placed++;});
+  const total=(def.counts||[]).reduce((a,b)=>a+b.n,0);
+  layerGroups.push({def,g,on:true,placed,total,missed});
+  if(missed.length)console.warn('[estela] 지도에서 못 찾은 나라:',missed.join(', '));
+  return layerGroups[layerGroups.length-1];}
+
+function paintLayerPanel(){
+  document.getElementById('lrows').innerHTML=layerGroups.map((L,i)=>
+    `<div class="lrow${L.on?'':' off'}" data-i="${i}">`
+    +`<span class="dot"></span><span class="nm">${L.def.label}</span>`
+    +`<span class="ct">${L.total}</span></div>`).join('');
+  document.querySelectorAll('#lrows .lrow').forEach(el=>
+    el.addEventListener('click',()=>{
+      const L=layerGroups[+el.dataset.i];L.on=!L.on;
+      el.classList.toggle('off',!L.on);}));
+  const L=layerGroups[0];
+  document.getElementById('lprov').innerHTML=L
+    ? `출처 ${L.def.source.split('(')[0].trim()} · ${L.def.license}<br>최종확인 ${L.def.lastVerified} · 국가별 집계`
+    : '';}
+
+function loadLayers(){
+  Promise.all(LAYER_FILES.map(f=>fetch(f).then(r=>r.json()).catch(()=>null)))
+    .then(defs=>{
+      defs.filter(Boolean).forEach(d=>addLayer(d));
+      paintLayerPanel();
+      const n=layerGroups.reduce((a,L)=>a+L.total,0);
+      const el=document.getElementById('nstar');if(el)el.textContent=n;
+      setStageMorph(MORPH);});}
 
 /* ══════════════════════════════════════════════════════════════════
    여정 (§5.3) — 도장(사실)과 여정선(서사)은 다른 물건이다.
@@ -518,6 +613,7 @@ function setStageMorph(k){
   setLerpGeo(baseGeo,BP0,BP1,k);      /* 바탕 격자만 CPU — 5.6만 개라 가볍다 */
   setLineK(innerL,k);setLineK(coastL,k);setLineK(jLine,k); /* 선은 GPU가 접는다 */
   jRings.forEach(l=>setLineK(l,k));
+  layerMarks.forEach(m=>m.s.position.copy(blendV3(m.la,m.lo,m.lift,k)));
   labelObjs.forEach(o=>o.s.position.copy(blendV3(o.la,o.lo,R*1.012,k)));
   jStars.forEach(s=>s.mesh.position.copy(blendV3(s.la,s.lo,R+s.lift,k)));
   const d3=new THREE.Object3D();
@@ -594,7 +690,7 @@ function setView(v){
 document.querySelectorAll('#modebar .mbtn').forEach(b=>
   b.addEventListener('click',()=>setView(b.dataset.v)));
 
-window.__dbg={labelObjs,camera,jStars,setView,setStageMorph,
+window.__dbg={labelObjs,camera,jStars,jRings,layerGroups,layerMarks,setView,setStageMorph,
   getMorph:()=>MORPH,getView:()=>VIEW,getMode:()=>MODE,
   setVIEW:v=>{VIEW=v;configCamera();refreshClones();}}; /* 검증용 훅 */
 
@@ -644,6 +740,14 @@ function loop(now){
     const p=Math.min(1,(now-jTween.t0)/jTween.dur);
     journeyAlpha=jTween.from+(jTween.to-jTween.from)*p;
     if(p>=1)jTween=null;}
+  /* 덩어리 표식: 지구 뒷면이면 사라지고, 여정 모드에서는 한 발 물러선다 */
+  {const camDir=camera.position.clone().normalize();
+   const back=1-journeyAlpha*.72;
+   layerGroups.forEach(L=>{L.g.visible=L.on;});
+   layerMarks.forEach(m=>{
+     const facing=VIEW==='2d'?1:m.normal.dot(camDir);
+     const fade=VIEW==='2d'?1:THREE.MathUtils.smoothstep(facing,.02,.30);
+     m.s.material.opacity=fade*back;});}
   setLineO(jLine,journeyAlpha*.90);
   jRings.forEach(l=>setLineO(l,journeyAlpha*.85));
   jStars.forEach(s=>{s.mesh.material.opacity=journeyAlpha;});
