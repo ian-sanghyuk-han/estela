@@ -1064,12 +1064,33 @@ function setStageMorph(k){
   cityIM.instanceMatrix.needsUpdate=true;}
 
 let morphAnim=null;
+/* 어떤 거리에서 화면에 span°가 담기는가 — 3D쪽 식이 지저분해 이분법으로 푼다 */
+function distanceForSpan(span){
+  let lo=1.009,hi=5.5,save=camera.position.clone();
+  for(let i=0;i<24;i++){
+    const mid=(lo+hi)/2;
+    camera.position.copy(save).normalize().multiplyScalar(mid);
+    camera.updateMatrixWorld();
+    if(visibleSpanDeg()>span)lo=mid;else hi=mid;}
+  camera.position.copy(save);camera.updateMatrixWorld();
+  return (lo+hi)/2;}
+
 function startMorph(k1,vFinal){
   controls.enabled=false;
   stageClones.forEach(c=>scene.remove(c));stageClones=[];
-  morphAnim={k0:MORPH,k1,t0:performance.now(),dur:1200,vFinal,
-    camFrom:camera.position.clone(),
-    camTo:k1===1?new THREE.Vector3(0,0,2.6):new THREE.Vector3(0,.5,3.8)};}
+  /* 보고 있던 자리와 배율을 그대로 들고 건너간다. 예전에는 기본 위치로 날려버려서
+     확대해 들어가던 흐름이 끊기고 '탭이 바뀐' 것처럼 느껴졌다 */
+  const [la,lo]=centerLatLon();
+  const span=THREE.MathUtils.clamp(visibleSpanDeg(),.05,170);
+  let to;
+  if(k1===1){
+    const z=span/180*H2/(2*Math.tan(camera.fov*D2R/2));
+    to=new THREE.Vector3(lo/180*(W2/2),la/90*(H2/2),
+      THREE.MathUtils.clamp(z,.0015,4));
+  }else{
+    to=sphV3(la,lo,distanceForSpan(span));}
+  morphAnim={k0:MORPH,k1,t0:performance.now(),dur:1000,vFinal,
+    la,lo,camFrom:camera.position.clone(),camTo:to};}
 
 /* ── 카메라: 뷰별 조작 ── */
 function configCamera(){
@@ -1081,7 +1102,9 @@ function configCamera(){
     controls.autoRotate=false;
     controls.minDistance=.0015;controls.maxDistance=4;  /* 화면 세로 ≈ 11km — 골목이 갈릴 만큼 */
     controls.target.set(camera.position.x,camera.position.y,0);
-    camera.position.z=Math.max(camera.position.z,1.2);
+    /* 예전에는 여기서 z를 1.2로 끌어올렸다 — 확대해 들어오다 평면으로 펴지는 순간
+       배율이 통째로 튕겨 나가던 원인. 바닥은 minDistance가 이미 지킨다 */
+    camera.position.z=Math.max(camera.position.z,controls.minDistance);
     camera.lookAt(controls.target);
   }else{
     controls.enableRotate=true;controls.enablePan=false;
@@ -1157,7 +1180,7 @@ window.__dbg={labelObjs,camera,jStars,jRings,layerGroups,recluster,setView,setSt
   LADDER,pickLadder,visibleSpanDeg,getLadderIdx:()=>ladderIdx,tuneControls,rescaleMarkers,
   getControls:()=>controls,
   selectPlace,paintJourney,myCounts,keyOf,stampsOf,isSaved,getStore:()=>store,
-  updateLabels,bandFade,rebuildMine,enterStreet,leaveStreet,
+  updateLabels,bandFade,rebuildMine,enterStreet,leaveStreet,maybeAutoProject,distanceForSpan,
   getStreet:()=>street,isStreetOn:()=>streetOn,streetZoomFor,
   getMorph:()=>MORPH,getView:()=>VIEW,getMode:()=>MODE,
   setVIEW:v=>{VIEW=v;configCamera();refreshClones();}}; /* 검증용 훅 */
@@ -1499,6 +1522,19 @@ const SAMPLE_STAMPS=(function(){
    타일은 지금 OSM 래스터를 빌려 쓴다. 흐름을 증명하기 위한 것이고,
    커지면 도시별 PMTiles를 우리가 만들어 얹는다 (source 한 줄 교체).
    ══════════════════════════════════════════════════════════════════ */
+/* 구 ↔ 평면은 배율이 정한다. 사람이 투영을 고르는 게 아니라 파고들면 저절로
+   펴지고 물러나면 저절로 말린다. 두 문턱을 벌려 경계에서 왔다 갔다 하지 않게 한다 */
+const FLAT_IN=34, FLAT_OUT=62;
+let projLock=false;
+function maybeAutoProject(){
+  if(morphAnim||streetOn||MODE==='journey')return;
+  const span=visibleSpanDeg();
+  if(projLock){                            /* 착지 후에는 반대 문턱을 넘어야 풀린다 */
+    if((VIEW==='2d'&&span<FLAT_IN*.9)||(VIEW==='3d'&&span>FLAT_OUT*1.1))projLock=false;
+    return;}
+  if(VIEW==='3d'&&span<FLAT_IN)setView('2d');
+  else if(VIEW==='2d'&&span>FLAT_OUT)setView('3d');}
+
 const STREET_IN=1.6, STREET_OUT=4.0;   /* 들어가는 각도 · 나오는 각도 (히스테리시스) */
 let street=null, streetOn=false, streetMarks=[], streetLock=false;
 
@@ -1545,7 +1581,7 @@ function enterStreet(){
   if(m.loaded())paintStreetMarks();}
 
 function leaveStreet(){
-  streetOn=false;
+  streetOn=false;projLock=true;
   /* 나가자마자 배율이 그대로면 곧바로 다시 빨려 들어간다 — 충분히 물러날 때까지 잠근다 */
   streetLock=true;
   document.getElementById('street').classList.remove('on');
@@ -1606,11 +1642,18 @@ function loop(now){
     const e=p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;     /* ease-in-out */
     setStageMorph(morphAnim.k0+(morphAnim.k1-morphAnim.k0)*e);
     camera.position.lerpVectors(morphAnim.camFrom,morphAnim.camTo,e);
-    camera.lookAt(0,0,0);
+    if(morphAnim.k1===1){                 /* 평면으로 갈수록 시선이 수직으로 선다 */
+      const tgt=new THREE.Vector3(morphAnim.camTo.x,morphAnim.camTo.y,0);
+      camera.lookAt(tgt.multiplyScalar(e));
+    }else camera.lookAt(0,0,0);
     if(p>=1){
       VIEW=morphAnim.k1===1?'2d':'3d';
+      if(VIEW==='2d')controls.target.set(camera.position.x,camera.position.y,0);
+      else controls.target.set(0,0,0);
+      camera.lookAt(controls.target);
       morphAnim=null;controls.enabled=true;
-      configCamera();refreshClones();}}
+      projLock=true;                      /* 착지 직후 곧바로 되돌아가지 않게 */
+      configCamera();refreshClones();markClusterDirty();}}
   /* 여정 레이어 페이드 + 지도 물러남 */
   if(jTween){
     const p=Math.min(1,(now-jTween.t0)/jTween.dur);
@@ -1620,6 +1663,7 @@ function loop(now){
   if(!streetOn){
     if(clusterDirty||jTween)recluster();
     tuneControls();
+    maybeAutoProject();
     maybeEnterStreet();}
   setLineO(jLine,journeyAlpha*.90);
   jRings.forEach(l=>setLineO(l,journeyAlpha*.85*(visibleSpanDeg()>9?1:0)));
