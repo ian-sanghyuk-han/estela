@@ -230,6 +230,13 @@
   #card h3{margin:2px 0 3px;font-family:var(--serif);font-size:23px;font-weight:400;
     line-height:1.15;color:var(--ink)}
   #card .src{font-size:8.5px;letter-spacing:2px;font-weight:600;color:var(--wine);text-transform:uppercase}
+  /* 사실만 — 평도 사진도 없다 */
+  #card .facts{margin-top:9px;border-top:1px solid var(--rule);padding-top:7px}
+  #card .facts div{display:flex;gap:10px;font-size:11px;line-height:1.65;color:var(--ink)}
+  #card .facts span{flex:0 0 66px;color:var(--dim);font-size:10px}
+  #card .facts a{color:var(--wine);text-decoration:none;border-bottom:1px solid var(--rule);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #card .facts a:hover{border-bottom-color:var(--wine)}
   #card .sub{font-size:11.5px;color:var(--dim);margin-bottom:11px}
   #card .mystamps{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:11px}
   #card .mystamps span{font-size:9px;letter-spacing:.6px;color:var(--wine);
@@ -752,7 +759,7 @@ const layers=[];
 function featureOf(L,it){
   const k=keyOf(L,it);
   return {type:'Feature',properties:{n:it.n,ct:it.ct||'',c:it.c||'',q:it.q||it.n,cu:it.cu||'',w:it.w||'',
-    y:it.y||'',sh:!!it.g,tilt:tiltOf(k),
+    y:it.y||'',sh:!!it.g,tilt:tiltOf(k),yr:it.yr||'',sy:it.sy||'',
     L:L.id,done:stampsOf(k).length>0,save:isSaved(k)},
     geometry:{type:'Point',coordinates:[it.lo,it.la]}};}
 function fcOf(L){return {type:'FeatureCollection',features:(L.items||[]).map(it=>featureOf(L,it))};}
@@ -961,6 +968,30 @@ function wireAdd(){
           +'<div class="pickrow" id="dopick">지도에서 직접 찍기</div>';
           wire();$('dopick').onclick=()=>setPick(true,t);});},700);};}
 
+/* ══ 고른 곳 카드 ══
+   사실만 적는다 — 요리, 문 연 해, 별을 받은 해, 홈페이지. 평이나 사진은 없다.
+   그건 가이드의 몫이고, 우리가 옮겨 적을 것이 아니다 */
+const cuisineText=v=>String(v||'').split(';').map(x=>x.trim())
+  .filter(Boolean).map(x=>x.replace(/_/g,' ')).slice(0,3).join(' · ');
+function siteHref(w){
+  const s=String(w||'').trim();
+  if(!s||/\s/.test(s))return '';
+  return /^https?:\/\//i.test(s)?s:'https://'+s;}
+function siteLabel(w){
+  try{return new URL(siteHref(w)).hostname.replace(/^www\./,'');}catch(e){return '홈페이지';}}
+function factRows(p){
+  const rows=[];
+  const cu=cuisineText(p.cu);
+  if(cu)rows.push(['요리',esc(cu)]);
+  if(p.yr)rows.push(['문 연 해',esc(p.yr)]);
+  if(p.sy)rows.push(['별을 받은 해',esc(p.sy)]);
+  if(p.y)rows.push(['지정',esc(p.y)]);
+  const h=siteHref(p.w);
+  if(h)rows.push(['홈페이지','<a href="'+esc(h)+'" target="_blank" rel="noopener noreferrer">'
+    +esc(siteLabel(p.w))+'</a>']);
+  return rows.length?'<div class="facts">'
+    +rows.map(([k,v])=>'<div><span>'+k+'</span>'+v+'</div>').join('')+'</div>':'';}
+
 /* ══ 고른 곳 카드 ══ */
 let selected=null;
 function selectPlace(L,p){selected={L,p,key:L.id+'|'+(p.q||p.n)};paintCard();}
@@ -971,12 +1002,12 @@ function paintCard(){
   const {L,p,key}=selected,st=stampsOf(key),n=st.length;
   const city=L.grain==='city';
   el.classList.add('on');
-  const bits=city?[p.c,p.y?p.y+' 지정':''].filter(Boolean).join(' · ')
-                 :[p.ct,p.c].filter(Boolean).join(' · ');
+  const bits=city?String(p.c||''):[p.ct,p.c].filter(Boolean).join(' · ');
   el.innerHTML='<button id="cx" aria-label="닫기">×</button>'
     +'<div class="src">'+esc(L.label)+(L.grade?' · '+L.grade:'')+'</div>'
     +'<h3>'+esc(p.n)+'</h3>'
     +(bits?'<div class="sub">'+esc(bits)+'</div>':'')
+    +factRows(p)
     +(city?'<div class="sub" style="color:var(--dim);font-size:11.5px;margin-top:6px">'
         +'가게가 아니라 <b>도시 전체</b>에 주어진 지정입니다. '
         +(p.sh?'지도의 윤곽선은 이 도시의 실제 행정구역입니다.'
@@ -1261,13 +1292,14 @@ document.querySelector('[data-v="journey"]').onclick=()=>setJourney(!jOn);
 /* ══ 부팅 ══ */
 map.on('load',async()=>{
   await addPaperBase();
-  const defs=await Promise.all(LAYER_FILES.map(f=>fetch(f).then(r=>r.json()).catch(()=>null)));
+  const defs=await Promise.all(LAYER_FILES.map(f=>
+    fetch(f,{cache:'no-cache'}).then(r=>r.json()).catch(()=>null)));
   defs.filter(Boolean).forEach(d=>addStarLayer({
     id:d.layer,label:d.label,color:d.color,grade:d.grade,kind:d.kind,grain:d.grain||'place',
     total:d.total||(d.items||[]).length,
     source:d.source,license:d.license,lastVerified:d.lastVerified,items:d.items}));
   addStarLayer(minePlacesLayer());
-  fetch('data/places.json').then(r=>r.json())
+  fetch('data/places.json',{cache:'no-cache'}).then(r=>r.json())
     .then(d=>{GAZ=d.items;paintWhere();}).catch(()=>{});
   addJourneyLayers();
   wireAdd();paintPanel();paintMine();paintJourney();paintWhere();
