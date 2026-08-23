@@ -173,12 +173,37 @@
   #jsum{display:flex;gap:22px;flex-wrap:wrap}
   #jsum .st{display:flex;flex-direction:column;font-size:10px;letter-spacing:1.4px;color:var(--dim)}
   #jsum .st b{font-family:var(--serif);font-size:25px;font-weight:400;letter-spacing:0;color:var(--ink)}
-  #jstage{display:grid;grid-template-columns:minmax(320px,1.45fr) minmax(220px,1fr) minmax(220px,1fr);
+  /* 네 칸 — 다녀온 곳 · 여권 · 진행률 · 함께. 좁아지면 둘로, 더 좁으면 하나로 */
+  #jstage{display:grid;
+    grid-template-columns:minmax(250px,1.1fr) minmax(300px,1.4fr) minmax(190px,.9fr) minmax(190px,.9fr);
     gap:26px 30px;align-items:start}
+  @media (max-width:1180px){
+    #jstage{grid-template-columns:repeat(2,minmax(240px,1fr))}}
   .jcol{min-width:0}
   .colh{font-size:9px;letter-spacing:2.4px;font-weight:600;color:var(--mute);
     text-transform:uppercase;margin-bottom:10px}
   .colh.mt{margin-top:20px}
+  /* 다녀온 곳 — 나라를 열면 도시가, 도시를 열면 가게 이름이 나온다 */
+  #jtree{max-height:60vh;overflow:auto}
+  #jtree .tnode{display:flex;align-items:center;gap:7px;cursor:pointer;
+    padding:5px 2px;border-bottom:1px solid var(--rule);user-select:none}
+  #jtree .tnode:hover{background:var(--sand)}
+  #jtree .tnode .tw{display:inline-block;width:9px;color:var(--mute);
+    transition:transform .16s ease;font-size:12px;line-height:1}
+  #jtree .tnode.open .tw{transform:rotate(90deg)}
+  #jtree .tnode i{margin-left:auto;font-style:normal;font-size:9.5px;color:var(--dim)}
+  #jtree .lv1 b{font-family:var(--serif);font-size:14px;color:var(--ink);font-weight:500}
+  #jtree .lv2{padding-left:15px;border-bottom:0}
+  #jtree .lv2 span:not(.tw){font-size:11.5px;color:var(--dim)}
+  #jtree .tleaf{display:flex;align-items:center;gap:7px;cursor:pointer;
+    padding:4px 2px 4px 31px;font-size:11.5px;color:var(--ink)}
+  #jtree .tleaf:hover{background:var(--sand)}
+  #jtree .tleaf .wd{width:7px;height:7px;border-radius:999px;flex-shrink:0}
+  #jtree .tleaf .ln{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #jtree .tleaf em{font-style:normal;font-size:9px;color:var(--paper);
+    background:var(--wine);padding:1px 4px;border-radius:2px;flex-shrink:0}
+  #jtree .tleaf i{margin-left:auto;font-style:normal;font-size:9.5px;
+    color:var(--dim);flex-shrink:0}
   #jsample{font-size:10px;color:var(--dim);margin-top:10px;line-height:1.6}
   /* 진행률 */
   .prow{margin-bottom:13px}
@@ -258,6 +283,10 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
       <div id="jsum"></div>
     </div>
     <div id="jstage">
+      <section class="jcol">
+        <div class="colh">다녀온 곳</div>
+        <div id="jtree"></div>
+      </section>
       <section class="jcol">
         <div class="colh">여권</div>
         <div id="jstops"></div>
@@ -1106,14 +1135,81 @@ function myPlaces(){
   out.sort((a,b)=>{const x=a.st[a.st.length-1].d,y=b.st[b.st.length-1].d;return x<y?-1:x>y?1:0;});
   return out;}
 
+/* ══ 다녀온 곳 ══ 나라 → 도시 → 가게 ══
+   여권 벽이 느낌이라면 이건 읽는 쪽이다. 잎을 누르면 지도가 그 자리로 날아가고
+   카드가 열린다. 도시나 나라가 비어 있는 항목은 우리가 이미 들고 있는
+   지명 사전과 나라 도형에서 메운다 — 빈칸으로 두면 기록이 아니라 구멍이 된다 */
+const jOpen=new Set();
+function cityOfStop(m){
+  if(m.L.grain==='city')return m.it.n;
+  if(m.it.ct)return m.it.ct;
+  const n=placeAt(m.it.lo,m.it.la);
+  return n&&n.km<40?n.p.n:'';}
+function countryOfStop(m){
+  return m.it.c||countryAt(m.it.lo,m.it.la)||'';}
+
+function buildTree(mine){
+  const T=new Map();
+  mine.forEach(m=>{
+    const c=countryOfStop(m)||'어디인지 모를 곳';
+    const t=cityOfStop(m)||'도시 미상';
+    if(!T.has(c))T.set(c,new Map());
+    const cm=T.get(c);
+    if(!cm.has(t))cm.set(t,[]);
+    cm.get(t).push(m);});
+  return T;}
+
+function paintTree(mine){
+  const el=$('jtree'); if(!el)return;
+  if(!mine.length){
+    el.innerHTML='<div class="hint">도장을 찍으면 여기에 '
+      +'나라 · 도시 · 가게 순서로 쌓입니다.</div>';return;}
+  const T=buildTree(mine);
+  /* 처음에는 나라가 몇 안 되면 펼쳐 둔다. 셋을 넘어가면 접어야 훑을 수 있다 */
+  if(!jOpen.size&&T.size<=3)T.forEach((_,c)=>jOpen.add('C:'+c));
+  const sum=arr=>arr.reduce((a,m)=>a+m.st.length,0);
+  let h='';
+  [...T.entries()].sort((a,b)=>a[0].localeCompare(b[0])).forEach(([c,cm])=>{
+    const all=[...cm.values()].flat(), on=jOpen.has('C:'+c);
+    h+='<div class="tnode lv1'+(on?' open':'')+'" data-o="C:'+esc(c)+'">'
+      +'<span class="tw">›</span><b>'+esc(c)+'</b>'
+      +'<i>'+all.length+'곳 · '+sum(all)+'번</i></div>';
+    if(!on)return;
+    [...cm.entries()].sort((a,b)=>a[0].localeCompare(b[0])).forEach(([t,arr])=>{
+      const k='T:'+c+'|'+t, ton=jOpen.has(k);
+      h+='<div class="tnode lv2'+(ton?' open':'')+'" data-o="'+esc(k)+'">'
+        +'<span class="tw">›</span><span>'+esc(t)+'</span>'
+        +'<i>'+arr.length+'곳</i></div>';
+      if(!ton)return;
+      arr.sort((a,b)=>a.it.n.localeCompare(b.it.n)).forEach(m=>{
+        const n=m.st.length, last=m.st[n-1].d.replace('-',' · ');
+        h+='<div class="tleaf" data-k="'+esc(keyOf(m.L,m.it))+'">'
+          +'<span class="wd" style="background:'+m.L.color
+          +(m.L.grain==='city'?';border-radius:999px;background:transparent;border:1.5px solid '+m.L.color:'')
+          +'"></span><span class="ln">'+esc(m.it.n)+'</span>'
+          +(n>1?'<em>×'+n+'</em>':'')+'<i>'+last+'</i></div>';});});});
+  el.innerHTML=h;
+  el.querySelectorAll('.tnode').forEach(nd=>nd.onclick=()=>{
+    const k=nd.dataset.o;
+    if(jOpen.has(k))jOpen.delete(k);else jOpen.add(k);
+    paintTree(mine);});
+  el.querySelectorAll('.tleaf').forEach(lf=>lf.onclick=()=>{
+    const m=mine.find(x=>keyOf(x.L,x.it)===lf.dataset.k);
+    if(!m)return;
+    setJourney(false);
+    map.easeTo({center:[m.it.lo,m.it.la],
+      zoom:Math.max(map.getZoom(),m.L.grain==='city'?9.5:15),duration:1000});
+    selectPlace(m.L,{n:m.it.n,ct:m.it.ct||'',c:m.it.c||'',q:m.it.q||m.it.n,
+      y:m.it.y||'',sh:!!m.it.g});});}
+
 function paintJourney(){
   const mine=myPlaces(),c=myCounts();
   const saved=[];layers.forEach(L=>(L.items||[]).forEach(it=>{if(isSaved(keyOf(L,it)))saved.push({L,it});}));
   const stat=(v,l)=>'<span class="st"><b>'+v+'</b>'+l+'</span>';
-  const cityOf=m=>m.L&&m.L.grain==='city'?m.it.n:m.it.ct;
-  $('jsum').innerHTML=stat(new Set(mine.map(m=>m.it.c).filter(Boolean)).size,'나라')
-    +stat(new Set(mine.map(cityOf).filter(Boolean)).size,'도시')
+  $('jsum').innerHTML=stat(new Set(mine.map(countryOfStop).filter(Boolean)).size,'나라')
+    +stat(new Set(mine.map(cityOfStop).filter(Boolean)).size,'도시')
     +stat(c.places,'도장 찍은 곳')+stat(c.visits,'찍은 횟수')+stat(c.saved,'가고 싶은 곳');
+  paintTree(mine);
   const el=$('jstops');
   if(mine.length){
     el.innerHTML=mine.map((m,i)=>{const n=m.st.length,last=m.st[n-1].d.replace('-',' · ');
