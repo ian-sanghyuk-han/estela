@@ -128,6 +128,18 @@
     text-align:center;cursor:pointer;font-size:10.5px;color:var(--ink);
     border:1px dashed var(--mute);background:var(--card)}
   #addres .pickrow:hover{background:var(--sand)}
+  /* 담기 전 확인 — 이름은 늘 고쳐 쓸 수 있어야 한다 */
+  #addres .cfm{padding:6px 2px}
+  #addres .cfm .at{font-size:9.5px;line-height:1.45;color:var(--dim);margin-bottom:6px}
+  #addres .cfm input{width:100%;box-sizing:border-box;font:12px var(--sans);
+    color:var(--ink);background:var(--paper);border:1px solid var(--mute);
+    padding:6px 8px;outline:none}
+  #addres .cfm input:focus{border-color:var(--wine)}
+  #addres .cfm .btns{display:flex;gap:5px;margin-top:6px}
+  #addres .cfm button{flex:1;font:11px var(--sans);padding:6px;cursor:pointer;
+    border:1px solid var(--mute);background:transparent;color:var(--ink)}
+  #addres .cfm button.primary{background:var(--wine);border-color:var(--wine);
+    color:var(--paper)}
   /* 손으로 찍는 중 — 지도 위에 무엇을 하는 중인지 계속 붙여 둔다 */
   #picking{display:none;position:fixed;left:50%;bottom:76px;transform:translateX(-50%);
     z-index:6;font:500 12px var(--sans);color:var(--paper);background:var(--wine);
@@ -710,6 +722,30 @@ function addOwnPlace(n,la,lo,ct,c){
     ct:ct||'',c:c||''});
   saveStore();rebuildMine();paintJourney();}
 
+/* 담기 전에 한 번 멈춘다. 주소로 찾아 들어간 경우 그 자리에 있는 다른 가게 이름이
+   붙어 버리기 때문이다 — 거목한방순대국이 '카페 세검정'으로 저장되면 안 된다.
+   지도를 그 자리로 옮겨 눈으로 확인하게 하고, 이름은 고쳐 쓸 수 있게 둔다 */
+function confirmAdd(name,la,lo,ct,c,where,done){
+  const res=$('addres');
+  map.easeTo({center:[lo,la],zoom:Math.max(map.getZoom(),16),duration:800});
+  res.innerHTML='<div class="grp">이 자리가 맞나요</div>'
+    +'<div class="cfm"><div class="at">'+esc(where||'')+'</div>'
+    +'<input id="cfmn" placeholder="이 곳을 뭐라고 부르시나요">'
+    +'<div class="btns"><button id="cfmok" class="primary">담기</button>'
+    +'<button id="cfmno" class="quiet">취소</button></div></div>';
+  const inp=$('cfmn');
+  inp.value=name||'';inp.focus();inp.select();
+  const save=()=>{
+    const n=inp.value.trim();
+    if(!n){inp.focus();return;}
+    addOwnPlace(n,la,lo,ct,c);
+    $('addq').value='';
+    res.innerHTML='<div class="msg">«'+esc(n)+'» 담았습니다.</div>';
+    if(done)done();};
+  $('cfmok').onclick=save;
+  inp.onkeydown=e=>{if(e.key==='Enter')save();};
+  $('cfmno').onclick=()=>{res.innerHTML='<div class="msg">취소했습니다.</div>';};}
+
 function wireAdd(){
   const btn=$('addbtn'),box=$('addbox'),q=$('addq'),res=$('addres');
   btn.onclick=()=>{box.classList.toggle('on');if(box.classList.contains('on'))q.focus();};
@@ -718,10 +754,13 @@ function wireAdd(){
      자주 가는 집은 어차피 어디인지 알고 있으니, 찾는 것보다 가리키는 게 빠르다 */
   map.on('click',e=>{
     if(!pickMode)return;
-    const nm=(q.value||'').trim()||'이름 없는 곳';
-    addOwnPlace(nm,e.lngLat.lat,e.lngLat.lng,'', countryAt(e.lngLat.lng,e.lngLat.lat));
+    const la=e.lngLat.lat,lo=e.lngLat.lng;
     setPick(false);
-    q.value='';res.innerHTML='<div class="msg">«'+esc(nm)+'» 을 찍었습니다.</div>';});
+    const cty=countryAt(lo,la), near=placeAt(lo,la);
+    confirmAdd((q.value||'').trim(),la,lo,
+      near&&near.km<25?near.p.n:'', cty,
+      [cty,near&&near.km<25?near.p.n:''].filter(Boolean).join(' · ')
+        +'  ('+la.toFixed(5)+', '+lo.toFixed(5)+')');});
 
   q.oninput=()=>{
     clearTimeout(addTimer);
@@ -758,10 +797,15 @@ function wireAdd(){
           wire();
           res.querySelectorAll('.r:not(.ours)').forEach(el=>el.onclick=()=>{
             const r=list[+el.dataset.i],a=r.address||{};
-            addOwnPlace((r.name||r.display_name.split(',')[0]).trim(),
+            /* 주소를 친 경우 결과의 이름은 그 자리 가게 이름이다. 선장님이 찾던
+               이름이 아니므로, 친 말이 주소가 아니면 그걸 먼저 넣어 준다 */
+            const found=(r.name||r.display_name.split(',')[0]).trim();
+            const typed=q.value.trim();
+            const looksAddr=/\d/.test(typed)||/[로길가동읍면리]\s*\d/.test(typed);
+            confirmAdd(looksAddr?found:(typed||found),
               parseFloat(r.lat),parseFloat(r.lon),
-              a.city||a.town||a.village||a.municipality||a.suburb||'',a.country||'');
-            q.value='';res.innerHTML='<div class="msg">추가했습니다.</div>';});
+              a.city||a.town||a.village||a.municipality||a.suburb||'',
+              a.country||'', r.display_name);});
           $('dopick').onclick=()=>setPick(true,t);})
         .catch(()=>{res.innerHTML=head
           +'<div class="msg">검색에 닿지 못했습니다.</div>'

@@ -146,11 +146,26 @@ Best concrete find, and one the owner named himself: **백년가게** (소상공
 Columns: 업체명 · 연락처 · 시도 · 시군구 · 기본주소 · 상세주소 · 주요사업. Includes
 non-restaurants, so `주요사업` has to filter it down.
 
-**Blocker: no coordinates, and our geocoder cannot make them.** Tested Nominatim on five
-Korean 도로명 addresses: 0 of 5 correct — three not found, two matched to Denmark and to
-Dagestan. Any Korean layer therefore needs a Korean geocoder (VWorld, 도로명주소 API, or
-Kakao Local — all free, all require a key). Until then Korea cannot be put on the map
-from address data.
+~~**Blocker: no coordinates, and our geocoder cannot make them.**~~ **RETRACTED 2026-08-24.**
+The original test reported 0 of 5 Korean 도로명 addresses geocoded, with two landing in
+Denmark and Dagestan. That was a fault in the test, not in Nominatim: the Korean strings
+were mangled by the shell's cp949 encoding before they ever reached the API, and no
+country was pinned. Re-run properly, Korean road addresses resolve **6 of 6, every one
+within 800 m** — bare `자하문로 269` included. **No Korean geocoder key is needed.**
+
+The same encoding fault made 우래옥 look absent from OpenStreetMap. It is there, and so
+are 41,383 named restaurants inside Seoul — more than Tokyo's 15,354. Korean OSM
+restaurant coverage is good, and Korean shop names are stored in Korean (`name=부산회집`,
+`name:en=Busan Fish Restaurant`).
+
+**백년가게 remains rejected**, but on the owner's grounds, not this one: 1,262 Korean
+entries against France's 31 would skew the globe, and *편중된 정보는 신빙성을 떨어트려*.
+Coverage balance is the criterion; geocoding was never the obstacle.
+
+**What is still genuinely missing** is individual unmapped shops — 거목한방순대국 and
+을지면옥 return nothing from either Nominatim or a raw Overpass name sweep, because
+nobody has drawn them. No query fixes that, which is why the add flow ends in
+drop-it-on-the-map by hand.
 
 ### 3b. France and the United States — checked 2026-08-24, and they correct §3
 
