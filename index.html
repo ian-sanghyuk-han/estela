@@ -124,6 +124,8 @@
   #addres .grp:first-child{border-top:0;margin-top:0}
   /* 우리 목록에 있는 건 담는 게 아니라 열어보는 것이라, 표시를 달리한다 */
   #addres .r.ours{border-left:2px solid var(--wine);padding-left:8px}
+  /* 정부 명부 — 판단이 없는 목록이라 담백하게 */
+  #addres .r.reg{border-left:2px solid var(--olive);padding-left:8px}
   /* 마지막 수단은 스크롤에 묻히면 안 된다 — 목록이 길어도 바닥에 붙어 있는다 */
   #addres .pickrow{position:sticky;bottom:0;margin-top:6px;padding:7px;
     text-align:center;cursor:pointer;font-size:10.5px;color:var(--ink);
@@ -955,6 +957,54 @@ function rebuildMine(){
   paintPanel();paintMine();paintJourney();}
 
 let addTimer=null;
+/* ══ 등기부 ══ 정부가 내는 '존재하는 가게' 목록 ══
+   지도에 그리지 않는다. 25만 개 점을 뿌리면 "몇 개 중 몇 개"의 분모가 덮여 사라지고,
+   허가 기록에는 좋고 나쁨의 판단이 없으니 보여줄 것도 없다.
+   오직 검색이 빈손으로 돌아오지 않게 하는 데만 쓴다 — 어떤 가이드에도, OSM에도
+   없는 집까지 닿게. 화면에 걸친 조각만, 그것도 화면이 충분히 좁을 때만 받아온다 */
+let REG=null;
+const REGCELL=new Map();
+function regManifest(){
+  if(REG!==null)return Promise.resolve(REG);
+  REG=false;
+  return fetch('data/registry/manifest.json',{cache:'no-cache'})
+    .then(r=>r.json()).then(m=>(REG=m)).catch(()=>(REG=false));
+}
+/* 지금 화면을 덮는 조각들. 대륙을 보고 있을 때 등기부를 뒤지는 건 의미가 없다 */
+function regCellsInView(){
+  if(!REG||!REG.sources)return [];
+  const st=REG.step,b=map.getBounds();
+  const x0=Math.floor(b.getWest()/st),x1=Math.floor(b.getEast()/st);
+  const y0=Math.floor(b.getSouth()/st),y1=Math.floor(b.getNorth()/st);
+  if((x1-x0+1)*(y1-y0+1)>42)return [];
+  const out=[];
+  Object.keys(REG.sources).forEach(id=>{
+    const s=REG.sources[id];
+    for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+      const k=y+'_'+x;
+      if(s.cells[k])out.push({id:id,s:s,k:k});}});
+  return out;}
+function regLoad(list){
+  return Promise.all(list.map(c=>{
+    const key=c.id+'/'+c.k;
+    if(REGCELL.has(key))return null;
+    REGCELL.set(key,[]);                       /* 같은 조각을 두 번 받지 않게 */
+    return fetch('data/registry/'+c.s.folder+'/'+c.k+'.json')
+      .then(r=>r.json()).then(a=>{REGCELL.set(key,a);})
+      .catch(()=>{REGCELL.delete(key);});}));}
+function regSearch(t,cap){
+  const s=t.toLowerCase(),hit=[];
+  REGCELL.forEach((arr,key)=>{
+    const src=key.slice(0,key.indexOf('/'));
+    for(let i=0;i<arr.length;i++){
+      const it=arr[i],n=it[0].toLowerCase(),p=n.indexOf(s);
+      if(p<0)continue;
+      hit.push({src:src,it:it,rank:p===0?0:1});
+      if(hit.length>800)return;}});
+  hit.sort((a,b)=>a.rank-b.rank||a.it[0].length-b.it[0].length);
+  return hit.slice(0,cap||5);}
+function regReady(){return REG&&REG.sources&&Object.keys(REG.sources).length;}
+
 /* 우리 목록 안에서 먼저 찾는다. 이건 인터넷이 없어도 즉시 된다.
    이걸 건너뛰면 미슐랭 식당을 검색해도 '내 장소'로 하나 더 만들어 버린다 */
 function searchCanon(t){
@@ -1045,10 +1095,22 @@ function wireAdd(){
       [cty,near&&near.km<25?near.p.n:''].filter(Boolean).join(' · ')
         +'  ('+la.toFixed(5)+', '+lo.toFixed(5)+')');});
 
+  /* 세 곳이 서로 다른 속도로 답한다 — 우리 목록은 즉시, 등기부는 조각을 받은 뒤,
+     지도 검색은 잠시 뒤. 예전에는 각자 칸 전체를 다시 써서 늦게 온 쪽이 먼저 온 쪽을
+     지웠다. 이제 각자 제 칸만 채우고, 그리는 것은 한 곳에서 한다 */
+  let slot={q:'',ours:'',reg:'',net:'',hint:''},bound={};
+  const paint=()=>{
+    res.innerHTML=slot.ours+slot.reg+slot.net+slot.hint;
+    ['ours','reg','net'].forEach(k=>{
+      if(!bound[k])return;
+      res.querySelectorAll('.r.'+k).forEach((el,i)=>el.onclick=()=>bound[k](i));});
+    const b=$('dopick'); if(b)b.onclick=()=>setPick(true,slot.q);};
+
   q.oninput=()=>{
     clearTimeout(addTimer);
     const t=q.value.trim();
     if(pickMode)setPick(false);
+    slot={q:t,ours:'',reg:'',net:'',hint:''};bound={};
     if(t.length<2){res.innerHTML='';return;}
 
     /* 좌표나 지도 링크를 붙여넣으셨다면 검색할 것이 없다. 바로 그 자리다 */
@@ -1060,49 +1122,71 @@ function wireAdd(){
           +'  ('+cc.la.toFixed(5)+', '+cc.lo.toFixed(5)+')');
       return;}
 
+    /* ① 우리 목록 — 인터넷 없이 즉시 */
     const mine=searchCanon(t);
-    const head=mine.length?'<div class="grp">우리 목록에 있습니다</div>'
-      +mine.map((h,i)=>'<div class="r ours" data-c="'+i+'"><b>'+esc(h.it.n)+'</b>'
-        +'<small>'+esc([h.it.ct,h.it.c].filter(Boolean).join(' · '))
-        +' — '+esc(h.L.label)+'</small></div>').join(''):'';
-    const wire=()=>res.querySelectorAll('.r.ours').forEach(el=>el.onclick=()=>{
-      const h=mine[+el.dataset.c];
-      map.easeTo({center:[h.it.lo,h.it.la],
-        zoom:Math.max(map.getZoom(),h.L.grain==='city'?9.5:15),duration:900});
-      selectPlace(h.L,{n:h.it.n,ct:h.it.ct||'',c:h.it.c||'',q:h.it.q||h.it.n,
-        y:h.it.y||'',sh:!!h.it.g});});
-    res.innerHTML=head+'<div class="msg">지도에서 찾는 중…</div>';
-    wire();
+    if(mine.length){
+      slot.ours='<div class="grp">우리 목록에 있습니다</div>'
+        +mine.map(h=>'<div class="r ours"><b>'+esc(h.it.n)+'</b><small>'
+          +esc([h.it.ct,h.it.c].filter(Boolean).join(' · '))+' — '+esc(h.L.label)
+          +'</small></div>').join('');
+      bound.ours=i=>{
+        const h=mine[i];
+        map.easeTo({center:[h.it.lo,h.it.la],
+          zoom:Math.max(map.getZoom(),h.L.grain==='city'?9.5:15),duration:900});
+        selectPlace(h.L,{n:h.it.n,ct:h.it.ct||'',c:h.it.c||'',q:h.it.q||h.it.n,
+          cu:h.it.cu||'',w:h.it.w||'',y:h.it.y||'',yr:h.it.yr||'',sy:h.it.sy||'',
+          sh:!!h.it.g});};}
+    slot.net='<div class="msg">지도에서 찾는 중…</div>';
+    paint();
 
+    /* ② 등기부 — 이 지역 정부 명부. 지도에 그리지 않고 검색에만 쓴다 */
+    regManifest().then(()=>{
+      if(slot.q!==t||!regReady())return;
+      const cells=regCellsInView();
+      if(!cells.length){
+        slot.hint='<div class="msg">지도를 더 확대하면 이 지역 정부 명부에서도 찾습니다.</div>';
+        paint();return;}
+      return regLoad(cells).then(()=>{
+        if(slot.q!==t)return;
+        const rr=regSearch(t,5);
+        if(!rr.length)return;
+        slot.reg='<div class="grp">이 지역 정부 명부에</div>'
+          +rr.map(h=>'<div class="r reg"><b>'+esc(h.it[0])+'</b><small>'
+            +esc(h.it[3]||'')+' — '+esc((REG.sources[h.src]||{}).label||'')
+            +'</small></div>').join('');
+        bound.reg=i=>{
+          const h=rr[i],sc=REG.sources[h.src]||{};
+          confirmAdd(h.it[0],h.it[1],h.it[2],'',sc.country||'',
+            (h.it[3]||'')+'  ·  '+(sc.label||''));};
+        paint();});});
+
+    /* ③ 세상 지도 — 그래도 없으면 손으로 찍는다 */
     addTimer=setTimeout(()=>{      /* Nominatim은 초당 1회를 넘기지 않는다 */
+      const done=()=>{
+        slot.hint='<div class="pickrow" id="dopick">지도에서 직접 찍기</div>';paint();};
       fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5'
         +'&addressdetails=1&viewbox='+viewBox()+'&q='+encodeURIComponent(t))
         .then(r=>r.json()).then(list=>{
-          const tail=list.length
-            ?'<div class="grp">지도에서 찾았습니다</div>'+list.map((r,i)=>{
+          if(slot.q!==t)return;
+          slot.net=list.length
+            ?'<div class="grp">지도에서 찾았습니다</div>'+list.map(r=>{
                const nm=(r.name||r.display_name.split(',')[0]).trim();
-               return '<div class="r" data-i="'+i+'"><b>'+esc(nm)+'</b><small>'
+               return '<div class="r net"><b>'+esc(nm)+'</b><small>'
                  +esc(r.display_name)+'</small></div>';}).join('')
             :'<div class="msg">지도에도 아직 없는 곳입니다.</div>';
-          res.innerHTML=head+tail
-            +'<div class="pickrow" id="dopick">지도에서 직접 찍기</div>';
-          wire();
-          res.querySelectorAll('.r:not(.ours)').forEach(el=>el.onclick=()=>{
-            const r=list[+el.dataset.i],a=r.address||{};
-            /* 주소를 친 경우 결과의 이름은 그 자리 가게 이름이다. 선장님이 찾던
-               이름이 아니므로, 친 말이 주소가 아니면 그걸 먼저 넣어 준다 */
+          bound.net=i=>{
+            const r=list[i],a=r.address||{};
+            /* 주소를 친 경우 결과의 이름은 그 자리 가게 이름이다. 찾던 이름이 아니다 */
             const found=(r.name||r.display_name.split(',')[0]).trim();
-            const typed=q.value.trim();
-            const looksAddr=/\d/.test(typed)||/[로길가동읍면리]\s*\d/.test(typed);
-            confirmAdd(looksAddr?found:(typed||found),
+            const looksAddr=/\d/.test(t)||/[로길가동읍면리]\s*\d/.test(t);
+            confirmAdd(looksAddr?found:(t||found),
               parseFloat(r.lat),parseFloat(r.lon),
               a.city||a.town||a.village||a.municipality||a.suburb||'',
-              a.country||'', r.display_name);});
-          $('dopick').onclick=()=>setPick(true,t);})
-        .catch(()=>{res.innerHTML=head
-          +'<div class="msg">검색에 닿지 못했습니다.</div>'
-          +'<div class="pickrow" id="dopick">지도에서 직접 찍기</div>';
-          wire();$('dopick').onclick=()=>setPick(true,t);});},700);};}
+              a.country||'', r.display_name);};
+          done();})
+        .catch(()=>{
+          if(slot.q!==t)return;
+          slot.net='<div class="msg">검색에 닿지 못했습니다.</div>';done();});},700);};}
 
 /* ══ 고른 곳 카드 ══
    사실만 적는다 — 요리, 문 연 해, 별을 받은 해, 홈페이지. 평이나 사진은 없다.

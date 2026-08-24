@@ -23,6 +23,37 @@ confirmed from Seoul's own API sample (`3020000-101-2001-07985`): agency code, `
 
 ---
 
+## Shipped
+
+**🇬🇧 United Kingdom — done 2026-08-24.** 226,877 places with coordinates, from the FSA's
+Restaurant/Cafe/Canteen, Pub/bar/nightclub and Takeaway/sandwich shop categories. Hospitals,
+schools, manufacturers, supermarkets and mobile caterers are left out; they are not places
+you would call somewhere to eat.
+
+**The hygiene rating is deliberately discarded.** It is the FSA's judgement, and Estela
+carries nobody's judgement about whether a place is good. We take only the fact that it
+exists.
+
+### The shape every other country pours into
+
+```
+data/registry/manifest.json      grid size, and per source: label, country,
+                                 folder, licence, total, and a cell → count index
+data/registry/<folder>/<cell>.json   [[name, lat, lon, address], ...]
+```
+
+Cells are `0.25°` squares keyed `<floor(lat/step)>_<floor(lon/step)>`. The UK came to 667
+cells, 21 MB, averaging 30 KB — central London is the outlier at 1.4 MB, which gzips to
+roughly a third of that and is fetched once.
+
+The browser loads a cell only when the owner starts typing **and** the view is narrow
+enough that "every restaurant near here" is a sensible question — above 42 cells in view
+it declines and says so instead. Nothing from the registry is ever drawn on the map.
+
+**Verified reach:** `Bella Crust` (41 Rosebery Avenue, EC1R) and `Artizian Catering` are in
+the registry and absent from OpenStreetMap entirely. That is the whole point of the tier —
+it finds what no guide and no volunteer mapper recorded.
+
 ## Tier A — one national file, ready to use
 
 | | Source | Scale | Coordinates | Licence | Refresh |
