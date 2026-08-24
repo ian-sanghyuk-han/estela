@@ -32,6 +32,9 @@ confirmed from Seoul's own API sample (`3020000-101-2001-07985`): agency code, `
 | 🇩🇰 Denmark | Fødevarestyrelsen Smiley | **10,914** | 167 | 1.0 MB |
 | 🇺🇸 New York | NYC DOHMH | **30,032** | 7 | 2.5 MB |
 | 🇨🇦 Toronto | City of Toronto DineSafe | **18,178** | 6 | 1.5 MB |
+| 🇺🇸 Chicago | City of Chicago food inspections | **28,317** | 5 | 2.4 MB |
+| 🇭🇰 Hong Kong | FEHD licences + ALS geocoding | **17,092** | 7 | 2.2 MB |
+| | | **363,578** | | **34 MB** |
 
 **United Kingdom.** Three of the FSA's fifteen categories — Restaurant/Cafe/Canteen
 (122,873), Pub/bar/nightclub (**45,297**) and Takeaway/sandwich shop (58,368). Hospitals,
@@ -68,6 +71,16 @@ so it fills the category slot. Scores and letter grades are discarded.
 from New York: DineSafe carries **no establishment-type field**, so there is nothing to put
 in the category slot and no way to filter groceries and bakeries out. Toronto's file is food
 premises generally, not restaurants specifically.
+
+**Chicago.** Two things New York does not give: a `facility_type`, so schools, children's
+services and groceries are filtered out properly rather than swept in, and an `aka_name` —
+the name in use rather than the corporation on the licence. Where they differ we take the
+aka. 27,462 restaurants, 658 bakeries, 188 taverns.
+
+**Hong Kong.** 17,203 licences, of which **17,188 geocoded — 100%** — through ALS in 67
+minutes at three workers. 96 rows carry `(no record found)` in the shop-sign field, meaning
+the licence exists but no sign was ever filed; a row with no searchable name is dropped
+rather than shipped as a mystery. 12,518 restaurants, 4,569 light-refreshment, 5 marine.
 
 **The hygiene rating is deliberately discarded in all of them.** It is the state's judgement, and
 Estela carries nobody's judgement about whether a place is good. We take only the fact that
