@@ -220,6 +220,9 @@
   .wrow{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink);padding:3px 0}
   .wrow .wd{width:8px;height:8px;border-radius:999px;flex-shrink:0}
   .wrow i{margin-left:auto;font-style:normal;font-size:10px;color:var(--dim)}
+  .orphbtn{margin-top:7px;padding:6px 8px;text-align:center;cursor:pointer;
+    font-size:10.5px;color:var(--wine);border:1px dashed var(--wine)}
+  .orphbtn:hover{background:var(--sand)}
   /* ══ 고른 곳 카드 ══ */
   #card{position:fixed;right:12px;bottom:88px;z-index:9;width:288px;
     background:var(--card);border:1px solid var(--rule);padding:16px 17px 14px;
@@ -476,14 +479,138 @@ const keyOf=(L,it)=>L.id+'|'+(it.q||it.n);
 const stampsOf=k=>store.stamps[k]||[];
 const isSaved=k=>!!store.saved[k];
 const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');};
-function addStamp(k,w){const a=store.stamps[k]||(store.stamps[k]=[]);a.push({d:w||todayISO()});
+function addStamp(k,w,nm){const a=store.stamps[k]||(store.stamps[k]=[]);
+  a.push(nm?{d:w||todayISO(),n:nm}:{d:w||todayISO()});
   a.sort((x,y)=>x.d<y.d?-1:1);saveStore();}
 function removeLastStamp(k){const a=store.stamps[k];if(!a||!a.length)return;
   a.pop();if(!a.length)delete store.stamps[k];saveStore();}
 function toggleSaved(k){if(store.saved[k])delete store.saved[k];else store.saved[k]=1;saveStore();}
-const myCounts=()=>({places:Object.keys(store.stamps).length,
-  visits:Object.values(store.stamps).reduce((a,b)=>a+b.length,0),
-  saved:Object.keys(store.saved).length});
+/* 숫자는 전부 '지금 지도 위에 있는 것'에서 나와야 한다. 저장소의 열쇠를 그냥 세면,
+   목록이 바뀌어 사라진 항목이 머리말에는 남고 여권에는 없는 일이 생긴다.
+   오늘 유네스코 레이어를 새로 만들면서 실제로 그렇게 됐다 */
+function liveKeys(){
+  const s=new Set();
+  layers.forEach(L=>(L.items||[]).forEach(it=>s.add(keyOf(L,it))));
+  return s;}
+function myCounts(){
+  const live=liveKeys();
+  let places=0,visits=0;
+  Object.entries(store.stamps).forEach(([k,v])=>{
+    if(live.has(k)){places++;visits+=v.length;}});
+  return {places,visits,
+    saved:Object.keys(store.saved).filter(k=>live.has(k)).length};}
+/* 자리를 잃은 기록 — 지우지 않는다. 세지 않을 뿐이고, 여정에서 그대로 알려 준다 */
+function orphans(){
+  const live=liveKeys(),out=[];
+  Object.entries(store.stamps).forEach(([k,v])=>{
+    if(!live.has(k))out.push({k,n:(v[0]&&v[0].n)||'',visits:v.length,kind:'도장'});});
+  Object.keys(store.saved).forEach(k=>{
+    if(!live.has(k))out.push({k,n:'',visits:0,kind:'가고 싶은 곳'});});
+  return out;}
+function dropOrphans(){
+  const live=liveKeys();
+  Object.keys(store.stamps).forEach(k=>{if(!live.has(k))delete store.stamps[k];});
+  Object.keys(store.saved).forEach(k=>{if(!live.has(k))delete store.saved[k];});
+  saveStore();}
+
+/* ══ 날짜변경선 수리 ══
+   날짜변경선을 넘는 고리를 그대로 그리면 지구를 반대로 한 바퀴 돌아 칠해진다.
+   러시아가 북극해를 가로질러 띠가 되고(노르웨이 해를 찍으면 '러시아'가 나왔다),
+   남극은 모든 점이 위도 -90에 있는 넓이 0짜리 고리라 화면 아래에 막대가 된다.
+   경도를 이어 붙여 쭉 편 다음 -180..180 창으로 잘라 조각으로 낸다.
+   넓이가 없는 고리는 그 과정에서 저절로 사라진다 — 남극을 따로 이름 부를 필요가 없다 */
+const LAT_CAP=89.9;                    /* 극점은 메르카토르에서 무한이라 살짝 못 미치게 */
+function unwrapRing(r){
+  const out=[]; let off=0;
+  for(let i=0;i<r.length;i++){
+    if(i){const d=r[i][0]-r[i-1][0];
+      if(d>180)off-=360; else if(d<-180)off+=360;}
+    const la=r[i][1];
+    out.push([r[i][0]+off, la>LAT_CAP?LAT_CAP:la<-LAT_CAP?-LAT_CAP:la]);}
+  return out;}
+function clipSide(pts,x,keepLeft){
+  const inside=p=>keepLeft?p[0]<=x:p[0]>=x, out=[];
+  for(let i=0;i<pts.length;i++){
+    const a=pts[i], b=pts[(i+1)%pts.length], ia=inside(a), ib=inside(b);
+    if(ia)out.push(a);
+    if(ia!==ib&&b[0]!==a[0]){
+      const t=(x-a[0])/(b[0]-a[0]);
+      out.push([x,a[1]+t*(b[1]-a[1])]);}}
+  return out;}
+function ringArea(r){
+  let a=0;
+  for(let i=0,j=r.length-1;i<r.length;j=i++)a+=(r[j][0]-r[i][0])*(r[j][1]+r[i][1]);
+  return Math.abs(a/2);}
+function windowRing(r,shift){
+  let p=r.map(q=>[q[0]+shift,q[1]]);
+  p=clipSide(p,180,true);   if(p.length<3)return null;
+  p=clipSide(p,-180,false); if(p.length<3)return null;
+  return ringArea(p)>1e-7?p:null;}
+/* 극을 한 바퀴 감아 도는 고리 — 남극 대륙이 그렇다. 이 파일에서 남극은
+   '극점 위의 납작한 띠'가 바깥 고리이고 해안선이 구멍으로 들어가 있는,
+   뒤집힌 모양으로 저장돼 있다. 띠는 넓이가 없어 사라지고 해안선만 남는데,
+   그걸 그냥 자르면 극 쪽이 열린 채 소용돌이가 된다.
+   그래서 한 바퀴 감는 고리는 극 변을 따라 닫아 준다 */
+function polarClose(r){
+  const d=r[r.length-1][0]-r[0][0];
+  if(Math.abs(Math.abs(d)-360)>1)return null;
+  let s=0; r.forEach(p=>s+=p[1]);
+  const pole=(s/r.length)<0?-LAT_CAP:LAT_CAP;
+  const out=r.map(p=>[p[0]<-180?-180:p[0]>180?180:p[0],p[1]]);
+  out.push([out[out.length-1][0],pole],[out[0][0],pole]);
+  return ringArea(out)>1e-7?out:null;}
+
+let ALTERED=false;                     /* 이 나라의 도형에 우리가 손을 댔는가 */
+function splitPoly(poly){
+  const u=poly.map(unwrapRing);
+  const out=[];
+  /* 극을 감는 고리는 저마다 홀로 선 땅덩이가 된다 */
+  const rest=[];
+  u.forEach(r=>{const p=polarClose(r);
+    if(p){out.push([p]);ALTERED=true;}
+    else if(ringArea(r)<=1e-7)ALTERED=true;   /* 넓이 없는 고리를 버렸다 */
+    else rest.push(r);});
+  if(!rest.length)return out;
+  let lo=Infinity,hi=-Infinity;
+  rest[0].forEach(p=>{if(p[0]<lo)lo=p[0];if(p[0]>hi)hi=p[0];});
+  if(lo<-180.001||hi>180.001)ALTERED=true;   /* 창 밖으로 나가 잘렸다 */
+  for(let sh=Math.floor((-180-hi)/360)*360;sh<=Math.ceil((180-lo)/360)*360;sh+=360){
+    const rings=rest.map(r=>windowRing(r,sh)).filter(Boolean);
+    if(rings.length)out.push(rings);}
+  return out;}
+/* 해안선은 칠하기와 다른 물건이다. 극을 닫은 변도, 날짜변경선에서 자른 이음매도
+   우리가 만들어 넣은 것이지 해안이 아니다. 그걸 그리면 남극 둘레에 타원이 생긴다.
+   그래서 선은 따로 만든다 — 만들어 넣은 변은 빼고 */
+const SEAM=89.0;
+function coastOf(fc,only){
+  const feats=[];
+  fc.features.filter(f=>only.has((f.properties||{}).name)).forEach(f=>{
+    const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+    const lines=[];
+    polys.forEach(poly=>poly.forEach(r=>{
+      let run=[];
+      for(let i=0;i<r.length;i++){
+        const a=r[i], b=r[(i+1)%r.length];
+        const fake=(Math.abs(a[1])>=SEAM&&Math.abs(b[1])>=SEAM)
+                 ||(Math.abs(a[0])>=179.999&&Math.abs(b[0])>=179.999);
+        if(fake){ if(run.length>1)lines.push(run); run=[]; }
+        else { if(!run.length)run.push(a); run.push(b); }}
+      if(run.length>1)lines.push(run);}));
+    if(lines.length)feats.push({type:'Feature',
+      properties:{name:(f.properties||{}).name||''},
+      geometry:{type:'MultiLineString',coordinates:lines}});});
+  return {type:'FeatureCollection',features:feats};}
+
+function fixDateline(fc){
+  const cut=new Set();
+  fc.features.forEach(f=>{
+    const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+    const out=[];
+    ALTERED=false;
+    polys.forEach(p=>out.push(...splitPoly(p)));
+    if(ALTERED)cut.add((f.properties||{}).name||'');
+    if(out.length)f.geometry={type:'MultiPolygon',coordinates:out};});
+  return cut;}
 
 /* ══ 종이 바탕 ══ 세계 배율에서는 우리가 칠한 지도를 쓴다 ══ */
 function centroidOf(f){                 /* 최대 폴리곤의 단위벡터 평균 — 경도 랩 안전 */
@@ -498,14 +625,23 @@ function centroidOf(f){                 /* 최대 폴리곤의 단위벡터 평�
 async function addPaperBase(){
   const topo=await (await fetch(TOPO)).json();
   const fc=topojson.feature(topo,topo.objects.countries);
+  const CUT=fixDateline(fc);           /* 칠하기 전에 고친다 — 라벨과 나라 판정도 이걸 쓴다 */
   $('ncty').textContent=fc.features.length;
   map.addSource('countries',{type:'geojson',data:fc});
   map.addLayer({id:'land',type:'fill',source:'countries',
     paint:{'fill-color':LAND,
       'fill-opacity':['interpolate',['linear'],['zoom'],5.5,1,8.5,0]}},'s-water');
+  /* 손대지 않은 나라는 원래 소스 그대로 — 그게 압도적으로 빠르다 */
+  const CUTL=[...CUT];
+  const coastPaint={'line-color':INK,
+    'line-width':['interpolate',['linear'],['zoom'],1,.5,5,1],
+    'line-opacity':['interpolate',['linear'],['zoom'],5.5,.55,8,0]};
   map.addLayer({id:'coast',type:'line',source:'countries',
-    paint:{'line-color':INK,'line-width':['interpolate',['linear'],['zoom'],1,.5,5,1],
-      'line-opacity':['interpolate',['linear'],['zoom'],5.5,.55,8,0]}});
+    filter:['!',['in',['get','name'],['literal',CUTL]]],paint:coastPaint});
+  /* 자른 나라만 선을 따로 만든다. 극을 닫은 변과 날짜변경선 이음매는 해안이 아니다 */
+  if(CUTL.length){
+    map.addSource('coastline',{type:'geojson',data:coastOf(fc,CUT)});
+    map.addLayer({id:'coast2',type:'line',source:'coastline',paint:coastPaint});}
   /* 나라 이름 — 충돌 회피는 MapLibre가 하되, 무엇을 살릴지는 우리가 정한다.
      그냥 두면 맨섬과 케이맨이 러시아를 밀어낸다. 큰 나라부터 자리를 잡게 순위를 준다 */
   const spanOf=f=>{const P=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
@@ -1028,7 +1164,7 @@ function paintCard(){
       +' · '+esc(L.license||'')+'<br>최종확인 '+esc(L.lastVerified||'—')
       +' · 우리가 평가하지 않습니다</div>';
   $('cx').onclick=closeCard;
-  $('cstamp').onclick=()=>{addStamp(key);after();};
+  $('cstamp').onclick=()=>{addStamp(key,null,p.n);after();};
   $('csave').onclick=()=>{toggleSaved(key);after();};
   const u=$('cundo');if(u)u.onclick=()=>{removeLastStamp(key);after();};
   $('cgo').onclick=()=>{const f=(L.items||[]).find(i=>(i.q||i.n)===(p.q||p.n));
@@ -1252,7 +1388,7 @@ function paintJourney(){
         '<div class="stamp empty" style="animation-delay:'+((mine.length+i)*60)+'ms"><span class="d">빈칸</span></div>').join('');
     $('jsample').style.display='none';
   }else{el.innerHTML=SAMPLE;$('jsample').style.display='';}
-  $('jprog').innerHTML=layers.filter(L=>L.kind!=='candidate').map(L=>{
+  $('jprog').innerHTML=layers.filter(L=>L.kind!=='candidate'&&L.total>0).map(L=>{
     const got=(L.items||[]).filter(it=>stampsOf(keyOf(L,it)).length).length;
     const pct=L.total?Math.round(got/L.total*100):0;
     return '<div class="prow"><div class="pl"><span>'+esc(L.label)+'</span><b>'+got+' / '+L.total+'</b></div>'
@@ -1274,7 +1410,25 @@ function paintJourney(){
     +(saved.length?'<div class="colh mt">가고 싶은 곳</div>'
       +saved.slice(0,8).map(s=>'<div class="wrow"><span class="wd" style="background:'+s.L.color+'"></span>'
         +esc(s.it.n)+'<i>'+esc(s.L&&s.L.grain==='city'?'도시 전체'
-                                :(s.it.ct||''))+'</i></div>').join(''):'');}
+                                :(s.it.ct||''))+'</i></div>').join('')
+      +(saved.length>8?'<div class="hint">외 '+(saved.length-8)+'곳</div>':''):'')
+    +orphanNote();
+  const ob=$('orphdrop');
+  if(ob)ob.onclick=()=>{
+    if(!confirm('자리를 잃은 기록을 영구히 지웁니다. 되돌릴 수 없습니다. 진행할까요?'))return;
+    dropOrphans();paintJourney();paintMine();};}
+
+/* 목록이 바뀌면 옛 기록이 짝을 잃는다. 조용히 숫자에 섞지도, 조용히 지우지도 않는다 */
+function orphanNote(){
+  const o=orphans(); if(!o.length)return '';
+  const named=o.filter(x=>x.n).map(x=>x.n);
+  return '<div class="colh mt">자리를 잃은 기록</div>'
+    +'<div class="hint">'+o.length+'건이 목록에서 짝을 찾지 못했습니다.'
+    +(named.length?' — '+named.slice(0,4).map(esc).join(', ')
+      +(named.length>4?' 외':''):'')
+    +'<br>정본 목록이 갱신되면서 항목의 번호가 바뀐 경우입니다. '
+    +'숫자에는 넣지 않았고, 지우지도 않았습니다.</div>'
+    +'<div class="orphbtn" id="orphdrop">이 '+o.length+'건 지우기</div>';}
 
 const SAMPLE=(function(){
   const S=[['TOKYO','2023 · 05',2,true],['PARIS','2023 · 11',1,false],
