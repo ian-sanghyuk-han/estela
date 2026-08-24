@@ -49,11 +49,47 @@ confirmed from Seoul's own API sample (`3020000-101-2001-07985`): agency code, `
 | 🇪🇸 Spain | [datos.gob.es](https://datos.gob.es) carries city and regional *bares y restaurantes* datasets | Fragmented |
 | 🇹🇼 Taiwan | [data.gov.tw](https://data.gov.tw) — catering industry datasets per city, with names, addresses and coordinates | Per city |
 
-## Not yet checked
+## Tier D — licensing exists, no open download found
 
-Thailand, Vietnam, Turkey, Portugal, Brazil, Peru, Australia, Germany, Netherlands,
-Nordics. Brazil's CNPJ (Receita Federal, CNAE 5611-2) and Australia's ABR bulk extract are
-the obvious next candidates — both are open national business registries.
+| | Finding |
+|---|---|
+| 🇹🇭 Thailand · 🇻🇳 Vietnam · 🇲🇾 Malaysia · 🇮🇩 Indonesia | Every one requires a food-business licence (Thailand's district office permit, Vietnam's Certificate of Eligibility for Food Safety, Indonesia's NIB). None publishes the resulting register as open data that could be found. |
+| 🇮🇳 India | FSSAI licensing runs through FoSCoS and covers every operator, but no downloadable register surfaced. |
+| 🇦🇺 Australia | Registration is per state **and per council** — NSW notifies to the local council, Victoria classifies by risk class. No central open register. |
+| 🇩🇪 Germany · 🇳🇱 Netherlands · 🇸🇪 Sweden | Company registers exist (Gewerbeamt, KVK, Bolagsverket) but Europe restricts them commercially — by one count only **1 of 32 European countries** opens its entire company register for free. |
+| 🇹🇷 Turkey · 🇵🇹 Portugal · 🇬🇷 Greece | Not confirmed either way. |
+
+Worth retrying later rather than treating as settled — a negative search result is weaker
+evidence than a positive one, and these were surveyed in one pass.
+
+---
+
+## The pattern that finds the next country
+
+The reliable door is **not** the business register. Europe proves that: it is the most
+open-data-friendly region on earth and its company registers are mostly paywalled, because
+company data is a commercial product there.
+
+The reliable door is the **consumer-facing food hygiene disclosure scheme**. Those exist to
+be read by diners, so they are published, and they necessarily list every establishment:
+
+| | Scheme |
+|---|---|
+| 🇬🇧 UK | Food Hygiene Rating Scheme (FHRS) |
+| 🇩🇰 Denmark | **Smiley** — [Virk Data](http://datahub.virk.dk/dataset/smiley-kontrolrapporter), every food business, CVR and P-number, free XML, a public REST wrapper exists |
+| 🇫🇷 France | **Alim'confiance** — hygiene inspection results, four levels, open |
+| 🇺🇸 USA | City health inspections (NYC DOHMH and equivalents) |
+| 🇨🇦 Canada | **Toronto DineSafe** — ~15,000 establishments, GIS coordinates, updated in real time |
+| 🇭🇰 Hong Kong | FEHD licence lists |
+| 🇰🇷 Korea | 인허가 대장 (same family, licensing rather than rating) |
+
+**So when adding a country, search for its smiley — not its company register.**
+
+## Also confirmed, heavy
+
+| | Source | Note |
+|---|---|---|
+| 🇧🇷 Brazil | Receita Federal **CNPJ** open data, CNAE **5611-2** for restaurants | National and free, but ~85 GB, monthly, awkward layout, and **no coordinates** — addresses only. Mirrors exist. Treat as a last resort. |
 
 ---
 
