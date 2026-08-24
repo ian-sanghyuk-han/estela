@@ -29,6 +29,7 @@ confirmed from Seoul's own API sample (`3020000-101-2001-07985`): agency code, `
 |---|---|---|---|---|
 | 🇬🇧 United Kingdom | FSA Food Hygiene Rating Scheme | **226,538** | 663 | 23.5 MB |
 | 🇫🇷 France | DGAL Alim'confiance | **32,507** | 1,130 | 2.8 MB |
+| 🇩🇰 Denmark | Fødevarestyrelsen Smiley | **10,914** | 167 | 1.0 MB |
 
 **United Kingdom.** Three of the FSA's fifteen categories — Restaurant/Cafe/Canteen
 (122,873), Pub/bar/nightclub (**45,297**) and Takeaway/sandwich shop (58,368). Hospitals,
@@ -46,7 +47,16 @@ Paris for *Le Bar* returns LE BARAV, LE BARJO, LE BARATIN.
 200k-odd restaurants SIRENE knows about. Full coverage wants SIRENE NAF 5610A geocoded
 through BAN, both French government and both open, but a considerably bigger job.
 
-**The hygiene rating is deliberately discarded in both.** It is the state's judgement, and
+**Denmark.** Two of the serving categories — Restauranter (9,536) and Uden behandling
+(1,378, the bars and cafés that serve without cooking). Institutionskøkkener is canteens
+and is left out, as school and hospital catering was left out of the UK. The XML ships
+Geo_Lat and Geo_Lng, so nothing needed geocoding.
+
+*Honest limit:* **12,420 of the 23,365 kept rows have no coordinates in the source** —
+`<Geo_Lat />` is simply empty. They carry addresses, so Nominatim could fill them in, but
+that is 12k lookups at one a second and was not worth it today.
+
+**The hygiene rating is deliberately discarded in all three.** It is the state's judgement, and
 Estela carries nobody's judgement about whether a place is good. We take only the fact that
 it exists — and the category, so a row can say 펍·바 rather than leaving the reader to guess.
 
@@ -82,8 +92,23 @@ it finds what no guide and no volunteer mapper recorded.
 | 🇬🇧 UK | [FSA Food Hygiene Rating Scheme](https://ratings.food.gov.uk/open-data) — [API](https://api.ratings.food.gov.uk/help) | every licensed food business, all four nations | yes | free, **no authentication** | daily |
 | 🇫🇷 France | [INSEE SIRENE](https://www.sirene.fr/sirene/public/static/open-data), NAF **5610A** | 40M establishments, 15M active | geocoded editions on regional portals | Licence Ouverte | daily |
 | 🇲🇽 Mexico | [INEGI DENUE](https://en.www.inegi.org.mx/servicios/api_denue.html) | **5M+** establishments | yes | free API token by email | continuous |
-| 🇭🇰 Hong Kong | [FEHD restaurant licences](https://data.gov.hk/en-data/dataset/hk-fehd-fehdlmis-restaurant-licences) | **17,387** licensed restaurants | via CSDI spatial portal | open | daily |
-| 🇸🇬 Singapore | [SFA eating establishments](https://data.gov.sg/datasets?agencies=Singapore+Food+Agency+(SFA)) | all licensed food establishments | yes | Open Data Licence, commercial use allowed | periodic |
+| 🇭🇰 Hong Kong | [FEHD restaurant licences](https://www.fehd.gov.hk/english/licensing/license/text/LP_Restaurants_EN.XML) | **17,203** licensed restaurants | **none in the file** — geocode via [ALS](https://www.als.gov.hk/lookup) | open | daily |
+| 🇸🇬 Singapore | ~~SFA eating establishments~~ | **corrected — see below** | | | |
+
+### Hong Kong — a registry with the best names and no coordinates
+
+FEHD's daily XML is 17,203 licences and, unusually, carries the **shop sign** (`SS`) — what
+is actually painted above the door, not the company that holds the licence. That is better
+raw material than most registries give. What it has no trace of is coordinates.
+
+They come instead from **ALS**, the Hong Kong government's own Address Lookup Service:
+free, no key, and it returns latitude and longitude for a postal address. Government data
+geocoded by the same government. Measured 5 of 6 on a sample at 0.44 s a call; failures are
+range addresses like *32-40 Wellington Street*, which a retry on the last three
+comma-separated segments usually rescues.
+
+**The lesson for the next country: a registry without coordinates is not a dead end if the
+same government also runs an address lookup.** Check for that before giving up on one.
 
 ## Tier B — national system, download per municipality
 
@@ -104,6 +129,7 @@ it finds what no guide and no volunteer mapper recorded.
 
 | | Finding |
 |---|---|
+| 🇸🇬 Singapore | **Corrected 2026-08-24.** The Tier A entry above was wrong — inferred from a dataset title without opening it. `Licensed Food Establishments By Grade` turns out to be 55 rows of year, grade and count: a **statistic, not a list of places**. No establishment-level open dataset was found. |
 | 🇹🇭 Thailand · 🇻🇳 Vietnam · 🇲🇾 Malaysia · 🇮🇩 Indonesia | Every one requires a food-business licence (Thailand's district office permit, Vietnam's Certificate of Eligibility for Food Safety, Indonesia's NIB). None publishes the resulting register as open data that could be found. |
 | 🇮🇳 India | FSSAI licensing runs through FoSCoS and covers every operator, but no downloadable register surfaced. |
 | 🇦🇺 Australia | Registration is per state **and per council** — NSW notifies to the local council, Victoria classifies by risk class. No central open register. |
