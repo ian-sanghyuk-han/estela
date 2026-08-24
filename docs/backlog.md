@@ -41,6 +41,16 @@ alphabets, different name lengths — instead of being retrofitted.
 
 ---
 
+## 1b. Dense cells — measured, and less urgent than it looked
+
+Chicago's downtown cell holds 23,578 places, central London 16,760, New York 14,125. Raw
+those are 2.1 MB, 1.7 MB and 1.2 MB, which sounds alarming. **Gzipped, as GitHub Pages
+serves them, they are 374 KB, 492 KB and 309 KB** — a one-time fetch the first time you
+search in that city, then cached.
+
+So splitting dense cells is worth doing eventually for politeness on a phone connection,
+but it is not the emergency the raw figures suggested. Measure before optimising.
+
 ## 2. A saved place that closes down
 
 The registries know. Korea's carries 영업상태 and refreshes every two days; the FSA drops
