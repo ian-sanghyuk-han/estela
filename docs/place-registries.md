@@ -30,6 +30,8 @@ confirmed from Seoul's own API sample (`3020000-101-2001-07985`): agency code, `
 | 🇬🇧 United Kingdom | FSA Food Hygiene Rating Scheme | **226,538** | 663 | 23.5 MB |
 | 🇫🇷 France | DGAL Alim'confiance | **32,507** | 1,130 | 2.8 MB |
 | 🇩🇰 Denmark | Fødevarestyrelsen Smiley | **10,914** | 167 | 1.0 MB |
+| 🇺🇸 New York | NYC DOHMH | **30,032** | 7 | 2.5 MB |
+| 🇨🇦 Toronto | City of Toronto DineSafe | **18,178** | 6 | 1.5 MB |
 
 **United Kingdom.** Three of the FSA's fifteen categories — Restaurant/Cafe/Canteen
 (122,873), Pub/bar/nightclub (**45,297**) and Takeaway/sandwich shop (58,368). Hospitals,
@@ -56,7 +58,18 @@ Geo_Lat and Geo_Lng, so nothing needed geocoding.
 `<Geo_Lat />` is simply empty. They carry addresses, so Nominatim could fill them in, but
 that is 12k lookups at one a second and was not worth it today.
 
-**The hygiene rating is deliberately discarded in all three.** It is the state's judgement, and
+**New York.** 31,319 permits, 30,032 of them with usable coordinates, collapsed from
+roughly 300,000 inspection rows by CAMIS permit number. Alone among the registries so far
+it publishes a **cuisine description** — American 4,604, Chinese 2,262, Coffee/Tea 2,168,
+Pizza 1,578, Mexican 1,089 — which is a fact about the place rather than a judgement of it,
+so it fills the category slot. Scores and letter grades are discarded.
+
+**Toronto.** 106,570 infraction rows collapsed to 18,178 establishments. Honest difference
+from New York: DineSafe carries **no establishment-type field**, so there is nothing to put
+in the category slot and no way to filter groceries and bakeries out. Toronto's file is food
+premises generally, not restaurants specifically.
+
+**The hygiene rating is deliberately discarded in all of them.** It is the state's judgement, and
 Estela carries nobody's judgement about whether a place is good. We take only the fact that
 it exists — and the category, so a row can say 펍·바 rather than leaving the reader to guess.
 
@@ -196,3 +209,24 @@ Curated guides and public registries are distributed by **opposite** logics.
 So the two sources compose cleanly and globally: the canon layer stays finite and
 judged-by-others, the registry makes search exhaustive, and neither has to borrow anything
 from a commercial guide.
+
+---
+
+## Dead ends checked, so nobody checks them twice
+
+| | What happened |
+|---|---|
+| 🇸🇬 Singapore | `Licensed Food Establishments By Grade` is 55 rows of year/grade/count — a statistic. No establishment-level dataset found. |
+| 🇮🇪 Ireland | data.gov.ie has no food-business register; a search for one returns food-waste statistics. |
+| 🇳🇱 Netherlands | data.overheid.nl lists *Inspectieresultaten* as **planned** — "Databron nog niet beschikbaar". Nothing to download yet. |
+| 🇹🇼 Taiwan | data.gov.tw's search API path has moved; the per-city catering datasets exist but were not reached this pass. |
+
+## Two operational notes worth keeping
+
+**Dense cities overflow a 0.25° cell.** New York fits in 7 cells with 14,125 in one;
+Toronto in 6 with 11,748 in one; central London holds 16,760. Each is a megabyte-plus first
+fetch. Splitting dense cells is in `backlog.md` alongside the prefix index.
+
+**Inspection files are one row per event, never one per place.** New York, Toronto and the
+UK all needed collapsing by a permit or establishment id first. Always check the row count
+against the distinct-id count before believing a headline number.
