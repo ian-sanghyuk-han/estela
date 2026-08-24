@@ -34,7 +34,9 @@ confirmed from Seoul's own API sample (`3020000-101-2001-07985`): agency code, `
 | 🇨🇦 Toronto | City of Toronto DineSafe | **18,178** | 6 | 1.5 MB |
 | 🇺🇸 Chicago | City of Chicago food inspections | **28,317** | 5 | 2.4 MB |
 | 🇭🇰 Hong Kong | FEHD licences + ALS geocoding | **17,092** | 7 | 2.2 MB |
-| | | **363,578** | | **34 MB** |
+| 🇺🇸 Boston | City food establishment licences | **3,126** | 3 | 0.3 MB |
+| 🇦🇺 Melbourne | City business census | **2,247** | 1 | 0.2 MB |
+| | | **368,951** | | **34 MB** |
 
 **United Kingdom.** Three of the FSA's fifteen categories — Restaurant/Cafe/Canteen
 (122,873), Pub/bar/nightclub (**45,297**) and Takeaway/sandwich shop (58,368). Hospitals,
@@ -81,6 +83,17 @@ aka. 27,462 restaurants, 658 bakeries, 188 taverns.
 minutes at three workers. 96 rows carry `(no record found)` in the shop-sign field, meaning
 the licence exists but no sign was ever filed; a row with no searchable name is dropped
 rather than shipped as a mystery. 12,518 restaurants, 4,569 light-refreshment, 5 marine.
+
+**Boston.** The only one where closed premises never arrive: CKAN's SQL endpoint collapses
+896,379 inspection rows to one per licence *and* filters `licstatus = Active` in a single
+query. Retail Food is grocery and is dropped; Mobile Food Walk On is kept, since a food
+truck is a real place to eat even if it moves.
+
+**Melbourne.** Not a licence register at all — Australia registers per council, so there is
+nothing national or even state-wide. This is the City of Melbourne's own **business census**,
+covering the CBD and inner suburbs rather than greater Melbourne, and recounted each year;
+only the latest (2024) is taken. Worth remembering as a fallback shape: where no licence
+file exists, a city may still count its own businesses.
 
 **The hygiene rating is deliberately discarded in all of them.** It is the state's judgement, and
 Estela carries nobody's judgement about whether a place is good. We take only the fact that
@@ -233,6 +246,11 @@ from a commercial guide.
 | 🇮🇪 Ireland | data.gov.ie has no food-business register; a search for one returns food-waste statistics. |
 | 🇳🇱 Netherlands | data.overheid.nl lists *Inspectieresultaten* as **planned** — "Databron nog niet beschikbaar". Nothing to download yet. |
 | 🇹🇼 Taiwan | data.gov.tw's search API path has moved; the per-city catering datasets exist but were not reached this pass. |
+| 🇪🇸 Barcelona | A restaurant list exists under CC BY 4.0, but the portal sits behind bot detection. Not circumvented. |
+| 🇯🇵 Japan | The national 食品衛生申請等システム is mid domain-move and serves only a redirect notice. Tokyo's catalogue has 276 matching datasets, all per-municipality. |
+| 🇳🇴 Norway · 🇫🇮 Finland | Both run smiley schemes (Smilefjes, Oiva) but the open-data endpoints found were dead or 403. Worth another pass. |
+| 🇺🇸 San Francisco · Austin | Inspection files published without coordinates. |
+| 🇺🇸 Seattle · 🇨🇦 Vancouver, Montreal | Login required, or no matching dataset found. |
 
 ## Two operational notes worth keeping
 
