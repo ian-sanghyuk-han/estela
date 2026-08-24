@@ -1151,13 +1151,15 @@ function wireAdd(){
         const rr=regSearch(t,5);
         if(!rr.length)return;
         slot.reg='<div class="grp">이 지역 정부 명부에</div>'
-          +rr.map(h=>'<div class="r reg"><b>'+esc(h.it[0])+'</b><small>'
-            +esc(h.it[3]||'')+' — '+esc((REG.sources[h.src]||{}).label||'')
-            +'</small></div>').join('');
+          +rr.map(h=>{
+            const sc=REG.sources[h.src]||{};
+            const kind=h.it[4]?esc(h.it[4])+' · ':'';
+            return '<div class="r reg"><b>'+esc(h.it[0])+'</b><small>'
+              +esc(h.it[3]||'')+' — '+kind+esc(sc.label||'')+'</small></div>';}).join('');
         bound.reg=i=>{
           const h=rr[i],sc=REG.sources[h.src]||{};
           confirmAdd(h.it[0],h.it[1],h.it[2],'',sc.country||'',
-            (h.it[3]||'')+'  ·  '+(sc.label||''));};
+            (h.it[3]||'')+'  ·  '+(h.it[4]?h.it[4]+' · ':'')+(sc.label||''));};
         paint();});});
 
     /* ③ 세상 지도 — 그래도 없으면 손으로 찍는다 */
