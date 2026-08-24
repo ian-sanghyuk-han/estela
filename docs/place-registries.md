@@ -25,14 +25,34 @@ confirmed from Seoul's own API sample (`3020000-101-2001-07985`): agency code, `
 
 ## Shipped
 
-**🇬🇧 United Kingdom — done 2026-08-24.** 226,877 places with coordinates, from the FSA's
-Restaurant/Cafe/Canteen, Pub/bar/nightclub and Takeaway/sandwich shop categories. Hospitals,
-schools, manufacturers, supermarkets and mobile caterers are left out; they are not places
-you would call somewhere to eat.
+| | Source | Places | Cells | Size |
+|---|---|---|---|---|
+| 🇬🇧 United Kingdom | FSA Food Hygiene Rating Scheme | **226,538** | 663 | 23.5 MB |
+| 🇫🇷 France | DGAL Alim'confiance | **32,507** | 1,130 | 2.8 MB |
 
-**The hygiene rating is deliberately discarded.** It is the FSA's judgement, and Estela
-carries nobody's judgement about whether a place is good. We take only the fact that it
-exists.
+**United Kingdom.** Three of the FSA's fifteen categories — Restaurant/Cafe/Canteen
+(122,873), Pub/bar/nightclub (**45,297**) and Takeaway/sandwich shop (58,368). Hospitals,
+schools, manufacturers, supermarkets and mobile caterers are left out; they are not places
+you would call somewhere to eat. Bars arrive free of charge with this, which is most of the
+way to the F&B widening that was asked for long ago — wineries will not, since those are
+brewing licences rather than food-service ones and live somewhere else entirely.
+
+**France.** Only the `Restaurants` activity of 40 in the file; bakeries, butchers,
+cheesemongers, canteens and abattoirs are all in there too. France keeps no separate bar
+category, so cafés, bistros and brasseries that serve food are already inside — searching
+Paris for *Le Bar* returns LE BARAV, LE BARJO, LE BARATIN.
+
+*Honest limit:* Alim'confiance reaches **inspected** premises only — 32.5k against the
+200k-odd restaurants SIRENE knows about. Full coverage wants SIRENE NAF 5610A geocoded
+through BAN, both French government and both open, but a considerably bigger job.
+
+**The hygiene rating is deliberately discarded in both.** It is the state's judgement, and
+Estela carries nobody's judgement about whether a place is good. We take only the fact that
+it exists — and the category, so a row can say 펍·바 rather than leaving the reader to guess.
+
+*Gotcha worth remembering:* Opendatasoft's `records` endpoint caps `offset + limit` at
+10,000 and returns 400 forever past it. Use `exports` instead, which streams the whole
+filtered set in one response.
 
 ### The shape every other country pours into
 
