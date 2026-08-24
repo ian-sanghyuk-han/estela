@@ -992,9 +992,11 @@ function regLoad(list){
     return fetch('data/registry/'+c.s.folder+'/'+c.k+'.json')
       .then(r=>r.json()).then(a=>{REGCELL.set(key,a);})
       .catch(()=>{REGCELL.delete(key);});}));}
-function regSearch(t,cap){
+function regSearch(t,cap,only){
   const s=t.toLowerCase(),hit=[];
+  const want=only&&new Set(only.map(c=>c.id+'/'+c.k));
   REGCELL.forEach((arr,key)=>{
+    if(want&&!want.has(key))return;            /* 화면 밖 도시가 답하지 않게 */
     const src=key.slice(0,key.indexOf('/'));
     for(let i=0;i<arr.length;i++){
       const it=arr[i],n=it[0].toLowerCase(),p=n.indexOf(s);
@@ -1148,7 +1150,7 @@ function wireAdd(){
         paint();return;}
       return regLoad(cells).then(()=>{
         if(slot.q!==t)return;
-        const rr=regSearch(t,5);
+        const rr=regSearch(t,5,cells);
         if(!rr.length)return;
         slot.reg='<div class="grp">이 지역 정부 명부에</div>'
           +rr.map(h=>{
