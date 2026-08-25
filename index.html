@@ -169,6 +169,22 @@
   #jview.on{visibility:visible;opacity:1;transform:none;pointer-events:auto;
     transition:opacity .45s ease,transform .45s ease}
   #jwrap{max-width:1180px;margin:0 auto;padding:34px 22px 110px}
+  /* ══ 지도 보기 ══ 종이를 아래로 접고 지구본에 그려진 항적을 드러낸다 ══ */
+  #jview.mapmode{background:none;backdrop-filter:none;-webkit-backdrop-filter:none;
+    overflow:visible;top:auto;bottom:0;height:auto;pointer-events:none}
+  #jview.mapmode #jwrap{padding:14px 22px 84px;pointer-events:auto;
+    background:linear-gradient(180deg,rgba(242,238,230,0),rgba(242,238,230,.92) 46%)}
+  #jview.mapmode #jstage{display:none}
+  #jview.mapmode #jhead{border-bottom:0;margin-bottom:0;padding-bottom:4px}
+  #jview.mapmode #jhead .ttl{font-size:24px;letter-spacing:8px}
+  #jview.mapmode #jsum .st b{font-size:19px}
+  #jmode{display:flex;gap:0;border:1px solid var(--rule)}
+  #jmode .jm{font:11px var(--sans);letter-spacing:.08em;color:var(--dim);
+    padding:5px 13px;cursor:pointer;user-select:none}
+  #jmode .jm.on{background:var(--ink);color:var(--paper)}
+  /* 여정 중에는 무대 조작 도구가 비켜선다 */
+  #layers.hush{opacity:0;pointer-events:none;transform:translateX(-8px);
+    transition:opacity .35s ease,transform .35s ease}
   #jhead{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;
     flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--rule);margin-bottom:22px}
   #jhead .ttl{font-family:var(--serif);font-size:40px;font-weight:400;letter-spacing:12px;color:var(--ink)}
@@ -185,6 +201,15 @@
   .colh{font-size:9px;letter-spacing:2.4px;font-weight:600;color:var(--mute);
     text-transform:uppercase;margin-bottom:10px}
   .colh.mt{margin-top:20px}
+  /* 나라별 진행 — 어디를 채웠고 어디가 비었는지 한 줄에 */
+  .crow{display:flex;align-items:center;gap:8px;font-size:10.5px;color:var(--dim);
+    padding:2px 0 2px 2px}
+  .crow span{flex:0 0 96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .crow i{flex:1;height:3px;border-radius:2px;background:rgba(140,129,117,.22)}
+  .crow b{flex:0 0 44px;text-align:right;font-weight:600;color:var(--ink);font-size:10px}
+  .crow.next{color:var(--mute);padding-top:5px}
+  .crow.next span{flex:0 0 auto}
+  .crow.next b{flex:1;text-align:right;font-weight:400;color:var(--dim)}
   /* 다녀온 곳 — 나라를 열면 도시가, 도시를 열면 가게 이름이 나온다 */
   #jtree{max-height:60vh;overflow:auto}
   #jtree .tnode{display:flex;align-items:center;gap:7px;cursor:pointer;
@@ -293,6 +318,9 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
     <div id="jhead">
       <div class="ttl">여정</div>
       <div id="jsum"></div>
+      <div id="jmode">
+        <span class="jm on" data-m="map">지도</span><span class="jm" data-m="list">목록</span>
+      </div>
     </div>
     <div id="jstage">
       <section class="jcol">
@@ -1332,6 +1360,55 @@ function greatCircle(la1,lo1,la2,lo2,steps){
     out.push([Math.atan2(y,x)/R, Math.atan2(z,Math.hypot(x,y))/R]);}
   return out;}
 
+/* ══ 진짜 여정 ══
+   도장을 날짜 순으로 늘어놓으면 그게 항적이다. 같은 곳을 두 번 가면 순서에 두 번
+   들어가고, 선은 그때마다 그 자리로 돌아온다 — 배가 지나간 자국이 그렇듯이.
+   기록이 하나도 없을 때만 샘플 도시가 대신 선다 */
+function realVisits(){
+  const out=[];
+  layers.forEach(L=>(L.items||[]).forEach(it=>{
+    stampsOf(keyOf(L,it)).forEach(v=>out.push(
+      {n:it.n,la:it.la,lo:it.lo,d:v.d,c:L.color,city:L.grain==='city'}));}));
+  out.sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);
+  return out;}
+function realAims(){
+  const out=[];
+  layers.forEach(L=>(L.items||[]).forEach(it=>{
+    if(isSaved(keyOf(L,it)))out.push({n:it.n,la:it.la,lo:it.lo,c:L.color});}));
+  return out;}
+
+function trailFC(vis){
+  const segs=[];
+  for(let s=0;s<vis.length-1;s++){
+    const A=vis[s],B=vis[s+1];
+    if(Math.abs(A.la-B.la)<1e-6&&Math.abs(A.lo-B.lo)<1e-6)continue;
+    segs.push({type:'Feature',properties:{},
+      geometry:{type:'LineString',coordinates:greatCircle(A.la,A.lo,B.la,B.lo,64)}});}
+  return {type:'FeatureCollection',features:segs};}
+
+function visitFC(vis){
+  const byKey={};
+  vis.forEach(v=>{const k=v.la.toFixed(5)+','+v.lo.toFixed(5);
+    (byKey[k]=byKey[k]||{v:v,n:0}).n++;});
+  return {type:'FeatureCollection',features:Object.keys(byKey).map(k=>{
+    const e=byKey[k];
+    return {type:'Feature',
+      properties:{n:e.v.n,times:e.n,c:e.v.c,city:!!e.v.city},
+      geometry:{type:'Point',coordinates:[e.v.lo,e.v.la]}};})};}
+
+function aimFC(aims){
+  return {type:'FeatureCollection',features:aims.map(a=>({type:'Feature',
+    properties:{n:a.n,c:a.c},geometry:{type:'Point',coordinates:[a.lo,a.la]}}))};}
+
+/* 도장이 바뀔 때마다 항적을 다시 긋는다 */
+function refreshTrail(){
+  const vis=realVisits();
+  const use=vis.length?vis:VISITS.map(v=>({n:v.n,la:v.la,lo:v.lo,d:v.d,c:WINE}));
+  const l=map.getSource('jline'); if(l)l.setData(trailFC(use));
+  const p=map.getSource('jpts');  if(p)p.setData(visitFC(use));
+  const a=map.getSource('jaim');  if(a)a.setData(aimFC(vis.length?realAims():[]));
+  const el=$('jsample'); if(el)el.style.display=vis.length?'none':'';}
+
 function addJourneyLayers(){
   const segs=[];
   for(let s=0;s<VISITS.length-1;s++){
@@ -1343,24 +1420,27 @@ function addJourneyLayers(){
   map.addLayer({id:'jline',type:'line',source:'jline',
     layout:{'line-cap':'round','line-join':'round'},
     paint:{'line-color':WINE,'line-width':1.8,'line-opacity':0}});
-  const pts=JOURNEY.map(j=>({type:'Feature',
-      properties:{n:j[0],w:j[3].some(v=>v[1]==='together')?'together'
-        :j[3].some(v=>v[1]==='apart')?'apart':'solo',floating:false},
-      geometry:{type:'Point',coordinates:[j[2],j[1]]}}))
-    .concat(FLOATING.map(f=>({type:'Feature',properties:{n:f[0],w:'solo',floating:true},
-      geometry:{type:'Point',coordinates:[f[2],f[1]]}})));
-  map.addSource('jpts',{type:'geojson',data:{type:'FeatureCollection',features:pts}});
-  /* 고리 — 관계를 그래프가 아니라 지도 위에 (§5.4) */
+  map.addSource('jpts',{type:'geojson',data:visitFC(VISITS.map(
+    v=>({n:v.n,la:v.la,lo:v.lo,d:v.d,c:WINE})))});
+  /* 가고 싶은 곳 — 빈 고리. 채운 점은 다녀온 곳. 한 번 보면 갈린다 */
+  map.addSource('jaim',{type:'geojson',
+    data:{type:'FeatureCollection',features:[]}});
+  map.addLayer({id:'jaim',type:'circle',source:'jaim',
+    paint:{'circle-color':'rgba(0,0,0,0)','circle-radius':7,
+      'circle-stroke-color':['get','c'],'circle-stroke-width':2,
+      'circle-stroke-opacity':0}});
+  /* 두 번 이상 간 곳엔 둘레가 하나 더 생긴다 */
   map.addLayer({id:'jring',type:'circle',source:'jpts',
-    filter:['!=',['get','w'],'solo'],
-    paint:{'circle-color':'rgba(0,0,0,0)','circle-radius':13,
-      'circle-stroke-color':OLIVE,'circle-stroke-opacity':0,
-      'circle-stroke-width':['case',['==',['get','w'],'together'],2.6,1.6]}});
+    filter:['>',['get','times'],1],
+    paint:{'circle-color':'rgba(0,0,0,0)','circle-radius':11,
+      'circle-stroke-color':['get','c'],'circle-stroke-opacity':0,
+      'circle-stroke-width':1.6}});
   map.addLayer({id:'jdot',type:'circle',source:'jpts',
-    paint:{'circle-color':['case',['get','floating'],'rgba(0,0,0,0)',WINE],
-      'circle-radius':5,'circle-opacity':0,
-      'circle-stroke-color':['case',['get','floating'],DIM,'rgba(247,244,238,.95)'],
-      'circle-stroke-width':2,'circle-stroke-opacity':0}});}
+    paint:{'circle-color':['case',['get','city'],'rgba(0,0,0,0)',['get','c']],
+      'circle-radius':6,'circle-opacity':0,
+      'circle-stroke-color':['case',['get','city'],['get','c'],'rgba(247,244,238,.95)'],
+      'circle-stroke-width':['case',['get','city'],2.6,2],'circle-stroke-opacity':0}});
+  refreshTrail();}
 
 let jOn=false;
 function setJourney(on){
@@ -1372,7 +1452,26 @@ function setJourney(on){
     map.setPaintProperty('jline','line-opacity',o*.9);
     map.setPaintProperty('jdot','circle-opacity',o);
     map.setPaintProperty('jdot','circle-stroke-opacity',o);
-    map.setPaintProperty('jring','circle-stroke-opacity',o*.9);}
+    map.setPaintProperty('jring','circle-stroke-opacity',o*.9);
+    map.setPaintProperty('jaim','circle-stroke-opacity',o*.85);}
+  /* 여정에서는 무대 조작 도구가 물러난다 — 지금은 세상이 아니라 내 기록을 읽는 중이다 */
+  const lp=$('layers'); if(lp)lp.classList.toggle('hush',on);
+  /* 별도 물러난다. 200개가 선 하나를 덮어서는 안 된다 */
+  layers.forEach(L=>LSFX.forEach(sfx=>{
+    const id=L.id+sfx; if(!map.getLayer(id))return;
+    const t=map.getLayer(id).type;
+    const prop=t==='circle'?'circle-opacity':t==='line'?'line-opacity'
+      :t==='fill'?'fill-opacity':t==='symbol'?'icon-opacity':null;
+    if(!prop)return;
+    try{
+      if(on){if(!L.__op)L.__op={};
+        if(L.__op[sfx]===undefined)L.__op[sfx]=map.getPaintProperty(id,prop);
+        map.setPaintProperty(id,prop,sfx==='-lb'||sfx==='-clt'?0:.16);}
+      else if(L.__op&&L.__op[sfx]!==undefined)
+        map.setPaintProperty(id,prop,L.__op[sfx]);
+    }catch(e){}
+    if(t==='symbol'){try{map.setPaintProperty(id,'text-opacity',on?0:
+      (L.__tp&&L.__tp[sfx]!==undefined?L.__tp[sfx]:1));}catch(e){}}}));
   /* 여정에서는 지도가 한 발 물러선다 */
   ['land','coast','cnames'].forEach(id=>{if(!map.getLayer(id))return;
     const p=id==='land'?'fill-opacity':id==='coast'?'line-opacity':'text-opacity';
@@ -1380,7 +1479,7 @@ function setJourney(on){
       (id==='land'?['interpolate',['linear'],['zoom'],5.5,1,8.5,0]
        :id==='coast'?['interpolate',['linear'],['zoom'],5.5,.55,8,0]
        :['interpolate',['linear'],['zoom'],1,.85,5.5,.85,7.5,0]));});
-  if(on)paintJourney();}
+  if(on){setJMode('map');paintJourney();}}
 
 const rot=i=>(((i*2654435761)%1000)/1000*8-4).toFixed(2)+'deg';
 function myPlaces(){
@@ -1465,6 +1564,7 @@ function paintJourney(){
     +stat(new Set(mine.map(cityOfStop).filter(Boolean)).size,'도시')
     +stat(c.places,'도장 찍은 곳')+stat(c.visits,'찍은 횟수')+stat(c.saved,'가고 싶은 곳');
   paintTree(mine);
+  refreshTrail();
   const el=$('jstops');
   if(mine.length){
     el.innerHTML=mine.map((m,i)=>{const n=m.st.length,last=m.st[n-1].d.replace('-',' · ');
@@ -1476,11 +1576,33 @@ function paintJourney(){
         '<div class="stamp empty" style="animation-delay:'+((mine.length+i)*60)+'ms"><span class="d">빈칸</span></div>').join('');
     $('jsample').style.display='none';
   }else{el.innerHTML=SAMPLE;$('jsample').style.display='';}
+  /* 나라별로 쪼갠다. '4 / 140'은 다음에 어디로 갈지 말해주지 않지만
+     '프랑스 3/31 · 일본 0/28'은 바로 말해 준다 */
   $('jprog').innerHTML=layers.filter(L=>L.kind!=='candidate'&&L.total>0).map(L=>{
-    const got=(L.items||[]).filter(it=>stampsOf(keyOf(L,it)).length).length;
+    const items=L.items||[];
+    const got=items.filter(it=>stampsOf(keyOf(L,it)).length).length;
     const pct=L.total?Math.round(got/L.total*100):0;
-    return '<div class="prow"><div class="pl"><span>'+esc(L.label)+'</span><b>'+got+' / '+L.total+'</b></div>'
-      +'<div class="bar"><i style="width:'+Math.max(pct,got?2:0)+'%;background:'+L.color+'"></i></div></div>';}).join('')
+    const by={};
+    items.forEach(it=>{
+      const c=it.c||'—';
+      const e=by[c]||(by[c]={n:0,g:0});
+      e.n++; if(stampsOf(keyOf(L,it)).length)e.g++;});
+    const rows=Object.keys(by).map(c=>({c,...by[c]}));
+    const touched=rows.filter(r=>r.g).sort((a,b)=>b.g-a.g||b.n-a.n);
+    const untouched=rows.filter(r=>!r.g).sort((a,b)=>b.n-a.n);
+    const line=r=>'<div class="crow"><span>'+esc(r.c)+'</span>'
+      +'<i style="background:linear-gradient(to right,'+L.color+' '
+      +Math.round(r.g/r.n*100)+'%,rgba(140,129,117,.22) 0)"></i>'
+      +'<b>'+r.g+' / '+r.n+'</b></div>';
+    return '<div class="prow"><div class="pl"><span>'+esc(L.label)+'</span><b>'
+      +got+' / '+L.total+'</b></div>'
+      +'<div class="bar"><i style="width:'+Math.max(pct,got?2:0)+'%;background:'
+      +L.color+'"></i></div>'
+      +touched.slice(0,6).map(line).join('')
+      +(untouched.length?'<div class="crow next"><span>아직 안 간 나라 '
+        +untouched.length+'곳</span><b>'
+        +untouched.slice(0,3).map(r=>esc(r.c)+' '+r.n).join(' · ')+'</b></div>':'')
+      +'</div>';}).join('')
     +'<div class="hint">분모는 그 목록의 전체 수입니다. 우리가 정한 숫자가 아닙니다.<br>'
     +'지도 표기 레이어는 심사를 거친 명단이 아니라 누군가 지도에 적어 넣은 것이라, '
     +'끝이 없어 분모가 되지 못합니다 — 도장은 찍히되 여기 세지 않습니다.</div>';
@@ -1530,6 +1652,15 @@ const SAMPLE=(function(){
       +'<span class="n">'+f[0]+'</span><span class="d">날짜 미상</span></div>').join('');})();
 
 document.querySelector('[data-v="journey"]').onclick=()=>setJourney(!jOn);
+
+/* 지도 / 목록 — 열면 지도가 먼저다. 셈한 표보다 지구에 그은 선을 먼저 보시라고 */
+function setJMode(m){
+  $('jview').classList.toggle('mapmode',m==='map');
+  document.querySelectorAll('#jmode .jm').forEach(el=>
+    el.classList.toggle('on',el.dataset.m===m));
+  if(m==='map')setTimeout(()=>map.resize(),60);}
+document.querySelectorAll('#jmode .jm').forEach(el=>
+  el.onclick=()=>setJMode(el.dataset.m));
 
 /* ══ 부팅 ══ */
 map.on('load',async()=>{
