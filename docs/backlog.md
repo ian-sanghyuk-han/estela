@@ -137,3 +137,20 @@ The real hazard is different: if users edit the *shared* record, you inherit mod
 versioning and conflict. So edits always land on the personal overlay, never on the shared
 row. If many people report the same correction that becomes a signal to act on later, but
 that is P5 at the earliest.
+
+## 2026-08-26 — 서버 없이 되는 것은 여기까지
+
+**내보내기/불러오기 (완료).** `estela.v1` · `estela.lists.v1` · `estela.notes.v1` ·
+`estela.card.v1` 네 개를 파일 하나로. 불러올 때 합치기(도장은 날짜로 겹치는 것만 걸러
+이어 붙이고, 목록은 이름이 새 것일 때만, 메모는 빈 자리만 채움) 또는 덮어쓰기 —
+덮어쓰기는 되돌릴 수 없다고 먼저 알린다. 계정이 생기기 전까지 유일한 안전장치이고,
+폰↔노트북 문제도 대부분 이걸로 풀린다.
+
+**가까이 가면 묻기 (완료).** `watchPosition`, 내 도장·저장·목록에 이미 있는 곳만,
+150m, 한 곳당 세 시간 조용. 기본은 꺼짐. 위치는 기기 밖으로 나가지 않는다.
+시험: 284m에서는 조용, 20m에서 배너 → 도장. 십만 곳 전체를 대상으로 하지 않는 것은
+성능 때문이 아니라 선장님이 정한 조건이다.
+
+**남은 것은 전부 서버가 필요하다** — 로그인·동기화·친구/그룹·사진·영수증·폐업 표시·
+영업시간(바캉스 문의 문구 포함). 서버 없이 더 할 수 있는 것: 전역 검색(#1),
+검색 결과를 임시 레이어로, 등기부 밀도 표현.

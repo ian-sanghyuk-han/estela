@@ -148,6 +148,20 @@
     z-index:6;font:500 12px var(--sans);color:var(--paper);background:var(--wine);
     padding:9px 16px;border-radius:2px;white-space:nowrap;pointer-events:none}
   #picking.on{display:block}
+  /* 가까이 가면 묻기 — 도착을 알리는 게 아니라 도장을 권하는 것이다 */
+  #geoask{display:none;position:fixed;left:50%;bottom:76px;transform:translateX(-50%);
+    z-index:8;font:12px var(--sans);color:var(--ink);background:var(--card);
+    border:1px solid var(--rule);box-shadow:0 10px 30px rgba(27,23,20,.16);
+    padding:11px 14px;white-space:nowrap;display:none;align-items:center;gap:12px}
+  #geoask.on{display:flex}
+  #geoask b{font-weight:600}
+  #geoask .ga{cursor:pointer;font-size:11px;padding:5px 11px;border:1px solid var(--mute)}
+  #geoask .ga.yes{background:var(--wine);border-color:var(--wine);color:var(--paper)}
+  #geobtn.on{color:var(--olive)}
+  .recbtns{display:flex;gap:6px;margin-top:7px}
+  .recbtns span{flex:1;text-align:center;font-size:10.5px;color:var(--ink);
+    border:1px solid var(--rule);padding:6px;cursor:pointer}
+  .recbtns span:hover{border-color:var(--mute);background:var(--sand)}
   .lrow.locked{opacity:.55;cursor:default}
   .lrow.locked .ct{font-size:9px;letter-spacing:.4px}
   #layers .attrib{font-size:8.5px;color:var(--mute);margin-top:6px;line-height:1.5}
@@ -429,6 +443,8 @@
 FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—</b> · 단위 <b id="lvl">—</b> · 내 기록 <b id="mine">0</b> · <span id="hint">끌어서 이동 / 휠·핀치로 확대 — 파고들면 지구본이 저절로 펴집니다</span><span id="res" hidden>—</span></div>
 <div id="where">—</div>
 <div id="picking"><span>지도에서 자리를 눌러 주세요</span></div>
+<div id="geoask"></div>
+<input type="file" id="recfile" accept="application/json,.json" hidden>
 
 <div id="modebar">
   <span class="mbtn" id="btnhome">전체 보기</span>
@@ -481,6 +497,7 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
 
 <div id="layers"><h4>레이어</h4><div id="lrows"></div>
   <div class="add"><span class="addbtn" id="addbtn">+ 찾아서 담기</span>
+    <span class="addbtn" id="geobtn" title="내 목록에 있는 곳 근처에 가면 물어봅니다">◎ 가까이 가면 묻기</span>
     <div id="addbox"><input id="addq" placeholder="이름 · 주소 · 좌표 · 지도 링크" autocomplete="off">
       <div class="addhint">어디서든 주소나 좌표를 복사해 붙여넣으셔도 됩니다</div>
       <div id="addres"></div>
@@ -2091,6 +2108,106 @@ function paintJourney(){
     if(!confirm('자리를 잃은 기록을 영구히 지웁니다. 되돌릴 수 없습니다. 진행할까요?'))return;
     dropOrphans();paintJourney();paintMine();};}
 
+/* ══ 기록 옮기기 ══ 계정이 생기기 전까지 유일한 안전장치 ══
+   브라우저 하나에만 들어 있으니, 사이트 자료를 지우면 몇 해치 도장이 사라진다.
+   그리고 폰과 노트북을 오가는 문제도 결국 이 파일 하나로 대부분 풀린다 */
+const RECORD_KEYS=['estela.v1','estela.lists.v1','estela.notes.v1','estela.card.v1'];
+function exportRecord(){
+  const box={app:'estela',v:1,at:todayISO(),data:{}};
+  RECORD_KEYS.forEach(k=>{const v=localStorage.getItem(k); if(v)box.data[k]=v;});
+  const b=new Blob([JSON.stringify(box,null,1)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);
+  a.download='estela-기록-'+todayISO()+'.json';
+  a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);}
+
+function importRecord(file){
+  const r=new FileReader();
+  r.onload=()=>{
+    let box;
+    try{box=JSON.parse(r.result);}catch(e){alert('읽을 수 없는 파일입니다.');return;}
+    if(!box||box.app!=='estela'||!box.data){alert('에스텔라 기록 파일이 아닙니다.');return;}
+    const merge=confirm('불러온 기록을 지금 것과 합칠까요?\n\n'
+      +'[확인] 합치기 — 양쪽 도장이 모두 남습니다\n'
+      +'[취소] 덮어쓰기 — 지금 기록은 사라지고 되돌릴 수 없습니다');
+    try{
+      if(!merge){
+        RECORD_KEYS.forEach(k=>{
+          if(box.data[k])localStorage.setItem(k,box.data[k]);
+          else localStorage.removeItem(k);});
+      }else{
+        /* 합치기 — 도장은 날짜로 겹치는 것만 걸러 이어 붙이고,
+           목록과 메모는 없는 것만 채운다. 남의 판단으로 내 순위를 덮지 않는다 */
+        const A=JSON.parse(localStorage.getItem('estela.v1')||'{}');
+        const B=JSON.parse(box.data['estela.v1']||'{}');
+        A.stamps=A.stamps||{};A.saved=A.saved||{};A.places=A.places||[];
+        Object.keys(B.stamps||{}).forEach(k=>{
+          const have=(A.stamps[k]||[]).map(v=>v.d);
+          A.stamps[k]=(A.stamps[k]||[]).concat(
+            (B.stamps[k]||[]).filter(v=>have.indexOf(v.d)<0))
+            .sort((x,y)=>x.d<y.d?-1:1);});
+        Object.keys(B.saved||{}).forEach(k=>{A.saved[k]=1;});
+        (B.places||[]).forEach(p=>{
+          if(!A.places.some(q=>q.n===p.n&&Math.abs(q.la-p.la)<1e-5))A.places.push(p);});
+        localStorage.setItem('estela.v1',JSON.stringify(A));
+        const LA=JSON.parse(localStorage.getItem('estela.lists.v1')||'[]');
+        const LB=JSON.parse(box.data['estela.lists.v1']||'[]');
+        LB.forEach(l=>{if(!LA.some(x=>x.n===l.n))LA.push(l);});
+        localStorage.setItem('estela.lists.v1',JSON.stringify(LA));
+        const NA=JSON.parse(localStorage.getItem('estela.notes.v1')||'{}');
+        const NB=JSON.parse(box.data['estela.notes.v1']||'{}');
+        Object.keys(NB).forEach(k=>{if(!NA[k])NA[k]=NB[k];});
+        localStorage.setItem('estela.notes.v1',JSON.stringify(NA));}
+    }catch(e){alert('불러오는 중에 문제가 생겼습니다. 기록은 그대로 두었습니다.');return;}
+    location.reload();};
+  r.readAsText(file);}
+
+/* ══ 가까이 가면 묻기 ══ 내 목록에 있는 곳만 ══
+   십만 곳이 다 말을 걸면 소름 끼치고 배터리도 먹는다. 내가 담아 둔 몇백 곳이면
+   기기 안에서 즉시 견줄 수 있다. 위치는 기기 밖으로 나가지 않는다 —
+   보낼 곳도 없고 보낼 이유도 없다 */
+let geoWatch=null, geoAsked={};
+const GEO_KEY='estela.geo.v1';
+const geoOn=()=>{try{return localStorage.getItem(GEO_KEY)==='1';}catch(e){return false;}};
+function nearbyCandidates(){
+  const keys={};
+  Object.keys(store.stamps).forEach(k=>keys[k]=1);
+  Object.keys(store.saved).forEach(k=>keys[k]=1);
+  LISTS.forEach(l=>l.items.forEach(k=>keys[k]=1));
+  const out=[];
+  Object.keys(keys).forEach(k=>{const i=keyInfo(k);
+    if(i.it)out.push({k:k,n:i.n,la:i.it.la,lo:i.it.lo,L:i.L,it:i.it});});
+  return out;}
+function geoHit(pos){
+  const la=pos.coords.latitude, lo=pos.coords.longitude, now=Date.now();
+  let best=null;
+  nearbyCandidates().forEach(c=>{
+    if(geoAsked[c.k]&&now-geoAsked[c.k]<3*3600*1000)return;   /* 세 시간은 조용히 */
+    const d=greatKm({la:la,lo:lo},{la:c.la,lo:c.lo})*1000;
+    if(d<150&&(!best||d<best.d)){best={c:c,d:Math.round(d)};}});
+  if(!best)return;
+  geoAsked[best.c.k]=now;
+  const el=$('geoask');
+  el.innerHTML='<b>'+esc(best.c.n)+'</b> 앞이십니다 — 도장 찍을까요?'
+    +'<span class="ga yes">도장 찍기</span><span class="ga no">나중에</span>';
+  el.classList.add('on');
+  el.querySelector('.yes').onclick=()=>{
+    addStamp(best.c.k,null,best.c.n);
+    el.classList.remove('on');
+    refreshAll();paintMine();paintJourney();};
+  el.querySelector('.no').onclick=()=>el.classList.remove('on');
+  setTimeout(()=>el.classList.remove('on'),20000);}
+function setGeo(on){
+  try{localStorage.setItem(GEO_KEY,on?'1':'0');}catch(e){}
+  const b=$('geobtn'); if(b)b.classList.toggle('on',on);
+  if(!on){if(geoWatch!==null){navigator.geolocation.clearWatch(geoWatch);geoWatch=null;}
+    $('geoask').classList.remove('on');return;}
+  if(!navigator.geolocation){alert('이 기기는 위치를 알려주지 못합니다.');
+    setGeo(false);return;}
+  geoWatch=navigator.geolocation.watchPosition(geoHit,
+    ()=>{setGeo(false);},
+    {enableHighAccuracy:false,maximumAge:60000,timeout:30000});}
+
 /* ══ 공유 카드 열기 ══ 무엇을 남길지는 선장님이 고른다 ══ */
 let cardBusy=false;
 function paintCardSheet(){
@@ -2226,12 +2343,21 @@ function paintTaste(){
        +'가게 카드에서 <b>내가 적는 것</b>에 한 번 눌러 두시면 여기가 채워집니다.</div>')
     +(t.dishes.length?'<div class="colh mt">기억하는 음식</div>'
        +'<div class="tdish">'+t.dishes.slice(0,8).map(esc).join(' · ')+'</div>':'')
+      +'<div class="colh mt">기록 옮기기</div>'
+      +'<div class="hint">계정이 생기기 전까지는 이 브라우저 안에만 있습니다. '
+       +'파일로 내보내 두시면 폰과 노트북을 오갈 수 있고, 자료를 지워도 되살릴 수 있습니다.</div>'
+      +'<div class="recbtns"><span id="recout">내보내기</span>'
+       +'<span id="recin">불러오기</span></div>'
     +(LISTS.filter(l=>l.items.length).length
       ?'<div class="colh mt">내 1위</div>'
        +LISTS.filter(l=>l.items.length).map(l=>
          '<div class="trow one"><span>'+esc(l.n)+'</span>'
          +'<b>'+esc(keyInfo(l.items[0]).n)+'</b></div>').join('')
-      :'');}
+      :'');
+  /* 이 단추들은 지금 막 만들어졌으니 여기서 이어 준다 */
+  const eo=$('recout'), ei=$('recin');
+  if(eo)eo.onclick=exportRecord;
+  if(ei)ei.onclick=()=>$('recfile').click();}
 
 /* ══ 내 목록 ══ 순위가 매겨진 채로 선다. 화면을 찍어 자랑할 것은 이 칸이다 */
 function paintLists(){
@@ -2343,6 +2469,10 @@ function setJMode(m){
 document.querySelectorAll('#jmode .jm').forEach(el=>
   el.onclick=()=>setJMode(el.dataset.m));
 $('cardbtn').onclick=toggleCardSheet;
+$('recfile').onchange=e=>{if(e.target.files[0])importRecord(e.target.files[0]);
+  e.target.value='';};
+$('geobtn').onclick=()=>setGeo(!geoOn());
+if(geoOn())setGeo(true);
 $('csclose').onclick=()=>$('cardsheet').classList.remove('on');
 
 /* ══ 부팅 ══ */
