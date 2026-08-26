@@ -222,6 +222,14 @@
     font-weight:500;text-align:right}
   .lrow .wd{width:7px;height:7px;border-radius:999px;flex-shrink:0}
   .lrow .ln{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lrow em{font-style:normal;color:var(--mute);font-size:11px;cursor:pointer;
+    opacity:0;transition:opacity .15s ease;flex-shrink:0}
+  .lrow:hover em{opacity:1}
+  .lrow em:hover{color:var(--wine)}
+  .lrow .lup{margin-left:auto}
+  .lrow .lgrip{cursor:grab;letter-spacing:-2px}
+  .lrow.dragging{opacity:.4}
+  .lrow.over{box-shadow:inset 0 2px 0 var(--wine)}
   /* ── 카드 안의 목록 띠 ── */
   #card .mylists{margin-top:10px;border-top:1px solid var(--rule);padding-top:8px}
   #card .mlh{font-size:8.5px;letter-spacing:2px;color:var(--mute);
@@ -455,6 +463,16 @@ function placeAnswer(st,better){
     if(l){l.items.splice(st.lo,0,st.key);saveLists();}
     return true;}
   return false;}
+/* 자리 옮기기 — 끌어다 놓거나, 위 칸과 다시 겨루거나 */
+function listMove(id,from,to){
+  const l=listById(id);if(!l)return;
+  if(from<0||from>=l.items.length)return;
+  to=Math.max(0,Math.min(l.items.length-1,to));
+  if(from===to)return;
+  const [k]=l.items.splice(from,1);
+  l.items.splice(to,0,k);saveLists();}
+function listSwapUp(id,i){if(i>0)listMove(id,i,i-1);}
+
 /* 남은 질문 수 — 시작 전에 "최대 몇 번" 이라고 알려줄 수 있게 */
 const placeLeft=st=>st&&st.hi>st.lo?Math.ceil(Math.log2(st.hi-st.lo+1)):0;
 import * as topojson from 'topojson-client';
@@ -1794,9 +1812,12 @@ function paintLists(){
   el.innerHTML=LISTS.map(l=>{
     const rows=l.items.map((k,i)=>{
       const info=keyInfo(k);
-      return '<div class="lrow" data-k="'+esc(k)+'"><b>'+(i+1)+'</b>'
+      return '<div class="lrow" draggable="true" data-k="'+esc(k)+'" data-i="'+i+'">'
+        +'<b>'+(i+1)+'</b>'
         +'<span class="wd" style="background:'+info.c+'"></span>'
-        +'<span class="ln">'+esc(info.n)+'</span></div>';}).join('');
+        +'<span class="ln">'+esc(info.n)+'</span>'
+        +(i>0?'<em class="lup" title="위 칸과 다시 겨루기">⇅</em>':'')
+        +'<em class="lgrip" title="끌어서 옮기기">⠿</em></div>';}).join('');
     return '<div class="lblk" data-l="'+l.id+'">'
       +'<div class="lhd"><span>'+esc(l.n)+'</span><i>'+l.items.length+'곳</i>'
       +'<em class="ldel" title="목록 지우기">×</em></div>'
@@ -1807,6 +1828,46 @@ function paintLists(){
     if(!l)return;
     if(!confirm('«'+l.n+'» 목록을 지웁니다. 도장은 그대로 남고 목록만 사라집니다.'))return;
     dropList(id);paintLists();});
+  /* ── 끌어서 옮기기 ── 열다섯 곳쯤까지는 이게 제일 자연스럽다 ── */
+  let dragFrom=null,dragList=null;
+  el.querySelectorAll('.lrow').forEach(r=>{
+    r.ondragstart=e=>{
+      dragFrom=+r.dataset.i; dragList=r.closest('.lblk').dataset.l;
+      r.classList.add('dragging');
+      try{e.dataTransfer.effectAllowed='move';
+        e.dataTransfer.setData('text/plain','');}catch(x){}};
+    r.ondragend=()=>{r.classList.remove('dragging');
+      el.querySelectorAll('.lrow').forEach(z=>z.classList.remove('over'));};
+    r.ondragover=e=>{
+      if(dragList!==r.closest('.lblk').dataset.l)return;   /* 목록을 넘나들진 않는다 */
+      e.preventDefault();r.classList.add('over');};
+    r.ondragleave=()=>r.classList.remove('over');
+    r.ondrop=e=>{
+      e.preventDefault();r.classList.remove('over');
+      if(dragList!==r.closest('.lblk').dataset.l||dragFrom===null)return;
+      listMove(dragList,dragFrom,+r.dataset.i);
+      dragFrom=null;paintLists();};});
+
+  /* ── 위 칸과 다시 겨루기 ── 한 자리만 의심스러울 때는 이게 빠르다 ── */
+  el.querySelectorAll('.lup').forEach(u=>u.onclick=e=>{
+    e.stopPropagation();
+    const row=u.closest('.lrow'), id=row.closest('.lblk').dataset.l;
+    const i=+row.dataset.i, l=listById(id);
+    if(!l||i<1)return;
+    const A=keyInfo(l.items[i]), B=keyInfo(l.items[i-1]);
+    const box=$('card'); box.classList.add('on');
+    box.innerHTML='<button id="cx" aria-label="닫기">×</button>'
+      +'<div class="src">'+esc(l.n)+' · 다시 겨루기</div>'
+      +'<div class="duel"><div class="dq">지금 다시 보면 어느 쪽인가요?</div>'
+      +'<button class="dside" data-w="1">'+esc(A.n)+'</button>'
+      +'<div class="dvs">vs</div>'
+      +'<button class="dside" data-w="0">'+esc(B.n)+'</button>'
+      +'<div class="dhint">지금 '+(i+1)+'위와 '+i+'위입니다</div></div>';
+    $('cx').onclick=()=>{closeCard();};
+    box.querySelectorAll('.dside').forEach(b=>b.onclick=()=>{
+      if(b.dataset.w==='1')listSwapUp(id,i);
+      closeCard();paintLists();});});
+
   el.querySelectorAll('.lrow').forEach(r=>r.onclick=()=>{
     const info=keyInfo(r.dataset.k);
     if(!info.it)return;
