@@ -91,3 +91,49 @@ that will force the change, roughly in order:
 
 Until then: an export/import of the whole journey as one file would cover most of case 1
 for almost no work, and is worth doing before any server exists.
+
+---
+
+## 4. 영업시간 — half the data exists, and August is a trap
+
+Naver shows whether a place is open *right now* by comparing the clock against hours the
+**owner typed in** at 스마트플레이스. It is not inferred. Google works the same way. That is
+the same moat as the category field: they have a relationship with the proprietor and we
+do not.
+
+The one open source is OSM's `opening_hours`, which is a proper machine-readable format —
+measured at **46% of named restaurants in Paris**. Government registries have nothing: a
+hygiene licence does not ask what time you open.
+
+So "지금 영업 중" is possible for about half of places and impossible for the rest, and the
+empty half must stay visibly empty rather than be guessed at.
+
+**And the owner's catch, which matters more than the coverage number:** in August half of
+France closes for les vacances and the posted hours mean nothing. Anywhere we show hours,
+the vacation months need a plain warning — **영업 중 문의 필수** — rather than a confident
+green "영업 중". The same applies to Italy in August and to the long holidays elsewhere.
+
+---
+
+## 5. Shape of the personal layer, settled
+
+Worth writing down because the owner raised the right worry: if every user edits restaurant
+data, does the data explode?
+
+It does not, because the two layers stay separate.
+
+```
+공용 — one copy for everyone          개인 — only where you touched
+  name · coords · address              your stamps and dates
+  source · category · open/closed      your lists and their order
+  369,000 places = 34 MB               your photos, notes, price
+                                       200 visits = 200 rows, not 369,000
+```
+
+A thousand people with two hundred places each is roughly 40 MB — about the size of the
+shared data, not a multiple of it. **Personal rows appear only where someone actually went.**
+
+The real hazard is different: if users edit the *shared* record, you inherit moderation,
+versioning and conflict. So edits always land on the personal overlay, never on the shared
+row. If many people report the same correction that becomes a signal to act on later, but
+that is P5 at the earliest.

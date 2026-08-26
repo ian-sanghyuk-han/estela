@@ -192,15 +192,58 @@
   #jsum .st{display:flex;flex-direction:column;font-size:10px;letter-spacing:1.4px;color:var(--dim)}
   #jsum .st b{font-family:var(--serif);font-size:25px;font-weight:400;letter-spacing:0;color:var(--ink)}
   /* 네 칸 — 다녀온 곳 · 여권 · 진행률 · 함께. 좁아지면 둘로, 더 좁으면 하나로 */
+  /* 다섯 칸 — 내 목록 · 다녀온 곳 · 여권 · 진행률 · 함께.
+     좁아지면 셋, 더 좁으면 둘, 휴대폰에서는 하나 */
   #jstage{display:grid;
-    grid-template-columns:minmax(250px,1.1fr) minmax(300px,1.4fr) minmax(190px,.9fr) minmax(190px,.9fr);
-    gap:26px 30px;align-items:start}
-  @media (max-width:1180px){
+    grid-template-columns:minmax(200px,.95fr) minmax(200px,.95fr) minmax(260px,1.25fr)
+      minmax(190px,.9fr) minmax(170px,.8fr);
+    gap:26px 28px;align-items:start}
+  @media (max-width:1480px){
+    #jstage{grid-template-columns:repeat(3,minmax(220px,1fr))}}
+  @media (max-width:1080px){
     #jstage{grid-template-columns:repeat(2,minmax(240px,1fr))}}
   .jcol{min-width:0}
   .colh{font-size:9px;letter-spacing:2.4px;font-weight:600;color:var(--mute);
     text-transform:uppercase;margin-bottom:10px}
   .colh.mt{margin-top:20px}
+  /* ── 내 목록 ── 분류 나무 대신 플레이리스트 ── */
+  #jlists{max-height:60vh;overflow:auto}
+  .lblk{margin-bottom:16px}
+  .lhd{display:flex;align-items:baseline;gap:8px;padding-bottom:5px;
+    border-bottom:1px solid var(--rule);margin-bottom:5px}
+  .lhd span{font-family:var(--serif);font-size:14px;color:var(--ink)}
+  .lhd i{font-style:normal;font-size:9.5px;color:var(--dim);margin-left:auto}
+  .lhd em{font-style:normal;font-size:13px;color:var(--mute);cursor:pointer;padding:0 2px}
+  .lhd em:hover{color:var(--wine)}
+  .lrow{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink);
+    padding:3px 2px;cursor:pointer}
+  .lrow:hover{background:var(--sand)}
+  .lrow b{flex:0 0 16px;font-family:var(--serif);font-size:13px;color:var(--wine);
+    font-weight:500;text-align:right}
+  .lrow .wd{width:7px;height:7px;border-radius:999px;flex-shrink:0}
+  .lrow .ln{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* ── 카드 안의 목록 띠 ── */
+  #card .mylists{margin-top:10px;border-top:1px solid var(--rule);padding-top:8px}
+  #card .mlh{font-size:8.5px;letter-spacing:2px;color:var(--mute);
+    text-transform:uppercase;margin-bottom:6px}
+  #card .lchip{display:inline-block;font-size:10.5px;color:var(--dim);
+    border:1px solid var(--rule);padding:3px 8px;margin:0 4px 4px 0;cursor:pointer}
+  #card .lchip:hover{border-color:var(--mute)}
+  #card .lchip.on{background:var(--wine);border-color:var(--wine);color:var(--paper)}
+  #card .lchip.new{border-style:dashed;color:var(--mute)}
+  /* ── 둘 중 어디가 더 ── */
+  #card .duel{padding:6px 0 2px;text-align:center}
+  #card .duel .dq{font-size:12px;color:var(--ink);margin:6px 0 12px}
+  #card .duel .dside{display:block;width:100%;font:500 13px var(--sans);
+    color:var(--ink);background:var(--paper);border:1px solid var(--mute);
+    padding:12px 10px;cursor:pointer;line-height:1.35}
+  #card .duel .dside:hover{background:var(--wine);border-color:var(--wine);
+    color:var(--paper)}
+  #card .duel .dvs{font-family:var(--serif);font-size:11px;color:var(--mute);
+    padding:6px 0}
+  #card .duel .dhint{font-size:9.5px;color:var(--mute);margin-top:10px}
+  #card .duel .dskip{margin-top:8px;font-size:10.5px;color:var(--dim);
+    background:none;border:0;cursor:pointer;text-decoration:underline}
   /* 나라별 진행 — 어디를 채웠고 어디가 비었는지 한 줄에 */
   .crow{display:flex;align-items:center;gap:8px;font-size:10.5px;color:var(--dim);
     padding:2px 0 2px 2px}
@@ -324,6 +367,10 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
     </div>
     <div id="jstage">
       <section class="jcol">
+        <div class="colh">내 목록</div>
+        <div id="jlists"></div>
+      </section>
+      <section class="jcol">
         <div class="colh">다녀온 곳</div>
         <div id="jtree"></div>
       </section>
@@ -360,6 +407,56 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
 {"imports":{"topojson-client":"https://cdn.jsdelivr.net/npm/topojson-client@3/+esm"}}
 </script>
 <script type="module">
+/* ══ 내 목록 ══ 분류 나무를 만들지 않는다 ══
+   탕수육이냐 중국요리냐를 우리가 미리 정할 수 없다. 순대국·순댓국·돼지국밥도 마찬가지고,
+   나라마다 요리마다 결이 다르다. 그래서 분류 체계 대신 플레이리스트를 준다 —
+   이름은 선장님이 정하고, 한 가게가 여러 목록에 들어가고, 큰 목록도 작은 목록도 자유다.
+
+   순서는 별점으로 매기지 않는다. "이 집 몇 점?"은 어려워서 아무도 안 하지만
+   "둘 중 어디가 더?"는 0.5초면 된다. 새 가게 하나를 넣을 때 물어보는 횟수는
+   log₂(n) — 열 곳짜리 목록에 열한 번째를 넣어도 네 번이면 자리가 정해진다. */
+
+const LKEY='estela.lists.v1';
+let LISTS=(()=>{try{return JSON.parse(localStorage.getItem(LKEY))||[];}catch(e){return [];}})();
+function saveLists(){try{localStorage.setItem(LKEY,JSON.stringify(LISTS));}catch(e){}}
+const listById=id=>LISTS.find(l=>l.id===id);
+const listsWith=key=>LISTS.filter(l=>l.items.indexOf(key)>=0);
+
+function newList(name){
+  const l={id:'L'+Date.now().toString(36)+Math.floor(Math.random()*999).toString(36),
+    n:(name||'').trim()||'새 목록',items:[]};
+  LISTS.push(l);saveLists();return l;}
+function dropList(id){
+  const i=LISTS.findIndex(l=>l.id===id);
+  if(i>=0){LISTS.splice(i,1);saveLists();}}
+function listRemove(id,key){
+  const l=listById(id);if(!l)return;
+  const i=l.items.indexOf(key);
+  if(i>=0){l.items.splice(i,1);saveLists();}}
+
+/* 이분 삽입 — 사람이 비교자 노릇을 한다.
+   lo..hi 는 아직 정해지지 않은 구간이고, 매번 그 한가운데와 견준다 */
+function placeStart(listId,key){
+  const l=listById(listId);
+  if(!l||l.items.indexOf(key)>=0)return null;
+  if(!l.items.length){l.items.push(key);saveLists();return null;}
+  return {listId:listId,key:key,lo:0,hi:l.items.length,asked:0};}
+function placeAsk(st){
+  if(!st||st.lo>=st.hi)return null;
+  const l=listById(st.listId);if(!l)return null;
+  return l.items[Math.floor((st.lo+st.hi)/2)];}
+/* better=true 면 새 가게가 비교 대상보다 위다 */
+function placeAnswer(st,better){
+  const mid=Math.floor((st.lo+st.hi)/2);
+  if(better)st.hi=mid; else st.lo=mid+1;
+  st.asked++;
+  if(st.lo>=st.hi){
+    const l=listById(st.listId);
+    if(l){l.items.splice(st.lo,0,st.key);saveLists();}
+    return true;}
+  return false;}
+/* 남은 질문 수 — 시작 전에 "최대 몇 번" 이라고 알려줄 수 있게 */
+const placeLeft=st=>st&&st.hi>st.lo?Math.ceil(Math.log2(st.hi-st.lo+1)):0;
 import * as topojson from 'topojson-client';
 
 /* ══════════════════════════════════════════════════════════════════
@@ -1220,8 +1317,17 @@ function wireAdd(){
           if(slot.q!==t)return;
           slot.net='<div class="msg">검색에 닿지 못했습니다.</div>';done();});},700);};}
 
-/* ══ 고른 곳 카드 ══
-   사실만 적는다 — 요리, 문 연 해, 별을 받은 해, 홈페이지. 평이나 사진은 없다.
+/* 열쇠 하나로 이름과 레이어를 되찾는다 — 목록은 열쇠만 들고 있다 */
+function keyInfo(key){
+  const i=key.indexOf('|');
+  const L=layers.find(x=>x.id===key.slice(0,i));
+  if(!L)return {n:key.slice(i+1),c:DIM,label:'자리를 잃은 기록'};
+  const q=key.slice(i+1);
+  const it=(L.items||[]).find(x=>(x.q||x.n)===q);
+  return it?{n:it.n,c:L.color,label:L.label,it:it,L:L}
+           :{n:q,c:DIM,label:'자리를 잃은 기록'};}
+
+/* ══ 고른 곳 카드 ══ — 요리, 문 연 해, 별을 받은 해, 홈페이지. 평이나 사진은 없다.
    그건 가이드의 몫이고, 우리가 옮겨 적을 것이 아니다 */
 const cuisineText=v=>String(v||'').split(';').map(x=>x.trim())
   .filter(Boolean).map(x=>x.replace(/_/g,' ')).slice(0,3).join(' · ');
@@ -1279,6 +1385,26 @@ function paintCard(){
     +'<div class="prov">출처 '+esc((L.source||'').split('—')[0].split('(')[0].trim())
       +' · '+esc(L.license||'')+'<br>최종확인 '+esc(L.lastVerified||'—')
       +' · 우리가 평가하지 않습니다</div>';
+  /* 내 목록 — 이 집이 어느 목록에 들어 있나, 그리고 넣고 빼기 */
+  const strip=document.createElement('div');
+  strip.className='mylists';
+  const paintStrip=()=>{
+    const inL=listsWith(key).map(l=>l.id);
+    strip.innerHTML='<div class="mlh">내 목록</div>'
+      +LISTS.map(l=>'<span class="lchip'+(inL.indexOf(l.id)>=0?' on':'')
+        +'" data-l="'+l.id+'">'+esc(l.n)+'</span>').join('')
+      +'<span class="lchip new">+ 새 목록</span>';
+    strip.querySelectorAll('.lchip[data-l]').forEach(el=>el.onclick=()=>{
+      const id=el.dataset.l;
+      if(el.classList.contains('on')){listRemove(id,key);paintStrip();paintJourney();}
+      else startDuel(id,key,paintStrip);});
+    strip.querySelector('.lchip.new').onclick=()=>{
+      const nm=prompt('목록 이름 — 내 순대국, 파리 빵집 …');
+      if(nm===null)return;
+      const l=newList(nm); startDuel(l.id,key,paintStrip);};};
+  paintStrip();
+  el.insertBefore(strip,el.querySelector('.prov'));
+
   $('cx').onclick=closeCard;
   $('cstamp').onclick=()=>{addStamp(key,null,p.n);after();};
   $('csave').onclick=()=>{toggleSaved(key);after();};
@@ -1288,6 +1414,35 @@ function paintCard(){
     if(f)map.easeTo({center:[f.lo,f.la],
       zoom:city?Math.max(map.getZoom(),9.5):Math.max(map.getZoom(),15),duration:900});};
   function after(){paintCard();refreshAll();paintMine();paintJourney();}}
+
+/* ══ 둘 중 어디가 더 ══
+   별점을 매기게 하면 아무도 안 한다. 둘을 나란히 놓고 하나 고르게 하면 반 초면 된다.
+   한 곳을 넣는 데 묻는 횟수는 log₂(n) — 열 곳짜리 목록이면 서너 번이다 */
+function startDuel(listId,key,after){
+  let st=placeStart(listId,key);
+  if(!st){if(after)after(); paintJourney(); return;}
+  const L=listById(listId);
+  const box=$('card');
+  const mine=keyInfo(key);
+  const step=()=>{
+    const vs=placeAsk(st);
+    if(vs===null){if(after)after(); paintCard(); paintJourney(); return;}
+    const other=keyInfo(vs);
+    box.innerHTML='<div class="src">'+esc(L.n)+' · 자리 정하기</div>'
+      +'<div class="duel"><div class="dq">어느 쪽이 더 좋았나요?</div>'
+      +'<button class="dside" data-w="1">'+esc(mine.n)+'</button>'
+      +'<div class="dvs">vs</div>'
+      +'<button class="dside" data-w="0">'+esc(other.n)+'</button>'
+      +'<div class="dhint">최대 '+placeLeft(st)+'번만 더 여쭤봅니다</div>'
+      +'<button class="dskip">나중에</button></div>';
+    box.querySelectorAll('.dside').forEach(b=>b.onclick=()=>{
+      placeAnswer(st,b.dataset.w==='1'); step();});
+    box.querySelector('.dskip').onclick=()=>{
+      /* 그만두면 맨 아래에 놓는다. 자리를 못 정했다고 기록을 버리진 않는다 */
+      const l=listById(listId);
+      if(l&&l.items.indexOf(key)<0){l.items.push(key);saveLists();}
+      if(after)after(); paintCard(); paintJourney();};};
+  step();}
 
 /* ══ 레이어 패널 ══ */
 const PENDING=[{label:'우리 그룹의 장소',note:'계정 필요'},{label:'팔로우한 사람의 장소',note:'계정 필요'}];
@@ -1564,6 +1719,7 @@ function paintJourney(){
     +stat(new Set(mine.map(cityOfStop).filter(Boolean)).size,'도시')
     +stat(c.places,'도장 찍은 곳')+stat(c.visits,'찍은 횟수')+stat(c.saved,'가고 싶은 곳');
   paintTree(mine);
+  paintLists();
   refreshTrail();
   const el=$('jstops');
   if(mine.length){
@@ -1627,6 +1783,39 @@ function paintJourney(){
   if(ob)ob.onclick=()=>{
     if(!confirm('자리를 잃은 기록을 영구히 지웁니다. 되돌릴 수 없습니다. 진행할까요?'))return;
     dropOrphans();paintJourney();paintMine();};}
+
+/* ══ 내 목록 ══ 순위가 매겨진 채로 선다. 화면을 찍어 자랑할 것은 이 칸이다 */
+function paintLists(){
+  const el=$('jlists'); if(!el)return;
+  if(!LISTS.length){
+    el.innerHTML='<div class="hint">가게 카드에서 <b>내 목록</b>에 담으면 여기 쌓입니다.<br>'
+      +'순대국이든 빵집이든, 이름은 선장님이 정하십니다 — '
+      +'분류는 우리가 미리 나눠두지 않습니다.</div>';return;}
+  el.innerHTML=LISTS.map(l=>{
+    const rows=l.items.map((k,i)=>{
+      const info=keyInfo(k);
+      return '<div class="lrow" data-k="'+esc(k)+'"><b>'+(i+1)+'</b>'
+        +'<span class="wd" style="background:'+info.c+'"></span>'
+        +'<span class="ln">'+esc(info.n)+'</span></div>';}).join('');
+    return '<div class="lblk" data-l="'+l.id+'">'
+      +'<div class="lhd"><span>'+esc(l.n)+'</span><i>'+l.items.length+'곳</i>'
+      +'<em class="ldel" title="목록 지우기">×</em></div>'
+      +(rows||'<div class="hint">아직 비어 있습니다</div>')+'</div>';}).join('');
+  el.querySelectorAll('.ldel').forEach(x=>x.onclick=e=>{
+    e.stopPropagation();
+    const id=x.closest('.lblk').dataset.l, l=listById(id);
+    if(!l)return;
+    if(!confirm('«'+l.n+'» 목록을 지웁니다. 도장은 그대로 남고 목록만 사라집니다.'))return;
+    dropList(id);paintLists();});
+  el.querySelectorAll('.lrow').forEach(r=>r.onclick=()=>{
+    const info=keyInfo(r.dataset.k);
+    if(!info.it)return;
+    setJourney(false);
+    map.easeTo({center:[info.it.lo,info.it.la],
+      zoom:Math.max(map.getZoom(),info.L.grain==='city'?9.5:15),duration:900});
+    selectPlace(info.L,{n:info.it.n,ct:info.it.ct||'',c:info.it.c||'',
+      q:info.it.q||info.it.n,cu:info.it.cu||'',w:info.it.w||'',y:info.it.y||'',
+      yr:info.it.yr||'',sy:info.it.sy||'',sh:!!info.it.g});});}
 
 /* 목록이 바뀌면 옛 기록이 짝을 잃는다. 조용히 숫자에 섞지도, 조용히 지우지도 않는다 */
 function orphanNote(){
