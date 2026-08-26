@@ -1854,13 +1854,34 @@ function realAims(){
     if(isSaved(keyOf(L,it)))out.push({n:it.n,la:it.la,lo:it.lo,c:L.color});}));
   return out;}
 
+/* 큰 원이 날짜변경선을 넘으면 경도가 +179에서 −179로 한 번에 튄다.
+   그 두 점을 곧이곧대로 이으면 지구를 한 바퀴 감는 선이 되고, 위도가 높을수록
+   그게 극을 두르는 고리처럼 보인다. 리마→도쿄, 도쿄→뉴욕, 뉴욕→서울 —
+   샘플 여정에 그런 구간이 정확히 셋이라 고리도 셋이었다.
+   경계에서 끊고 반대편에서 다시 시작하면 없어진다 */
+function splitDateline(pts){
+  const lines=[]; let cur=[pts[0]];
+  for(let i=1;i<pts.length;i++){
+    const a=pts[i-1], b=pts[i], d=b[0]-a[0];
+    if(Math.abs(d)>180){
+      const sgn=d>0?-1:1;                    /* a가 붙어 있는 쪽 경계 */
+      const bAdj=b[0]+(d>0?-360:360);        /* a와 이어지도록 편 b */
+      const t=(sgn*180-a[0])/(bAdj-a[0]);
+      const lat=a[1]+(b[1]-a[1])*t;
+      cur.push([sgn*180,lat]); lines.push(cur);
+      cur=[[-sgn*180,lat],b];
+    } else cur.push(b);}
+  lines.push(cur);
+  return lines.filter(l=>l.length>1);}
+
 function trailFC(vis){
   const segs=[];
   for(let s=0;s<vis.length-1;s++){
     const A=vis[s],B=vis[s+1];
     if(Math.abs(A.la-B.la)<1e-6&&Math.abs(A.lo-B.lo)<1e-6)continue;
-    segs.push({type:'Feature',properties:{},
-      geometry:{type:'LineString',coordinates:greatCircle(A.la,A.lo,B.la,B.lo,64)}});}
+    splitDateline(greatCircle(A.la,A.lo,B.la,B.lo,64)).forEach(line=>
+      segs.push({type:'Feature',properties:{},
+        geometry:{type:'LineString',coordinates:line}}));}
   return {type:'FeatureCollection',features:segs};}
 
 function visitFC(vis){
@@ -1883,17 +1904,13 @@ function refreshTrail(){
   const use=vis.length?vis:VISITS.map(v=>({n:v.n,la:v.la,lo:v.lo,d:v.d,c:WINE}));
   const l=map.getSource('jline'); if(l)l.setData(trailFC(use));
   const p=map.getSource('jpts');  if(p)p.setData(visitFC(use));
-  const a=map.getSource('jaim');  if(a)a.setData(aimFC(vis.length?realAims():[]));
+  /* 도장이 하나도 없어도 가고 싶은 곳은 그린다 — 처음 쓰는 사람에게
+     제일 먼저 보여야 할 게 목표다 */
+  const a=map.getSource('jaim');  if(a)a.setData(aimFC(realAims()));
   const el=$('jsample'); if(el)el.style.display=vis.length?'none':'';}
 
 function addJourneyLayers(){
-  const segs=[];
-  for(let s=0;s<VISITS.length-1;s++){
-    const A=VISITS[s],B=VISITS[s+1];
-    if(Math.abs(A.la-B.la)<1e-6&&Math.abs(A.lo-B.lo)<1e-6)continue;
-    segs.push({type:'Feature',properties:{},
-      geometry:{type:'LineString',coordinates:greatCircle(A.la,A.lo,B.la,B.lo,64)}});}
-  map.addSource('jline',{type:'geojson',data:{type:'FeatureCollection',features:segs}});
+  map.addSource('jline',{type:'geojson',data:trailFC(VISITS)});
   map.addLayer({id:'jline',type:'line',source:'jline',
     layout:{'line-cap':'round','line-join':'round'},
     paint:{'line-color':WINE,'line-width':1.8,'line-opacity':0}});
