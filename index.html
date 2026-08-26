@@ -195,10 +195,10 @@
   /* 다섯 칸 — 내 목록 · 다녀온 곳 · 여권 · 진행률 · 함께.
      좁아지면 셋, 더 좁으면 둘, 휴대폰에서는 하나 */
   #jstage{display:grid;
-    grid-template-columns:minmax(200px,.95fr) minmax(200px,.95fr) minmax(260px,1.25fr)
-      minmax(190px,.9fr) minmax(170px,.8fr);
-    gap:26px 28px;align-items:start}
-  @media (max-width:1480px){
+    grid-template-columns:minmax(210px,1fr) minmax(190px,.9fr) minmax(190px,.9fr)
+      minmax(250px,1.2fr) minmax(180px,.85fr) minmax(165px,.78fr);
+    gap:26px 26px;align-items:start}
+  @media (max-width:1600px){
     #jstage{grid-template-columns:repeat(3,minmax(220px,1fr))}}
   @media (max-width:1080px){
     #jstage{grid-template-columns:repeat(2,minmax(240px,1fr))}}
@@ -206,6 +206,28 @@
   .colh{font-size:9px;letter-spacing:2.4px;font-weight:600;color:var(--mute);
     text-transform:uppercase;margin-bottom:10px}
   .colh.mt{margin-top:20px}
+  /* ── 내 미식 ── 기록을 초상화로 ── */
+  #jtaste{max-height:60vh;overflow:auto}
+  .tcanon{border:1px solid var(--rule);padding:9px 10px;margin-bottom:14px}
+  .tcrow{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--dim);
+    padding:2px 0}
+  .tcrow .wd{width:7px;height:7px;border-radius:999px;flex-shrink:0}
+  .tcrow b{color:var(--ink);font-weight:500}
+  .tcrow i{margin-left:auto;font-style:normal;font-size:9.5px;color:var(--mute)}
+  .tstats{display:flex;flex-wrap:wrap;gap:14px 18px;margin-bottom:6px}
+  .tst{display:flex;flex-direction:column}
+  .tst b{font-family:var(--serif);font-size:23px;font-weight:400;color:var(--ink);
+    line-height:1.1}
+  .tst span{font-size:9px;letter-spacing:1.3px;color:var(--dim)}
+  .trow{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--dim);
+    padding:2px 0}
+  .trow span{flex:0 0 86px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .trow i{flex:1;height:3px;background:rgba(140,129,117,.2);border-radius:2px}
+  .trow i u{display:block;height:3px;background:var(--wine);border-radius:2px}
+  .trow b{flex:0 0 34px;text-align:right;color:var(--ink);font-weight:600;font-size:10px}
+  .trow.one b{flex:1;text-align:left;font-family:var(--serif);font-size:12.5px;
+    font-weight:500;color:var(--wine)}
+
   /* ── 내 목록 ── 분류 나무 대신 플레이리스트 ── */
   #jlists{max-height:60vh;overflow:auto}
   .lblk{margin-bottom:16px}
@@ -374,6 +396,10 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
       </div>
     </div>
     <div id="jstage">
+      <section class="jcol">
+        <div class="colh">내 미식</div>
+        <div id="jtaste"></div>
+      </section>
       <section class="jcol">
         <div class="colh">내 목록</div>
         <div id="jlists"></div>
@@ -1738,6 +1764,7 @@ function paintJourney(){
     +stat(c.places,'도장 찍은 곳')+stat(c.visits,'찍은 횟수')+stat(c.saved,'가고 싶은 곳');
   paintTree(mine);
   paintLists();
+  paintTaste();
   refreshTrail();
   const el=$('jstops');
   if(mine.length){
@@ -1801,6 +1828,91 @@ function paintJourney(){
   if(ob)ob.onclick=()=>{
     if(!confirm('자리를 잃은 기록을 영구히 지웁니다. 되돌릴 수 없습니다. 진행할까요?'))return;
     dropOrphans();paintJourney();paintMine();};}
+
+/* ══ 내 미식 ══ 기록을 초상화로 ══
+   전부 도장에서 계산해 낸다. 따로 저장하는 값이 없으니 도장과 어긋날 수가 없다.
+   Beli의 Taste Profile을 가져오되, 그들이 못 쓰는 한 줄을 앞에 세운다 —
+   그들에겐 분모가 없어서 "무엇을 좋아하는가"까지만 말할 수 있다 */
+function greatKm(a,b){
+  const R=6371,r=Math.PI/180;
+  const dla=(b.la-a.la)*r, dlo=(b.lo-a.lo)*r;
+  const x=Math.sin(dla/2)**2+Math.cos(a.la*r)*Math.cos(b.la*r)*Math.sin(dlo/2)**2;
+  return 2*R*Math.asin(Math.min(1,Math.sqrt(x)));}
+
+function tasteData(){
+  const vis=realVisits();
+  const mine=myPlaces();
+  const cuisine={},country={},city={},kind={};
+  mine.forEach(m=>{
+    const n=m.st.length;
+    const c=countryOfStop(m); if(c)country[c]=(country[c]||0)+n;
+    const t=cityOfStop(m);    if(t)city[t]=(city[t]||0)+n;
+    cuisineText(m.it.cu).split(' · ').forEach(x=>{
+      x=x.trim(); if(x)cuisine[x]=(cuisine[x]||0)+n;});
+    if(m.it.kind)kind[m.it.kind]=(kind[m.it.kind]||0)+n;});
+  let km=0;
+  for(let i=1;i<vis.length;i++)km+=greatKm(vis[i-1],vis[i]);
+  const years=vis.map(v=>(v.d||'').slice(0,4)).filter(Boolean).sort();
+  const top=o=>Object.keys(o).map(k=>[k,o[k]]).sort((a,b)=>b[1]-a[1]);
+  return {vis:vis,mine:mine,km:Math.round(km),
+    years:years.length?[years[0],years[years.length-1]]:null,
+    cuisine:top(cuisine),country:top(country),city:top(city)};}
+
+function paintTaste(){
+  const el=$('jtaste'); if(!el)return;
+  const t=tasteData();
+  if(!t.mine.length){
+    el.innerHTML='<div class="hint">도장이 쌓이면 여기에 선장님이 어떤 분인지가 '
+      +'그려집니다 — 어느 나라에서 제일 많이 드셨는지, 어떤 요리로 기우는지, '
+      +'얼마나 멀리 다니셨는지.</div>';return;}
+
+  /* ① 우리만 쓸 수 있는 줄 — 유한한 명단 위의 완주 */
+  const canon=layers.filter(L=>L.kind!=='candidate'&&L.total>0).map(L=>{
+    const items=L.items||[];
+    const by={};
+    items.forEach(it=>{const c=it.c||'—';
+      const e=by[c]||(by[c]={n:0,g:0}); e.n++;
+      if(stampsOf(keyOf(L,it)).length)e.g++;});
+    const best=Object.keys(by).map(c=>({c:c,...by[c]}))
+      .filter(r=>r.g).sort((a,b)=>b.g/b.n-a.g/a.n)[0];
+    const got=items.filter(it=>stampsOf(keyOf(L,it)).length).length;
+    return got?{label:L.label,got:got,total:L.total,best:best,color:L.color}:null;
+  }).filter(Boolean);
+
+  const big=(v,l)=>'<div class="tst"><b>'+v+'</b><span>'+l+'</span></div>';
+  const bar=(rows,unit)=>{
+    if(!rows.length)return '<div class="hint">아직 자료가 없습니다</div>';
+    const max=rows[0][1];
+    return rows.slice(0,5).map(r=>'<div class="trow"><span>'+esc(r[0])+'</span>'
+      +'<i><u style="width:'+Math.round(r[1]/max*100)+'%"></u></i>'
+      +'<b>'+r[1]+(unit||'')+'</b></div>').join('');};
+
+  el.innerHTML=
+    (canon.length?'<div class="tcanon">'+canon.map(c=>
+      '<div class="tcrow"><span class="wd" style="background:'+c.color+'"></span>'
+      +'<b>'+esc(c.label)+'</b> '+c.got+' / '+c.total
+      +(c.best?'<i>'+esc(c.best.c)+' '+c.best.g+'/'+c.best.n+'</i>':'')
+      +'</div>').join('')+'</div>':'')
+    +'<div class="tstats">'
+      +big(t.country.length,'나라')
+      +big(t.mine.length,'곳')
+      +big(t.vis.length,'번')
+      +big(t.km>=1000?(t.km/1000).toFixed(1)+'천':t.km,'km')
+      +(t.years?big(t.years[0]===t.years[1]?t.years[0]
+          :t.years[0].slice(2)+'–'+t.years[1].slice(2),'해'):'')
+    +'</div>'
+    +'<div class="colh mt">어느 나라에서</div>'+bar(t.country,'번')
+    +'<div class="colh mt">어느 도시에서</div>'+bar(t.city,'번')
+    +'<div class="colh mt">어떤 요리로</div>'
+    +(t.cuisine.length?bar(t.cuisine,'번')
+      :'<div class="hint">요리 정보는 뉴욕과 일부 정본에만 있습니다. '
+       +'없는 곳은 비워 둡니다 — 추측해서 채우지 않습니다.</div>')
+    +(LISTS.filter(l=>l.items.length).length
+      ?'<div class="colh mt">내 1위</div>'
+       +LISTS.filter(l=>l.items.length).map(l=>
+         '<div class="trow one"><span>'+esc(l.n)+'</span>'
+         +'<b>'+esc(keyInfo(l.items[0]).n)+'</b></div>').join('')
+      :'');}
 
 /* ══ 내 목록 ══ 순위가 매겨진 채로 선다. 화면을 찍어 자랑할 것은 이 칸이다 */
 function paintLists(){
