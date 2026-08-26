@@ -182,6 +182,34 @@
   #jmode .jm{font:11px var(--sans);letter-spacing:.08em;color:var(--dim);
     padding:5px 13px;cursor:pointer;user-select:none}
   #jmode .jm.on{background:var(--ink);color:var(--paper)}
+  #cardbtn{font:11px var(--sans);letter-spacing:.08em;color:var(--paper);
+    background:var(--wine);padding:6px 14px;cursor:pointer;user-select:none}
+  #cardbtn:hover{background:var(--ink)}
+  /* ── 공유 카드 서랍 ── 무엇을 남길지 고르고, 그대로 미리 본다 ── */
+  #cardsheet{position:fixed;right:12px;top:12px;bottom:12px;width:340px;z-index:12;
+    background:var(--card);border:1px solid var(--rule);padding:16px 16px 14px;
+    box-shadow:0 14px 40px rgba(27,23,20,.18);overflow:auto;
+    opacity:0;transform:translateX(14px);pointer-events:none;
+    transition:opacity .3s ease,transform .3s ease}
+  #cardsheet.on{opacity:1;transform:none;pointer-events:auto}
+  #csclose{position:absolute;top:8px;right:10px;background:none;border:0;
+    font-size:19px;line-height:1;color:var(--mute);cursor:pointer}
+  .cshd{font-size:9px;letter-spacing:2.4px;font-weight:600;color:var(--mute);
+    text-transform:uppercase;margin-bottom:10px}
+  .cslists,.csopts{margin-bottom:9px}
+  .cchip{display:inline-block;font-size:10.5px;color:var(--dim);
+    border:1px solid var(--rule);padding:3px 9px;margin:0 4px 4px 0;cursor:pointer}
+  .cchip:hover{border-color:var(--mute)}
+  .cchip.on{background:var(--wine);border-color:var(--wine);color:var(--paper)}
+  .csopts{padding-top:7px;border-top:1px solid var(--rule)}
+  #cspv{display:block;width:100%;height:auto;border:1px solid var(--rule);
+    margin:8px 0 10px;background:var(--paper)}
+  .csbtns{display:flex;gap:6px}
+  .csbtns button{flex:1;font:11px var(--sans);padding:9px;cursor:pointer;
+    border:1px solid var(--mute);background:transparent;color:var(--ink)}
+  .csbtns button.primary{background:var(--wine);border-color:var(--wine);
+    color:var(--paper)}
+  .cshint{font-size:9px;line-height:1.6;color:var(--mute);margin-top:9px}
   /* 여정 중에는 무대 조작 도구가 비켜선다 */
   #layers.hush{opacity:0;pointer-events:none;transform:translateX(-8px);
     transition:opacity .35s ease,transform .35s ease}
@@ -394,6 +422,7 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
       <div id="jmode">
         <span class="jm on" data-m="map">지도</span><span class="jm" data-m="list">목록</span>
       </div>
+      <span id="cardbtn">공유 카드</span>
     </div>
     <div id="jstage">
       <section class="jcol">
@@ -427,6 +456,7 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
 </div>
 
 <div id="card"></div>
+<div id="cardsheet"><button id="csclose" aria-label="닫기">×</button></div>
 
 <div id="layers"><h4>레이어</h4><div id="lrows"></div>
   <div class="add"><span class="addbtn" id="addbtn">+ 찾아서 담기</span>
@@ -1531,6 +1561,162 @@ map.addControl(new maplibregl.GeolocateControl({
 /* ══ 전체 보기 ══ */
 $('btnhome').onclick=()=>map.easeTo({center:[map.getCenter().lng,20],zoom:worldZoom(),duration:1100});
 addEventListener('resize',()=>{if(map.getZoom()<worldZoom()+.4)map.setZoom(worldZoom());});
+/* ══ 공유 카드 ══ 인스타로 나갈 한 장 ══
+   Beli에는 연말 결산은 있어도 목록 하나를 그림으로 내보내는 기능은 보이지 않는다.
+   "내 빵집 지도"는 우리가 지도를 갖고 있어서 만들 수 있는 물건이다.
+
+   무엇을 남길지는 선장님이 고른다. 미슐랭 줄을 빼고 내 순위만 남길 수도 있고,
+   그 반대도 된다 — 순대국집이 3스타 위에 서는 카드가 나와야 이 제품이 제 몫을 한다.
+
+   전부 브라우저 안에서 그린다. 서버도, 인스타 API도 필요 없다 —
+   메타는 남의 계정에 글을 못 올리게 막아뒀고, 어차피 사진 한 장이면
+   휴대폰이 인스타든 카톡이든 알아서 띄워 준다. */
+
+const CARDW=1080, CARDH=1350;
+let cardOpt=(()=>{try{return JSON.parse(localStorage.getItem('estela.card.v1'))||null;}
+  catch(e){return null;}})()||{list:'',map:true,rank:true,canon:true,stats:true,mark:true};
+const saveCardOpt=()=>{try{localStorage.setItem('estela.card.v1',
+  JSON.stringify(cardOpt));}catch(e){}};
+
+/* 점들을 감싸는 상자에서 화면 좌표로 — 정사각 화폭이라 종횡비를 지켜 여백을 준다 */
+function cardProj(pts,x0,y0,w,h){
+  let a=180,b=-180,c=90,d=-90;
+  pts.forEach(p=>{if(p.lo<a)a=p.lo;if(p.lo>b)b=p.lo;if(p.la<c)c=p.la;if(p.la>d)d=p.la;});
+  const cx=(a+b)/2, cy=(c+d)/2;
+  let sw=Math.max(b-a,2), sh=Math.max(d-c,2);
+  sw*=1.5; sh*=1.5;                              /* 가장자리에 숨 쉴 자리 */
+  const k=Math.cos(cy*Math.PI/180)||1;
+  if(sw*k/sh < w/h) sw=sh*(w/h)/k; else sh=sw*k*(h/w);
+  return p=>[x0+w/2+(p.lo-cx)*k/sw*w, y0+h/2-(p.la-cy)/sh*h];}
+
+function drawCardMap(g,pts,x0,y0,w,h){
+  g.save(); g.beginPath(); g.rect(x0,y0,w,h); g.clip();
+  g.fillStyle=SEA; g.fillRect(x0,y0,w,h);
+  const P=cardProj(pts,x0,y0,w,h);
+  if(COUNTRIES){
+    g.fillStyle=LAND; g.strokeStyle='rgba(27,23,20,.30)'; g.lineWidth=1.1;
+    COUNTRIES.forEach(f=>{
+      const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]
+                                             :f.geometry.coordinates;
+      polys.forEach(poly=>{
+        g.beginPath();
+        poly.forEach(ring=>{
+          ring.forEach((c,i)=>{const q=P({lo:c[0],la:c[1]});
+            if(i)g.lineTo(q[0],q[1]); else g.moveTo(q[0],q[1]);});
+          g.closePath();});
+        g.fill(); g.stroke();});});}
+  /* 항적 — 점이 둘 이상일 때만 */
+  if(pts.length>1){
+    g.strokeStyle=WINE; g.lineWidth=3; g.globalAlpha=.75;
+    g.beginPath();
+    pts.forEach((p,i)=>{const q=P(p); if(i)g.lineTo(q[0],q[1]); else g.moveTo(q[0],q[1]);});
+    g.stroke(); g.globalAlpha=1;}
+  pts.forEach((p,i)=>{
+    const q=P(p);
+    g.beginPath(); g.arc(q[0],q[1],13,0,7);
+    g.fillStyle=PAPER; g.fill();
+    g.beginPath(); g.arc(q[0],q[1],9,0,7);
+    g.fillStyle=p.c||WINE; g.fill();
+    if(pts.length<=12){
+      g.fillStyle=PAPER; g.font='600 12px Archivo, sans-serif';
+      g.textAlign='center'; g.textBaseline='middle';
+      g.fillText(String(i+1),q[0],q[1]+.5);}});
+  g.restore();}
+
+function buildCard(){
+  const cv=document.createElement('canvas');
+  cv.width=CARDW; cv.height=CARDH;
+  const g=cv.getContext('2d');
+  g.fillStyle=PAPER; g.fillRect(0,0,CARDW,CARDH);
+
+  const L=cardOpt.list?listById(cardOpt.list):null;
+  const t=tasteData();
+  const pts=L?L.items.map(k=>{const i=keyInfo(k);
+      return i.it?{la:i.it.la,lo:i.it.lo,c:i.c,n:i.n}:null;}).filter(Boolean)
+             :t.vis.map(v=>({la:v.la,lo:v.lo,c:v.c,n:v.n}));
+
+  const M=72; let y=118;
+  g.fillStyle=INK; g.textAlign='left'; g.textBaseline='alphabetic';
+  g.font='400 62px Newsreader, Georgia, serif';
+  g.fillText(L?L.n:'내 미식', M, y);
+  y+=22;
+  g.strokeStyle='rgba(27,23,20,.18)'; g.lineWidth=1;
+  g.beginPath(); g.moveTo(M,y); g.lineTo(CARDW-M,y); g.stroke();
+  y+=30;
+
+  if(cardOpt.map&&pts.length){
+    drawCardMap(g,pts,M,y,CARDW-M*2,560);
+    g.strokeStyle='rgba(27,23,20,.18)';
+    g.strokeRect(M,y,CARDW-M*2,560);
+    y+=560+42;}
+
+  if(cardOpt.rank&&L&&L.items.length){
+    g.textBaseline='alphabetic';
+    L.items.slice(0,8).forEach((k,i)=>{
+      const info=keyInfo(k);
+      g.fillStyle=WINE; g.font='400 34px Newsreader, Georgia, serif';
+      g.textAlign='right'; g.fillText(String(i+1),M+34,y);
+      g.fillStyle=info.c||WINE;
+      g.beginPath(); g.arc(M+58,y-11,7,0,7); g.fill();
+      g.fillStyle=INK; g.font='400 32px Newsreader, Georgia, serif';
+      g.textAlign='left';
+      let nm=info.n;
+      while(g.measureText(nm).width>CARDW-M*2-100&&nm.length>4)nm=nm.slice(0,-2);
+      if(nm!==info.n)nm+='…';
+      g.fillText(nm,M+80,y);
+      y+=48;});
+    y+=8;}
+
+  if(cardOpt.canon){
+    const rows=layers.filter(x=>x.kind!=='candidate'&&x.total>0).map(x=>{
+      const got=(x.items||[]).filter(it=>stampsOf(keyOf(x,it)).length).length;
+      return got?{l:x.label,g:got,t:x.total,c:x.color}:null;}).filter(Boolean);
+    rows.slice(0,3).forEach(r=>{
+      g.fillStyle=r.c; g.beginPath(); g.arc(M+7,y-10,7,0,7); g.fill();
+      g.fillStyle=DIM; g.font='400 25px Archivo, sans-serif'; g.textAlign='left';
+      g.fillText(r.l,M+28,y);
+      g.fillStyle=INK; g.font='600 25px Archivo, sans-serif'; g.textAlign='right';
+      g.fillText(r.g+' / '+r.t,CARDW-M,y);
+      y+=42;});
+    if(rows.length)y+=6;}
+
+  if(cardOpt.stats){
+    /* 목록 카드면 그 목록의 숫자다. 이탈리아 세 곳짜리 카드 밑에
+       전체 여정의 1만 5천 km를 적으면 거짓말이 된다 */
+    let S;
+    if(L){
+      const cs={},vs=[];let visits=0;
+      L.items.forEach(k=>{const i=keyInfo(k); if(!i.it)return;
+        const c=i.it.c; if(c)cs[c]=1;
+        visits+=stampsOf(k).length;
+        vs.push({la:i.it.la,lo:i.it.lo});});
+      let d=0; for(let j=1;j<vs.length;j++)d+=greatKm(vs[j-1],vs[j]);
+      d=Math.round(d);
+      S=[[Object.keys(cs).length,'나라'],[L.items.length,'곳'],
+         [visits,'번'],[d>=1000?(d/1000).toFixed(1)+'천':String(d),'km']];
+    }else{
+      S=[[t.country.length,'나라'],[t.mine.length,'곳'],[t.vis.length,'번'],
+        [t.km>=1000?(t.km/1000).toFixed(1)+'천':String(t.km),'km']];}
+    const cw=(CARDW-M*2)/S.length;
+    S.forEach((s,i)=>{
+      g.textAlign='left';
+      g.fillStyle=INK; g.font='400 52px Newsreader, Georgia, serif';
+      g.fillText(String(s[0]),M+cw*i,y+18);
+      g.fillStyle=DIM; g.font='400 20px Archivo, sans-serif';
+      g.fillText(s[1],M+cw*i,y+48);});
+    y+=86;}
+
+  if(cardOpt.mark){
+    g.strokeStyle='rgba(27,23,20,.18)';
+    g.beginPath(); g.moveTo(M,CARDH-104); g.lineTo(CARDW-M,CARDH-104); g.stroke();
+    g.fillStyle=INK; g.font='400 30px Newsreader, Georgia, serif';
+    g.textAlign='left';
+    g.save(); g.translate(M,CARDH-56);
+    'ESTELA'.split('').forEach((ch,i)=>g.fillText(ch,i*25,0));
+    g.restore();
+    g.fillStyle=MUTE; g.font='400 19px Archivo, sans-serif'; g.textAlign='right';
+    g.fillText('내가 지나온 자리',CARDW-M,CARDH-56);}
+  return cv;}
 
 /* ══════════════════════════════════════════════════════════════════
    여정 (§5.3) — 도장은 사실, 여정선은 서사.
@@ -1765,6 +1951,7 @@ function paintJourney(){
   paintTree(mine);
   paintLists();
   paintTaste();
+  if($('cardsheet')&&$('cardsheet').classList.contains('on'))paintCardSheet();
   refreshTrail();
   const el=$('jstops');
   if(mine.length){
@@ -1828,6 +2015,55 @@ function paintJourney(){
   if(ob)ob.onclick=()=>{
     if(!confirm('자리를 잃은 기록을 영구히 지웁니다. 되돌릴 수 없습니다. 진행할까요?'))return;
     dropOrphans();paintJourney();paintMine();};}
+
+/* ══ 공유 카드 열기 ══ 무엇을 남길지는 선장님이 고른다 ══ */
+let cardBusy=false;
+function paintCardSheet(){
+  const el=$('cardsheet'); if(!el)return;
+  const opts=[['map','지도'],['rank','내 순위'],['canon','완주 숫자'],
+              ['stats','통계'],['mark','에스텔라 표시']];
+  el.innerHTML='<div class="cshd">공유 카드</div>'
+    +'<div class="cslists">'
+      +'<span class="cchip'+(cardOpt.list?'':' on')+'" data-c="">전체</span>'
+      +LISTS.map(l=>'<span class="cchip'+(cardOpt.list===l.id?' on':'')
+        +'" data-c="'+l.id+'">'+esc(l.n)+'</span>').join('')
+    +'</div>'
+    +'<div class="csopts">'+opts.map(o=>'<span class="cchip'
+      +(cardOpt[o[0]]?' on':'')+'" data-o="'+o[0]+'">'+o[1]+'</span>').join('')+'</div>'
+    +'<canvas id="cspv"></canvas>'
+    +'<div class="csbtns"><button id="csshare" class="primary">내보내기</button>'
+    +'<button id="csdl" class="quiet">그림으로 저장</button></div>'
+    +'<div class="cshint">인스타그램은 남의 앱이 글을 대신 올리지 못하게 막아 뒀습니다. '
+    +'대신 그림 한 장을 건네면 인스타든 메신저든 선장님이 고르시면 됩니다.</div>';
+  el.querySelectorAll('.cchip[data-c]').forEach(c=>c.onclick=()=>{
+    cardOpt.list=c.dataset.c; saveCardOpt(); paintCardSheet();});
+  el.querySelectorAll('.cchip[data-o]').forEach(c=>c.onclick=()=>{
+    cardOpt[c.dataset.o]=!cardOpt[c.dataset.o]; saveCardOpt(); paintCardSheet();});
+  /* 미리보기 — 실제 카드를 줄여서 그대로 보여준다. 나가는 그림과 다르면 안 된다 */
+  const cv=buildCard(), pv=$('cspv');
+  pv.width=CARDW/3; pv.height=CARDH/3;
+  pv.getContext('2d').drawImage(cv,0,0,pv.width,pv.height);
+  $('csdl').onclick=()=>cv.toBlob(b=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(b);
+    a.download='estela-'+(cardOpt.list&&listById(cardOpt.list)
+      ?listById(cardOpt.list).n.replace(/\s+/g,'-'):'미식')+'.png';
+    a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);});
+  $('csshare').onclick=()=>{
+    if(cardBusy)return; cardBusy=true;
+    cv.toBlob(async b=>{
+      const f=new File([b],'estela.png',{type:'image/png'});
+      try{
+        if(navigator.canShare&&navigator.canShare({files:[f]}))
+          await navigator.share({files:[f],title:'ESTELA'});
+        else $('csdl').click();
+      }catch(e){}
+      cardBusy=false;});};}
+function toggleCardSheet(){
+  const el=$('cardsheet');
+  const on=!el.classList.contains('on');
+  el.classList.toggle('on',on);
+  if(on)paintCardSheet();}
 
 /* ══ 내 미식 ══ 기록을 초상화로 ══
    전부 도장에서 계산해 낸다. 따로 저장하는 값이 없으니 도장과 어긋날 수가 없다.
@@ -2023,6 +2259,8 @@ function setJMode(m){
   if(m==='map')setTimeout(()=>map.resize(),60);}
 document.querySelectorAll('#jmode .jm').forEach(el=>
   el.onclick=()=>setJMode(el.dataset.m));
+$('cardbtn').onclick=toggleCardSheet;
+$('csclose').onclick=()=>$('cardsheet').classList.remove('on');
 
 /* ══ 부팅 ══ */
 map.on('load',async()=>{
