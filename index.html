@@ -37,9 +37,9 @@
     padding:7px 14px;border-radius:2px;white-space:nowrap;pointer-events:none;
     max-width:46vw;overflow:hidden;text-overflow:ellipsis}
   #hud .wm{font-family:var(--serif);font-size:14px;letter-spacing:3.4px;color:var(--ink)}
-  #note{position:fixed;bottom:10px;left:12px;right:12px;z-index:5;font:10px var(--sans);color:var(--dim)}
+  #note{position:fixed;bottom:58px;left:12px;right:12px;z-index:5;font:10px var(--sans);color:var(--dim)}
   /* ── 뷰 전환 바 ── */
-  #modebar{position:fixed;bottom:34px;left:50%;transform:translateX(-50%);z-index:6;display:flex;
+  #modebar{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:6;display:flex;
     background:rgba(255,255,255,.82);border:1px solid rgba(27,23,20,.20);
     padding:0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
   .mbtn{font:500 11.5px/1 var(--sans);letter-spacing:2px;color:var(--dim);
@@ -92,7 +92,7 @@
   #jpanel .sw.o{border-color:var(--olive)}
   #jpanel .sw.g{border-style:dashed;border-color:rgba(140,129,117,.7)}
   /* ── 레이어 패널 ── */
-  #layers{position:fixed;bottom:34px;left:12px;z-index:6;background:rgba(255,255,255,.86);
+  #layers{position:fixed;bottom:64px;left:12px;z-index:6;background:rgba(255,255,255,.86);
     border:1px solid var(--rule);padding:10px 12px;font:11px/1.5 var(--sans);color:var(--dim);
     backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);max-width:230px}
   #layers h4{margin:0 0 7px;font-size:9px;letter-spacing:2.2px;color:var(--mute);font-weight:600}
@@ -149,7 +149,7 @@
     padding:9px 16px;border-radius:2px;white-space:nowrap;pointer-events:none}
   #picking.on{display:block}
   /* 가까이 가면 묻기 — 도착을 알리는 게 아니라 도장을 권하는 것이다 */
-  #geoask{display:none;position:fixed;left:50%;bottom:76px;transform:translateX(-50%);
+  #geoask{display:none;position:fixed;left:50%;bottom:124px;transform:translateX(-50%);
     z-index:8;font:12px var(--sans);color:var(--ink);background:var(--card);
     border:1px solid var(--rule);box-shadow:0 10px 30px rgba(27,23,20,.16);
     padding:11px 14px;white-space:nowrap;display:none;align-items:center;gap:12px}
@@ -166,6 +166,11 @@
   .lrow.locked .ct{font-size:9px;letter-spacing:.4px}
   #layers .attrib{font-size:8.5px;color:var(--mute);margin-top:6px;line-height:1.5}
   @media (max-width:560px){#layers{display:none}}
+  @media (max-width:760px){
+    #portrait{max-width:none;right:14px;top:56px}
+    #pline{font-size:17px}
+    #jview{height:84vh}
+    #jwrap{padding:16px 14px 26px}}
   /* ══ 지도 ══ MapLibre 한 장이 구에서 골목까지 전부 그린다 */
   /* 지구본 캔버스만. 그냥 canvas로 걸면 MapLibre의 캔버스까지 잡혀
      z-index 1이 붙고, 그 위에 있어야 할 별들이 캔버스 밑으로 깔린다 */
@@ -174,28 +179,83 @@
      필터는 타일 캔버스에만 건다. 컨테이너에 걸면 그 위의 별까지 같이 바래버린다 */
   #street.on{opacity:1;pointer-events:auto}
   .maplibregl-ctrl-attrib{font:9px var(--sans)!important}
-  /* ══ 여정 화면 — 전체를 차지한다. 지구본은 뒤에서 계속 돈다 ══ */
-  #jview{position:fixed;inset:0;z-index:7;overflow:auto;
-    background:linear-gradient(180deg,rgba(242,238,230,.90),rgba(242,238,230,.97) 22%);
-    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
-    visibility:hidden;opacity:0;transform:translateY(14px);pointer-events:none;
-    transition:opacity .45s ease,transform .45s ease,visibility 0s .45s}
-  #jview.on{visibility:visible;opacity:1;transform:none;pointer-events:auto;
-    transition:opacity .45s ease,transform .45s ease}
-  #jwrap{max-width:1180px;margin:0 auto;padding:34px 22px 110px}
-  /* ══ 지도 보기 ══ 종이를 아래로 접고 지구본에 그려진 항적을 드러낸다 ══ */
-  #jview.mapmode{background:none;backdrop-filter:none;-webkit-backdrop-filter:none;
-    overflow:visible;top:auto;bottom:0;height:auto;pointer-events:none}
-  #jview.mapmode #jwrap{padding:14px 22px 84px;pointer-events:auto;
-    background:linear-gradient(180deg,rgba(242,238,230,0),rgba(242,238,230,.92) 46%)}
-  #jview.mapmode #jstage{display:none}
-  #jview.mapmode #jhead{border-bottom:0;margin-bottom:0;padding-bottom:4px}
-  #jview.mapmode #jhead .ttl{font-size:24px;letter-spacing:8px}
-  #jview.mapmode #jsum .st b{font-size:19px}
-  #jmode{display:flex;gap:0;border:1px solid var(--rule)}
-  #jmode .jm{font:11px var(--sans);letter-spacing:.08em;color:var(--dim);
-    padding:5px 13px;cursor:pointer;user-select:none}
-  #jmode .jm.on{background:var(--ink);color:var(--paper)}
+  /* ══ 집은 지구본이다 ══ 나머지는 아래에서 올라와 그 위에 얹힌다 ══
+     예전엔 「여정」이 찾아가는 화면이었고, 그래서 이 제품의 이름인 지구본이
+     여러 목적지 중 하나가 되어 있었다. 이제 찾아가는 곳은 없다 —
+     지구본은 늘 켜져 있는 바닥이고, 나머지는 서랍이다 */
+  #jview{position:fixed;left:0;right:0;bottom:0;z-index:7;height:76vh;
+    background:var(--paper);border-top:1px solid var(--rule);
+    box-shadow:0 -14px 40px rgba(27,23,20,.14);
+    transform:translateY(calc(100% - 52px));
+    transition:transform .42s cubic-bezier(.4,0,.2,1);
+    display:flex;flex-direction:column}
+  body.sheeton #jview{transform:translateY(0)}
+  #jtabs{flex:0 0 52px;display:flex;align-items:stretch;background:var(--card);
+    border-bottom:1px solid var(--rule);overflow-x:auto;overflow-y:hidden}
+  #jtabs .jm{flex:1 1 0;min-width:92px;text-align:center;font:11px var(--sans);
+    letter-spacing:.08em;color:var(--dim);padding:9px 10px;cursor:pointer;
+    user-select:none;white-space:nowrap;transition:color .25s,background .25s}
+  #jtabs .jm+.jm{border-left:1px solid var(--rule)}
+  #jtabs .jm.on{background:var(--ink);color:var(--paper);font-weight:600}
+  #jtabs .jm em{font-style:normal;display:block;font-size:8.5px;letter-spacing:.02em;
+    color:var(--mute);margin-top:3px}
+  #jtabs .jm.on em{color:rgba(242,238,230,.62)}
+  #jtabs #cardbtn{flex:0 0 auto;display:flex;align-items:center;
+    border-left:1px solid var(--rule)}
+  #jwrap{flex:1;overflow:auto;width:100%;padding:18px 22px 30px}
+  #jinner{max-width:1180px;margin:0 auto}
+  .jpane{display:none}.jpane.on{display:block}
+
+  /* ── 한 문장 ── 사람은 자기를 한 문장으로 요약한다 ── */
+  #portrait{position:fixed;top:74px;left:14px;z-index:6;max-width:min(600px,54vw);
+    pointer-events:none;transition:opacity .4s ease,transform .4s ease}
+  body.sheeton #portrait{opacity:0;transform:translateY(-8px)}
+  #pline{font-family:var(--serif);font-size:22px;line-height:1.42;font-weight:300;
+    margin:0;text-shadow:0 1px 12px var(--paper),0 1px 3px var(--paper)}
+  #pline b{font-weight:500;color:var(--wine)}
+  #pline i{font-style:normal;color:var(--olive);font-weight:500}
+  #portrait #jsum{margin-top:12px;gap:0;background:rgba(255,255,255,.62);
+    border:1px solid var(--rule);
+    backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+  #portrait #jsum .st{padding:8px 15px 7px}
+  #portrait #jsum .st+.st{border-left:1px solid var(--rule)}
+  #portrait #jsum .st b{font-size:21px}
+  /* 다녀온 곳과 가고 싶은 곳은 한눈에 갈려야 한다 */
+  .jlg{display:flex;gap:13px;margin-top:9px;padding-top:8px;
+    border-top:1px solid var(--rule);font-size:10px;color:var(--dim)}
+  .jlg span{display:flex;align-items:center;gap:5px}
+  .jlg i{width:9px;height:9px;border-radius:99px;flex:0 0 9px}
+  .jlg i.done{background:var(--wine)}
+  .jlg i.aim{border:1.5px dashed var(--wine)}
+
+  /* ── 스탬프 ── 타일은 그대로, 묶는 축만 바뀐다 ── */
+  .groupbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:16px}
+  .groupbar>span{font-size:9.5px;letter-spacing:1.5px;color:var(--mute);margin-right:2px}
+  .gchip{font-size:11px;color:var(--dim);border:1px solid var(--rule);padding:4px 11px;
+    cursor:pointer;background:var(--card);transition:.2s;user-select:none}
+  .gchip:hover{border-color:var(--mute)}
+  .gchip.on{background:var(--wine);border-color:var(--wine);color:var(--paper)}
+  .grp{margin-bottom:24px}
+  .grph{display:flex;align-items:baseline;gap:9px;padding-bottom:7px;margin-bottom:11px;
+    border-bottom:1px solid var(--rule)}
+  .grph b{font-family:var(--serif);font-size:17px;font-weight:400;color:var(--ink)}
+  .grph i{font-style:normal;font-size:10px;letter-spacing:1.4px;color:var(--mute)}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:10px}
+  .gtile{background:var(--card);border:1px solid var(--rule);padding:11px 12px 9px;
+    position:relative;cursor:pointer;transition:.2s;min-height:108px;
+    display:flex;flex-direction:column}
+  .gtile:hover{border-color:var(--mute);transform:translateY(-2px);
+    box-shadow:0 8px 18px rgba(27,23,20,.07)}
+  .gtile .gd{width:7px;height:7px;border-radius:99px;margin-bottom:7px}
+  .gtile .gn{font-family:var(--serif);font-size:14.5px;line-height:1.3;color:var(--ink)}
+  .gtile .gm{font-size:9.5px;color:var(--mute);margin-top:3px}
+  .gtile .gdish{font-family:var(--serif);font-style:italic;font-size:12px;
+    color:var(--wine);margin-top:7px}
+  .gtile .gf{margin-top:auto;padding-top:8px;display:flex;align-items:center;gap:4px}
+  .gtile .gv{width:5px;height:5px;border-radius:99px;background:var(--ink);opacity:.7}
+  .gtile .gp{margin-left:auto;font-size:8px;color:var(--mute);letter-spacing:1px}
+  .gtile .gx{position:absolute;right:9px;top:9px;font-size:8.5px;letter-spacing:.5px;
+    color:var(--mute);border:1px solid var(--rule);border-radius:99px;padding:1px 6px}
   #cardbtn{font:11px var(--sans);letter-spacing:.08em;color:var(--paper);
     background:var(--wine);padding:6px 14px;cursor:pointer;user-select:none}
   #cardbtn:hover{background:var(--ink)}
@@ -448,19 +508,26 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
 
 <div id="modebar">
   <span class="mbtn" id="btnhome">전체 보기</span>
-  <span class="mbtn" data-v="journey">여정</span>
+</div>
+
+<div id="portrait">
+  <p id="pline"></p>
+  <div id="jsum"></div>
 </div>
 
 <div id="jview">
-  <div id="jwrap">
-    <div id="jhead">
-      <div class="ttl">여정</div>
-      <div id="jsum"></div>
-      <div id="jmode">
-        <span class="jm on" data-m="map">지도</span><span class="jm" data-m="list">목록</span>
-      </div>
-      <span id="cardbtn">공유 카드</span>
+  <div id="jtabs">
+    <span class="jm on" data-m="globe">지구본<em>어디를 다녔나</em></span>
+    <span class="jm" data-m="grid">스탬프<em>무엇을 먹었나</em></span>
+    <span class="jm" data-m="list">내 기록<em>모아 보기</em></span>
+    <span id="cardbtn">공유 카드</span>
+  </div>
+  <div id="jwrap"><div id="jinner">
+    <div class="jpane" id="jpane-grid">
+      <div class="groupbar" id="gbar"><span>묶기</span></div>
+      <div id="jgrid"></div>
     </div>
+    <div class="jpane" id="jpane-list">
     <div id="jstage">
       <section class="jcol">
         <div class="colh">내 미식</div>
@@ -489,7 +556,8 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
         <div id="jbond"></div>
       </section>
     </div>
-  </div>
+    </div>
+  </div></div>
 </div>
 
 <div id="card"></div>
@@ -502,6 +570,8 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
       <div class="addhint">어디서든 주소나 좌표를 복사해 붙여넣으셔도 됩니다</div>
       <div id="addres"></div>
       <div class="attrib">검색 © OpenStreetMap contributors (ODbL)</div></div></div>
+  <div class="jlg"><span><i class="done"></i>다녀온 곳</span>
+    <span><i class="aim"></i>가고 싶은 곳</span></div>
   <div class="prov" id="lprov"></div></div>
 
 <div id="note">estela · 지도 MapLibre GL JS (BSD-3-Clause) · 타일 OpenFreeMap · OpenMapTiles · 검색 Nominatim — © OpenStreetMap contributors (ODbL) · 별 Wikidata (CC0) · 여정은 샘플 도시 좌표이며 가이드 데이터 없음</div>
@@ -1936,19 +2006,19 @@ function addJourneyLayers(){
       'circle-stroke-width':['case',['get','city'],2.6,2],'circle-stroke-opacity':0}});
   refreshTrail();}
 
-let jOn=false;
-function setJourney(on){
-  jOn=on;
-  $('jview').classList.toggle('on',on);
-  document.querySelector('[data-v="journey"]').classList.toggle('on',on);
+/* 항적을 그리는 일과 세상을 물리는 일은 다른 일이다. 예전엔 한 덩어리라
+   항적을 보려면 반드시 세상이 어두워졌다. 이제 항적은 늘 켜져 있고,
+   어두워지는 건 서랍을 열었을 때 — 그때는 정말 세상이 아니라 내 기록을 읽는 중이다 */
+function showTrail(on){
   const o=on?1:0;
   if(map.getLayer('jline')){
     map.setPaintProperty('jline','line-opacity',o*.9);
     map.setPaintProperty('jdot','circle-opacity',o);
     map.setPaintProperty('jdot','circle-stroke-opacity',o);
     map.setPaintProperty('jring','circle-stroke-opacity',o*.9);
-    map.setPaintProperty('jaim','circle-stroke-opacity',o*.85);}
-  /* 여정에서는 무대 조작 도구가 물러난다 — 지금은 세상이 아니라 내 기록을 읽는 중이다 */
+    map.setPaintProperty('jaim','circle-stroke-opacity',o*.85);}}
+
+function hushWorld(on){
   const lp=$('layers'); if(lp)lp.classList.toggle('hush',on);
   /* 별도 물러난다. 200개가 선 하나를 덮어서는 안 된다 */
   layers.forEach(L=>LSFX.forEach(sfx=>{
@@ -1972,8 +2042,7 @@ function setJourney(on){
     map.setPaintProperty(id,p,on?(id==='land'?.35:.18):
       (id==='land'?['interpolate',['linear'],['zoom'],5.5,1,8.5,0]
        :id==='coast'?['interpolate',['linear'],['zoom'],5.5,.55,8,0]
-       :['interpolate',['linear'],['zoom'],1,.85,5.5,.85,7.5,0]));});
-  if(on){setJMode('map');paintJourney();}}
+       :['interpolate',['linear'],['zoom'],1,.85,5.5,.85,7.5,0]));});}
 
 const rot=i=>(((i*2654435761)%1000)/1000*8-4).toFixed(2)+'deg';
 function myPlaces(){
@@ -2044,11 +2113,30 @@ function paintTree(mine){
   el.querySelectorAll('.tleaf').forEach(lf=>lf.onclick=()=>{
     const m=mine.find(x=>keyOf(x.L,x.it)===lf.dataset.k);
     if(!m)return;
-    setJourney(false);
+    setSheet('globe');
     map.easeTo({center:[m.it.lo,m.it.la],
       zoom:Math.max(map.getZoom(),m.L.grain==='city'?9.5:15),duration:1000});
     selectPlace(m.L,{n:m.it.n,ct:m.it.ct||'',c:m.it.c||'',q:m.it.q||m.it.n,
       y:m.it.y||'',sh:!!m.it.g});});}
+
+/* 한 문장 — 숫자는 사실이고, 문장은 그 사람이다 */
+function paintPortrait(){
+  const el=$('pline'); if(!el)return;
+  const t=tasteData();
+  if(!t.mine.length){
+    el.innerHTML='아직 도장이 없습니다 — 지금 지구본에 그어진 선은 <b>견본</b>입니다.'
+      +'<br>별을 누르고 도장을 찍으시면 여기가 선장님 이야기로 바뀝니다.';
+    return;}
+  const first=(t.years&&t.years[0])||'';
+  const kind=t.cuisine.length?t.cuisine[0][0]:'';
+  const city=t.city.length?t.city[0][0]:'';
+  el.innerHTML=(first?first+'년부터 ':'')
+    +t.country.length+'개 나라 '+t.city.length+'개 도시에서 <b>'+t.vis.length+'번</b> 드셨습니다.'
+    +(kind||city?'<br>'
+      +(kind?'<i>'+esc(kind)+'</i>으로 기울고':'')
+      +(kind&&city?', ':'')
+      +(city?'<i>'+esc(city)+'</i>에 가장 자주 돌아가십니다':'')
+      +'.':'');}
 
 function paintJourney(){
   const mine=myPlaces(),c=myCounts();
@@ -2060,6 +2148,8 @@ function paintJourney(){
   paintTree(mine);
   paintLists();
   paintTaste();
+  paintPortrait();
+  paintGrid();
   if($('cardsheet')&&$('cardsheet').classList.contains('on'))paintCardSheet();
   refreshTrail();
   const el=$('jstops');
@@ -2445,7 +2535,7 @@ function paintLists(){
   el.querySelectorAll('.lrow').forEach(r=>r.onclick=()=>{
     const info=keyInfo(r.dataset.k);
     if(!info.it)return;
-    setJourney(false);
+    setSheet('globe');
     map.easeTo({center:[info.it.lo,info.it.la],
       zoom:Math.max(map.getZoom(),info.L.grain==='city'?9.5:15),duration:900});
     selectPlace(info.L,{n:info.it.n,ct:info.it.ct||'',c:info.it.c||'',
@@ -2475,16 +2565,93 @@ const SAMPLE=(function(){
     +FLOATING.map((f,i)=>'<div class="stamp float" style="--r:'+rot(40+i)+';animation-delay:'+((6+i)*60)+'ms">'
       +'<span class="n">'+f[0]+'</span><span class="d">날짜 미상</span></div>').join('');})();
 
-document.querySelector('[data-v="journey"]').onclick=()=>setJourney(!jOn);
 
-/* 지도 / 목록 — 열면 지도가 먼저다. 셈한 표보다 지구에 그은 선을 먼저 보시라고 */
-function setJMode(m){
-  $('jview').classList.toggle('mapmode',m==='map');
-  document.querySelectorAll('#jmode .jm').forEach(el=>
+/* ══ 스탬프 ══ 타일 하나가 가게 하나 ══
+   갈래별 화면을 일곱 개 만드는 게 아니라, 격자 하나에 손잡이 하나를 단다.
+   묶는 축만 바뀌고 타일은 그대로다 — 만드는 값은 한 번, 보는 재미는 일곱 번 */
+const GAXES=[['k','갈래'],['c','나라'],['ct','도시'],['L','명단'],
+             ['y','해'],['p','가격대'],['none','묶지 않기']];
+let gAxis='k';
+function gKind(m){
+  const mine=noteOf(keyOf(m.L,m.it)).k;
+  if(mine)return mine;                       /* 다녀온 사람이 등기부보다 정확하다 */
+  const known=cuisineText(m.it.cu).split(' · ')[0];
+  return known||'';}                         /* 없으면 비워 둔다. 짐작하지 않는다 */
+function gKeys(m){
+  if(gAxis==='none')return['전체'];
+  if(gAxis==='L')return[m.L.label];
+  if(gAxis==='y')return[...new Set(m.st.map(v=>(v.d||'').slice(0,4)).filter(Boolean))];
+  if(gAxis==='p'){const p=noteOf(keyOf(m.L,m.it)).p;
+    return[p?PRICES[p-1]:'가격대 적기 전'];}
+  if(gAxis==='k')return[gKind(m)||'갈래 적기 전'];
+  if(gAxis==='c')return[countryOfStop(m)||'어디인지 모를 곳'];
+  return[cityOfStop(m)||'도시 미상'];}
+
+function gTile(m){
+  const k=keyOf(m.L,m.it),n=noteOf(k),times=m.st.length;
+  const place=[cityOfStop(m),countryOfStop(m)].filter(Boolean).join(' · ');
+  return '<div class="gtile" data-k="'+esc(k)+'" title="'
+      +esc(m.st.map(v=>v.d).join(' / '))+'">'
+    +'<div class="gd" style="background:'+m.L.color+'"></div>'
+    +(times>1?'<span class="gx">'+times+'번</span>':'')
+    +'<div class="gn">'+esc(m.it.n)+'</div>'
+    +(place?'<div class="gm">'+esc(place)+'</div>':'')
+    +(n.d?'<div class="gdish">'+esc(n.d)+'</div>':'')
+    +'<div class="gf">'+m.st.map(()=>'<i class="gv"></i>').join('')
+    +(n.p?'<span class="gp">'+'●'.repeat(n.p)+'○'.repeat(4-n.p)+'</span>':'')
+    +'</div></div>';}
+
+function paintGrid(){
+  const bar=$('gbar'),el=$('jgrid'); if(!el)return;
+  if(bar&&!bar.dataset.wired){
+    bar.insertAdjacentHTML('beforeend',GAXES.map(a=>'<span class="gchip'
+      +(a[0]===gAxis?' on':'')+'" data-a="'+a[0]+'">'+a[1]+'</span>').join(''));
+    bar.dataset.wired='1';
+    bar.addEventListener('click',e=>{const c=e.target.closest('.gchip'); if(!c)return;
+      gAxis=c.dataset.a;
+      bar.querySelectorAll('.gchip').forEach(x=>x.classList.toggle('on',x===c));
+      paintGrid();});}
+  const mine=myPlaces();
+  if(!mine.length){
+    el.innerHTML='<div class="hint">아직 도장이 없습니다. 지구본에서 별을 누르고 '
+      +'도장을 찍으시면 여기에 한 장씩 쌓입니다.</div>';return;}
+  const G={};
+  mine.forEach(m=>gKeys(m).forEach(k=>{(G[k]=G[k]||[]).push(m);}));
+  const cnt=a=>a.reduce((x,m)=>x+m.st.length,0);
+  /* 해와 가격대는 세는 순서가 아니라 제 순서가 있다 — 2025·2024·2026으로 늘어놓으면
+     연표가 아니라 순위표가 된다 */
+  const order=gAxis==='y'?(a,b)=>a<b?-1:1
+    :gAxis==='p'?(a,b)=>{const r=x=>PRICES.indexOf(x)<0?99:PRICES.indexOf(x);
+      return r(a)-r(b);}                     /* 적기 전은 맨 뒤로 */
+    :(a,b)=>cnt(G[b])-cnt(G[a]);
+  el.innerHTML=Object.keys(G).sort(order).map(k=>
+    '<div class="grp"><div class="grph"><b>'+esc(k)+'</b>'
+    +'<i>'+G[k].length+'곳 · '+cnt(G[k])+'번</i></div>'
+    +'<div class="tiles">'+G[k].map(gTile).join('')+'</div></div>').join('');
+  el.querySelectorAll('.gtile').forEach(t=>t.onclick=()=>{
+    const info=keyInfo(t.dataset.k); if(!info.it)return;
+    setSheet('globe');
+    map.easeTo({center:[info.it.lo,info.it.la],
+      zoom:Math.max(map.getZoom(),info.L.grain==='city'?9.5:15),duration:1000});
+    selectPlace(info.L,{n:info.it.n,ct:info.it.ct||'',c:info.it.c||'',
+      q:info.it.q||info.it.n,cu:info.it.cu||'',w:info.it.w||'',y:info.it.y||'',
+      yr:info.it.yr||'',sy:info.it.sy||'',sh:!!info.it.g});});}
+
+/* ══ 서랍 ══ 지구본을 고르면 내려간다. 지구본은 치워지지 않는다 ══ */
+let sheetMode='globe';
+function setSheet(m){
+  sheetMode=m;
+  const open=m!=='globe';
+  document.body.classList.toggle('sheeton',open);
+  document.querySelectorAll('#jtabs .jm').forEach(el=>
     el.classList.toggle('on',el.dataset.m===m));
-  if(m==='map')setTimeout(()=>map.resize(),60);}
-document.querySelectorAll('#jmode .jm').forEach(el=>
-  el.onclick=()=>setJMode(el.dataset.m));
+  document.querySelectorAll('.jpane').forEach(p=>
+    p.classList.toggle('on',p.id==='jpane-'+m));
+  hushWorld(open);
+  if(m==='grid')paintGrid();
+  setTimeout(()=>map.resize(),80);}
+document.querySelectorAll('#jtabs .jm').forEach(el=>
+  el.onclick=()=>setSheet(el.dataset.m));
 $('cardbtn').onclick=toggleCardSheet;
 $('recfile').onchange=e=>{if(e.target.files[0])importRecord(e.target.files[0]);
   e.target.value='';};
@@ -2505,6 +2672,7 @@ map.on('load',async()=>{
   fetch('data/places.json',{cache:'no-cache'}).then(r=>r.json())
     .then(d=>{GAZ=d.items;paintWhere();}).catch(()=>{});
   addJourneyLayers();
+  showTrail(true);            /* 집이 지구본이니, 항적은 모드가 아니라 기본이다 */
   wireAdd();paintPanel();paintMine();paintJourney();paintWhere();
   let wt=0;
   map.on('move',()=>{clearTimeout(wt);wt=setTimeout(paintWhere,120);});
@@ -2518,7 +2686,7 @@ map.on('load',async()=>{
 let fr=0,ft=performance.now();
 (function tick(t){fr++;if(t-ft>1000){$('fps').textContent=fr;fr=0;ft=t;}requestAnimationFrame(tick);})(performance.now());
 
-window.__dbg={map,layers,store,paintJourney,selectPlace,setJourney,
+window.__dbg={map,layers,store,paintJourney,selectPlace,setSheet,showTrail,
   levelName,myCounts,rebuildMine,keyOf,stampsOf,isSaved};
 </script>
 </body>
