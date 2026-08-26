@@ -280,6 +280,27 @@
   .lrow .lgrip{cursor:grab;letter-spacing:-2px}
   .lrow.dragging{opacity:.4}
   .lrow.over{box-shadow:inset 0 2px 0 var(--wine)}
+  /* ── 카드 안 · 내가 적는 것 ── 공용 기록과 눈으로 갈리게 ── */
+  #card .mynote{margin-top:10px;border-top:1px solid var(--rule);padding-top:8px}
+  #card .nkinds{margin-bottom:6px}
+  #card .nchip{display:inline-block;font-size:10px;color:var(--dim);
+    border:1px solid var(--rule);padding:2px 7px;margin:0 3px 3px 0;cursor:pointer}
+  #card .nchip:hover{border-color:var(--mute)}
+  #card .nchip.on{background:var(--olive);border-color:var(--olive);color:var(--paper)}
+  #card .nchip.free{border-style:dashed;color:var(--mute)}
+  #card .nrow{display:flex;align-items:center;gap:8px;font-size:10.5px;
+    color:var(--dim);padding:2px 0}
+  #card .nrow>span{flex:0 0 56px}
+  #card .nrow>b{font-weight:400;color:var(--ink);cursor:pointer}
+  #card .nedit{border-bottom:1px dashed var(--rule)}
+  #card .nedit:hover{border-bottom-color:var(--olive)}
+  #card .nprice{display:flex;align-items:center;gap:3px;cursor:default}
+  #card .np{font-style:normal;font-size:9px;color:rgba(140,129,117,.45);
+    cursor:pointer;line-height:1}
+  #card .np.on{color:var(--olive)}
+  #card .nprice i{font-style:normal;margin-left:6px;font-size:9.5px;color:var(--mute)}
+  .tdish{font-size:11px;line-height:1.7;color:var(--ink)}
+
   /* ── 카드 안의 목록 띠 ── */
   #card .mylists{margin-top:10px;border-top:1px solid var(--rule);padding-top:8px}
   #card .mlh{font-size:8.5px;letter-spacing:2px;color:var(--mute);
@@ -519,6 +540,26 @@ function placeAnswer(st,better){
     if(l){l.items.splice(st.lo,0,st.key);saveLists();}
     return true;}
   return false;}
+/* ══ 내가 적는 것 ══ 공용 기록과 섞지 않는다 ══
+   정부는 존재를, 업주는 자기 소개를, 가이드는 판단을 안다. 우리에게 업주는 오지 않고
+   가이드는 쓸 수 없다. 남은 넷째 출처가 다녀온 사람이다 —
+   거목한방순대국 앞에 서서 그게 순대국집인 걸 아는 사람은 선장님이다.
+   추측이 아니라 증언이므로, 요리를 짐작하지 않는다는 원칙과 어긋나지 않는다 */
+const NKEY='estela.notes.v1';
+let NOTES=(()=>{try{return JSON.parse(localStorage.getItem(NKEY))||{};}
+  catch(e){return {};}})();
+function saveNotes(){try{localStorage.setItem(NKEY,JSON.stringify(NOTES));}catch(e){}}
+const noteOf=k=>NOTES[k]||{};
+function setNote(k,f,v){
+  const n=NOTES[k]||(NOTES[k]={});
+  if(v===''||v===null||v===undefined)delete n[f]; else n[f]=v;
+  if(!Object.keys(n).length)delete NOTES[k];
+  saveNotes();}
+const KINDS=['한식','일식','중식','이탈리안','프렌치','아시안','양식',
+             '빵집','카페','바'];
+/* 통화가 나라마다 다르니 금액 대신 무게로 — 네 걸음이면 충분하다 */
+const PRICES=['가볍게','보통','특별한 날','큰맘 먹고'];
+
 /* 자리 옮기기 — 끌어다 놓거나, 위 칸과 다시 겨루거나 */
 function listMove(id,from,to){
   const l=listById(id);if(!l)return;
@@ -1459,6 +1500,39 @@ function paintCard(){
     +'<div class="prov">출처 '+esc((L.source||'').split('—')[0].split('(')[0].trim())
       +' · '+esc(L.license||'')+'<br>최종확인 '+esc(L.lastVerified||'—')
       +' · 우리가 평가하지 않습니다</div>';
+  /* 내가 적는 것 — 공용 기록 아래에, 내 것이라고 밝혀 두고 */
+  const mine=document.createElement('div');
+  mine.className='mynote';
+  const paintNote=()=>{
+    const n=noteOf(key);
+    /* 등기부나 정본이 이미 아는 갈래가 있으면 미리 골라 둔다 — 대개는 확인만 하면 된다 */
+    const known=cuisineText(p.cu).split(' · ')[0]||'';
+    mine.innerHTML='<div class="mlh">내가 적는 것</div>'
+      +'<div class="nkinds">'
+      +KINDS.map(k=>'<span class="nchip'+(n.k===k?' on':'')+'" data-k="'+k+'">'
+        +k+'</span>').join('')
+      +'<span class="nchip free'+(n.k&&KINDS.indexOf(n.k)<0?' on':'')+'">'
+      +(n.k&&KINDS.indexOf(n.k)<0?esc(n.k):'직접')+'</span></div>'
+      +'<div class="nrow"><span>대표 음식</span>'
+      +'<b class="nedit" data-f="d">'+(n.d?esc(n.d):'적어두기')+'</b></div>'
+      +'<div class="nrow"><span>가격대</span><b class="nprice">'
+      +PRICES.map((t,i)=>'<em class="np'+(n.p===i+1?' on':'')+'" data-p="'+(i+1)
+        +'" title="'+t+'">●</em>').join('')
+      +'<i>'+(n.p?PRICES[n.p-1]:(known?'':'—'))+'</i></b></div>';
+    mine.querySelectorAll('.nchip[data-k]').forEach(c=>c.onclick=()=>{
+      setNote(key,'k',noteOf(key).k===c.dataset.k?'':c.dataset.k);
+      paintNote();paintJourney();});
+    mine.querySelector('.nchip.free').onclick=()=>{
+      const v=prompt('무슨 집인가요?',noteOf(key).k||'');
+      if(v===null)return; setNote(key,'k',v.trim());paintNote();paintJourney();};
+    mine.querySelector('.nedit').onclick=()=>{
+      const v=prompt('대표 음식 — 뭘 드셨나요?',noteOf(key).d||'');
+      if(v===null)return; setNote(key,'d',v.trim());paintNote();paintJourney();};
+    mine.querySelectorAll('.np').forEach(e=>e.onclick=()=>{
+      const v=+e.dataset.p;
+      setNote(key,'p',noteOf(key).p===v?'':v);paintNote();paintJourney();});};
+  paintNote();
+
   /* 내 목록 — 이 집이 어느 목록에 들어 있나, 그리고 넣고 빼기 */
   const strip=document.createElement('div');
   strip.className='mylists';
@@ -1477,6 +1551,7 @@ function paintCard(){
       if(nm===null)return;
       const l=newList(nm); startDuel(l.id,key,paintStrip);};};
   paintStrip();
+  el.insertBefore(mine,el.querySelector('.prov'));
   el.insertBefore(strip,el.querySelector('.prov'));
 
   $('cx').onclick=closeCard;
@@ -2083,14 +2158,19 @@ function tasteData(){
     const n=m.st.length;
     const c=countryOfStop(m); if(c)country[c]=(country[c]||0)+n;
     const t=cityOfStop(m);    if(t)city[t]=(city[t]||0)+n;
-    cuisineText(m.it.cu).split(' · ').forEach(x=>{
+    /* 선장님이 적으신 갈래가 있으면 그게 먼저다. 등기부보다 다녀온 사람이 정확하다 */
+    const mineKind=noteOf(keyOf(m.L,m.it)).k;
+    if(mineKind)cuisine[mineKind]=(cuisine[mineKind]||0)+n;
+    else cuisineText(m.it.cu).split(' · ').forEach(x=>{
       x=x.trim(); if(x)cuisine[x]=(cuisine[x]||0)+n;});
     if(m.it.kind)kind[m.it.kind]=(kind[m.it.kind]||0)+n;});
   let km=0;
   for(let i=1;i<vis.length;i++)km+=greatKm(vis[i-1],vis[i]);
   const years=vis.map(v=>(v.d||'').slice(0,4)).filter(Boolean).sort();
   const top=o=>Object.keys(o).map(k=>[k,o[k]]).sort((a,b)=>b[1]-a[1]);
-  return {vis:vis,mine:mine,km:Math.round(km),
+  const dishes=[];
+  mine.forEach(m=>{const d=noteOf(keyOf(m.L,m.it)).d; if(d)dishes.push(d);});
+  return {vis:vis,mine:mine,km:Math.round(km),dishes:dishes,
     years:years.length?[years[0],years[years.length-1]]:null,
     cuisine:top(cuisine),country:top(country),city:top(city)};}
 
@@ -2142,7 +2222,10 @@ function paintTaste(){
     +'<div class="colh mt">어떤 요리로</div>'
     +(t.cuisine.length?bar(t.cuisine,'번')
       :'<div class="hint">요리 정보는 뉴욕과 일부 정본에만 있습니다. '
-       +'없는 곳은 비워 둡니다 — 추측해서 채우지 않습니다.</div>')
+       +'없는 곳은 비워 둡니다 — 추측해서 채우지 않습니다.<br>'
+       +'가게 카드에서 <b>내가 적는 것</b>에 한 번 눌러 두시면 여기가 채워집니다.</div>')
+    +(t.dishes.length?'<div class="colh mt">기억하는 음식</div>'
+       +'<div class="tdish">'+t.dishes.slice(0,8).map(esc).join(' · ')+'</div>':'')
     +(LISTS.filter(l=>l.items.length).length
       ?'<div class="colh mt">내 1위</div>'
        +LISTS.filter(l=>l.items.length).map(l=>
