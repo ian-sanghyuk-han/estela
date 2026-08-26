@@ -78,7 +78,7 @@ body.open .sheet{transform:translateY(0)}
 .chip:hover{border-color:var(--mute)}
 .chip.on{background:var(--wine);border-color:var(--wine);color:var(--paper)}
 
-/* ── 도장첩 ── */
+/* ── 스탬프 ── */
 .grp{margin-bottom:24px}
 .grph{display:flex;align-items:baseline;gap:9px;padding-bottom:7px;margin-bottom:11px;
   border-bottom:1px solid var(--rule)}
@@ -162,7 +162,7 @@ body.open .sheet{transform:translateY(0)}
 <div class="sheet" id="sheet">
   <div class="tabs" id="tabs">
     <div class="sb on" data-p="globe">지구본<em>어디를 다녔나</em></div>
-    <div class="sb" data-p="grid">도장첩<em>무엇을 먹었나</em></div>
+    <div class="sb" data-p="grid">스탬프<em>무엇을 먹었나</em></div>
     <div class="sb" data-p="time">세월<em>언제 다녔나</em></div>
     <div class="sb" data-p="board">명단판<em>얼마나 남았나</em></div>
   </div>
@@ -178,7 +178,7 @@ body.open .sheet{transform:translateY(0)}
     <div class="pane" id="p-time">
       <div class="molabels" id="molab"></div>
       <div id="time"></div>
-      <div class="hint">달을 누르면 도장첩이 그 달만 진하게 둡니다. 다시 누르면 풀립니다.</div>
+      <div class="hint">달을 누르면 스탬프가 그 달만 진하게 둡니다. 다시 누르면 풀립니다.</div>
     </div>
 
     <div class="pane" id="p-board">
@@ -269,7 +269,7 @@ document.querySelectorAll('.sb').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+b.dataset.p));
   document.body.classList.toggle('open',!globe);});
 
-/* ── 도장첩 ── 같은 타일, 묶는 축만 바꾼다 ── */
+/* ── 스탬프 ── 같은 타일, 묶는 축만 바꾼다 ── */
 const AX=[['k','갈래'],['c','나라'],['ct','도시'],['L','명단'],['yr','해'],['p','가격대'],['none','묶지 않기']];
 let axis='k', monthFilter='';
 $('gbar').innerHTML+=AX.map(a=>'<span class="chip'+(a[0]===axis?' on':'')
