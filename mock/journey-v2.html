@@ -1,0 +1,356 @@
+<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ESTELA — 여정 화면 견본</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Newsreader:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#F2EEE6;--card:#FFFFFF;--sand:#E4DED2;
+  --ink:#1B1714;--dim:#6B6259;--mute:#8C8175;--rule:rgba(27,23,20,.13);
+  --wine:#7A2233;--olive:#6E7355;
+  --serif:Newsreader,Georgia,serif;--sans:Archivo,'Helvetica Neue',sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:0 26px 90px}
+
+/* ── 견본 딱지 ── 지어낸 자료라는 걸 화면에서 지우지 않는다 ── */
+.mockbar{background:var(--ink);color:var(--paper);font-size:10.5px;letter-spacing:.08em;
+  padding:7px 26px;position:sticky;top:0;z-index:20}
+.mockbar b{font-weight:600;color:#E9C46A}
+
+/* ── ① 나는 어떤 사람인가 ── 열자마자 한 문장 ── */
+.top{padding:34px 0 20px}
+.brand{font-family:var(--serif);letter-spacing:5px;font-size:14px;color:var(--mute)}
+.line{font-family:var(--serif);font-size:31px;line-height:1.45;font-weight:300;
+  margin:12px 0 0;max-width:26em}
+.line b{font-weight:500;color:var(--wine)}
+.line i{font-style:normal;color:var(--olive);font-weight:500}
+.nums{display:flex;flex-wrap:wrap;gap:0;margin-top:24px;border-top:1px solid var(--rule);
+  border-bottom:1px solid var(--rule)}
+.num{flex:1 1 92px;padding:13px 0 12px}
+.num+.num{border-left:1px solid var(--rule);padding-left:16px}
+.num b{display:block;font-family:var(--serif);font-size:29px;font-weight:400;line-height:1}
+.num span{font-size:9px;letter-spacing:1.6px;color:var(--dim)}
+
+/* ── ② 무대 하나 ── 여섯 칸이 아니라 한 가지 ── */
+.stage{display:flex;gap:0;margin:26px 0 20px;border:1px solid var(--rule);width:max-content;
+  max-width:100%;overflow:auto;background:var(--card)}
+.sb{font-size:11.5px;letter-spacing:.1em;color:var(--dim);padding:11px 19px;cursor:pointer;
+  white-space:nowrap;transition:.25s}
+.sb+.sb{border-left:1px solid var(--rule)}
+.sb.on{background:var(--ink);color:var(--paper);font-weight:600}
+.sb em{font-style:normal;display:block;font-size:9px;letter-spacing:.04em;color:var(--mute);
+  margin-top:3px}
+.sb.on em{color:rgba(242,238,230,.62)}
+.pane{display:none}.pane.on{display:block}
+
+/* ── 묶기 막대 ── 같은 타일, 다른 묶음 ── */
+.groupbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:18px}
+.groupbar>span{font-size:9.5px;letter-spacing:1.5px;color:var(--mute);margin-right:2px}
+.chip{font-size:11px;color:var(--dim);border:1px solid var(--rule);padding:4px 11px;
+  cursor:pointer;background:var(--card);transition:.2s}
+.chip:hover{border-color:var(--mute)}
+.chip.on{background:var(--wine);border-color:var(--wine);color:var(--paper)}
+
+/* ── 도장첩 ── */
+.grp{margin-bottom:26px}
+.grph{display:flex;align-items:baseline;gap:9px;padding-bottom:7px;margin-bottom:11px;
+  border-bottom:1px solid var(--rule)}
+.grph b{font-family:var(--serif);font-size:18px;font-weight:400}
+.grph i{font-style:normal;font-size:10px;letter-spacing:1.4px;color:var(--mute)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(186px,1fr));gap:10px}
+.tile{background:var(--card);border:1px solid var(--rule);padding:11px 12px 9px;
+  position:relative;cursor:pointer;transition:.2s;min-height:112px;display:flex;
+  flex-direction:column}
+.tile:hover{border-color:var(--mute);transform:translateY(-2px);
+  box-shadow:0 8px 18px rgba(27,23,20,.07)}
+.tile.dim{opacity:.2}
+.tile .dot{width:7px;height:7px;border-radius:99px;margin-bottom:7px}
+.tile .nm{font-family:var(--serif);font-size:14.5px;line-height:1.3}
+.tile .mt{font-size:9.5px;color:var(--mute);margin-top:3px;letter-spacing:.03em}
+.tile .dish{font-family:var(--serif);font-style:italic;font-size:12px;color:var(--wine);
+  margin-top:7px}
+.tile .ft{margin-top:auto;padding-top:8px;display:flex;align-items:center;gap:4px}
+.vdot{width:5px;height:5px;border-radius:99px;background:var(--ink);opacity:.7}
+.tile .pr{margin-left:auto;font-size:8px;color:var(--mute);letter-spacing:1px}
+.tile .stampmark{position:absolute;right:9px;top:9px;font-size:8.5px;letter-spacing:.5px;
+  color:var(--mute);border:1px solid var(--rule);border-radius:99px;padding:1px 6px}
+
+/* ── 세월 ── */
+.yr{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--rule)}
+.yr>b{font-family:var(--serif);font-size:22px;font-weight:300;color:var(--mute);
+  flex:0 0 58px;line-height:1.2}
+.months{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;flex:1;max-width:760px}
+.mo{border:1px solid var(--rule);min-height:38px;padding:4px 3px;cursor:pointer;
+  display:flex;flex-wrap:wrap;align-content:flex-start;gap:3px;background:var(--card);
+  transition:.2s;position:relative}
+.mo:hover{border-color:var(--mute)}
+.mo.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.mo.empty{background:transparent;border-style:dashed;opacity:.5}
+.mo em{position:absolute;bottom:2px;right:4px;font-style:normal;font-size:7.5px;color:var(--mute)}
+.mdot{width:8px;height:8px;border-radius:99px}
+.molabels{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-left:70px;
+  font-size:8.5px;color:var(--mute);letter-spacing:.5px;padding-bottom:5px}
+.molabels span{text-align:center}
+
+/* ── 명단판 ── 우리만 그릴 수 있는 그림 ── */
+.board{margin-bottom:26px}
+.bh{display:flex;align-items:baseline;gap:9px;margin-bottom:9px}
+.bh b{font-size:11px;letter-spacing:1.6px;font-weight:600}
+.bh i{font-style:normal;font-family:var(--serif);font-size:19px;color:var(--ink)}
+.bh i s{text-decoration:none;color:var(--mute);font-size:13px}
+.cells{display:grid;grid-template-columns:repeat(auto-fill,12px);gap:4px}
+.cel{width:12px;height:12px;border:1px solid rgba(27,23,20,.16);border-radius:1px}
+.cel.got{border-color:transparent;transform:scale(1.14)}
+.cel.got:hover{outline:2px solid var(--ink);outline-offset:1px}
+.caption{font-size:10.5px;color:var(--dim);height:16px;margin-top:8px}
+.caption b{font-family:var(--serif);font-size:12.5px;color:var(--ink);font-weight:400}
+
+/* ── 지구본 자리 ── */
+.globebox{border:1px dashed var(--rule);height:400px;display:flex;align-items:center;
+  justify-content:center;text-align:center;color:var(--mute);font-size:12px;line-height:1.9;
+  background:radial-gradient(circle at 50% 46%,var(--sand) 0 38%,transparent 62%)}
+
+/* ── 서랍 ── 필요할 때만 ── */
+.drawer{margin-top:34px;border-top:1px solid var(--rule);padding-top:14px}
+.dtabs{display:flex;gap:16px;margin-bottom:12px}
+.dt{font-size:10.5px;letter-spacing:1.4px;color:var(--mute);cursor:pointer;padding-bottom:5px;
+  border-bottom:2px solid transparent}
+.dt.on{color:var(--ink);border-bottom-color:var(--wine)}
+.dpane{display:none;font-size:11.5px;color:var(--dim);line-height:1.8}.dpane.on{display:block}
+.hint{font-size:10.5px;color:var(--mute);line-height:1.75;margin-top:10px}
+.foot{margin-top:40px;font-size:10px;color:var(--mute);line-height:1.9;
+  border-top:1px solid var(--rule);padding-top:14px}
+.foot b{color:var(--dim)}
+@media(max-width:760px){
+  .wrap{padding:0 16px 70px}.line{font-size:23px}
+  .months{grid-template-columns:repeat(6,1fr)}.molabels{display:none}
+  .yr>b{flex:0 0 42px;font-size:18px}}
+</style></head><body>
+
+<div class="mockbar"><b>견본</b> — 화면 구성을 보시려고 지어낸 기록입니다. 실제 도장이 아닙니다. 명단(140곳·60도시)만 진짜 자료입니다.</div>
+
+<div class="wrap">
+
+<div class="top">
+  <div class="brand">E S T E L A</div>
+  <p class="line" id="line"></p>
+  <div class="nums" id="nums"></div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="sb on" data-p="grid">도장첩<em>무엇을 먹었나</em></div>
+  <div class="sb" data-p="time">세월<em>언제 다녔나</em></div>
+  <div class="sb" data-p="board">명단판<em>얼마나 남았나</em></div>
+  <div class="sb" data-p="globe">지구본<em>어디를 다녔나</em></div>
+</div>
+
+<div class="pane on" id="p-grid">
+  <div class="groupbar" id="gbar"><span>묶기</span></div>
+  <div id="grid"></div>
+</div>
+
+<div class="pane" id="p-time">
+  <div class="molabels" id="molab"></div>
+  <div id="time"></div>
+  <div class="hint">달을 누르면 도장첩이 그 달만 진하게 둡니다. 다시 누르면 풀립니다.</div>
+</div>
+
+<div class="pane" id="p-board">
+  <div id="board"></div>
+  <div class="hint">칸 하나가 명단의 한 곳입니다. 채워진 칸이 다녀오신 곳입니다.
+    이 그림은 명단이 유한해야만 그릴 수 있습니다 — Beli에는 분모가 없어 못 그립니다.</div>
+</div>
+
+<div class="pane" id="p-globe">
+  <div class="globebox">지금 쓰고 계신 지구본이 이 자리에 그대로 들어옵니다.<br>
+    다른 화면에서 무엇을 고르시든 지구본이 따라 움직입니다.</div>
+</div>
+
+<div class="drawer">
+  <div class="dtabs" id="dtabs">
+    <div class="dt on" data-d="lists">내 목록</div>
+    <div class="dt" data-d="want">가고 싶은 곳</div>
+    <div class="dt" data-d="bond">함께</div>
+  </div>
+  <div class="dpane on" id="d-lists">내 빵집 지도 · 내 순대국 지도 · 내 탕수육 지도 — 순위와 함께.
+    <span class="hint">(지금 화면의 「내 목록」이 그대로 여기로 들어옵니다)</span></div>
+  <div class="dpane" id="d-want">저장해 두신 곳. 도시별로 접힙니다.</div>
+  <div class="dpane" id="d-bond">같은 곳을 다녀온 지인. 서버가 생긴 뒤의 이야기입니다.</div>
+</div>
+
+<div class="foot">
+  여섯 칸을 한 무대로 모았습니다. 위는 <b>내가 어떤 사람인가</b>, 가운데는 <b>한 번에 하나</b>,
+  아래는 <b>필요할 때 여는 서랍</b>입니다.<br>
+  도장첩·세월·명단판·지구본은 같은 도장을 네 가지로 본 것뿐이라, 기록이 늘어나도 화면은 늘지 않습니다.
+</div>
+</div>
+
+<script>
+/* 견본 자료 — 실제 기록이 아니다. 화면이 어떻게 숨 쉬는지 보이려는 목적뿐 */
+const C={mich:'#7A2233',un:'#6E7355',fine:'#8C8175',mine:'#1B1714'};
+const LN={mich:'MICHELIN 3스타',un:'유네스코 미식 창의도시',fine:'파인다이닝',mine:'내 장소'};
+const S=[
+ {n:'Osteria Francescana',ct:'Modena',c:'Italy',L:'mich',k:'이탈리안',d:'토르텔리니 인 브로도',p:4,la:44.644,lo:10.922,v:['2024-09','2025-05']},
+ {n:'Le Bernardin',ct:'New York',c:'United States',L:'mich',k:'프렌치',d:'참치 카르파초',p:4,la:40.762,lo:-73.982,v:['2026-01']},
+ {n:'Mirazur',ct:'Menton',c:'France',L:'mich',k:'프렌치',d:'정원 채소 코스',p:4,la:43.790,lo:7.525,v:['2025-06']},
+ {n:'Disfrutar',ct:'Barcelona',c:'Spain',L:'mich',k:'양식',d:'마카로니 카르보나라',p:4,la:41.386,lo:2.153,v:['2025-06']},
+ {n:'Central',ct:'Lima',c:'Peru',L:'mich',k:'아시안',d:'고산지대 코스',p:4,la:-12.133,lo:-77.023,v:['2023-11']},
+ {n:'Sushi Saito',ct:'Tokyo',c:'Japan',L:'mich',k:'일식',d:'참치 아카미',p:4,la:35.665,lo:139.736,v:['2024-03','2025-11']},
+ {n:'Den',ct:'Tokyo',c:'Japan',L:'fine',k:'일식',d:'덴타키 프라이드치킨',p:3,la:35.679,lo:139.728,v:['2025-11']},
+ {n:'Frantzén',ct:'Stockholm',c:'Sweden',L:'mich',k:'양식',d:'프렌치 토스트',p:4,la:59.338,lo:18.064,v:['2024-06']},
+ {n:'Geranium',ct:'Copenhagen',c:'Denmark',L:'mich',k:'양식',d:'해산물 타르트',p:4,la:55.703,lo:12.572,v:['2024-06']},
+ {n:'Asador Etxebarri',ct:'Atxondo',c:'Spain',L:'fine',k:'양식',d:'숯불 새우',p:4,la:43.100,lo:-2.600,v:['2025-06']},
+ {n:'Septime',ct:'Paris',c:'France',L:'fine',k:'프렌치',d:'양고기',p:3,la:48.853,lo:2.382,v:['2025-06']},
+ {n:'Du Pain et des Idées',ct:'Paris',c:'France',L:'fine',k:'빵집',d:'에스카르고 피스타치오',p:1,la:48.869,lo:2.363,v:['2025-06','2025-06']},
+ {n:'Poilâne',ct:'Paris',c:'France',L:'mine',k:'빵집',d:'미슈 한 조각',p:1,la:48.851,lo:2.329,v:['2025-06']},
+ {n:'St. JOHN',ct:'London',c:'United Kingdom',L:'fine',k:'양식',d:'골수구이와 파슬리 샐러드',p:3,la:51.520,lo:-0.100,v:['2024-02']},
+ {n:'Tim Ho Wan',ct:'Hong Kong',c:'Hong Kong',L:'fine',k:'중식',d:'차슈바오',p:1,la:22.305,lo:114.172,v:['2023-04','2026-02']},
+ {n:'Lung King Heen',ct:'Hong Kong',c:'Hong Kong',L:'mich',k:'중식',d:'하가우',p:4,la:22.287,lo:114.159,v:['2023-04']},
+ {n:'밍글스',ct:'Seoul',c:'South Korea',L:'mich',k:'한식',d:'장 세 가지 디저트',p:3,la:37.524,lo:127.040,v:['2025-03']},
+ {n:'거목한방순대국',ct:'Seoul',c:'South Korea',L:'mine',k:'한식',d:'순대국 특',p:1,la:37.501,lo:127.027,v:['2025-01','2025-08','2026-02','2026-06']},
+ {n:'성심당',ct:'Daejeon',c:'South Korea',L:'mine',k:'빵집',d:'튀김소보로',p:1,la:36.328,lo:127.427,v:['2025-10','2026-04']},
+ {n:'동원집',ct:'Seoul',c:'South Korea',L:'mine',k:'한식',d:'양곰탕',p:2,la:37.570,lo:126.985,v:['2026-06']},
+ {n:'하동관',ct:'Seoul',c:'South Korea',L:'mine',k:'한식',d:'곰탕 특',p:2,la:37.566,lo:126.983,v:['2024-12','2026-03']},
+ {n:'취천루',ct:'Seoul',c:'South Korea',L:'mine',k:'중식',d:'탕수육',p:2,la:37.545,lo:127.045,v:['2025-09']},
+ {n:'Odette',ct:'Singapore',c:'Singapore',L:'mich',k:'프렌치',d:'노르망디 브라운 크랩',p:4,la:1.290,lo:103.851,v:['2023-04']},
+ {n:'한국집',ct:'Jeonju',c:'South Korea',L:'mine',k:'한식',d:'전주비빔밥',p:2,la:35.815,lo:127.153,v:['2024-05']},
+ {n:'초당할머니순두부',ct:'Gangneung',c:'South Korea',L:'mine',k:'한식',d:'순두부 백반',p:1,la:37.796,lo:128.898,v:['2025-07','2026-05']},
+ {n:'Trattoria Ai Due Platani',ct:'Parma',c:'Italy',L:'fine',k:'이탈리안',d:'토르텔리 디 주카',p:2,la:44.775,lo:10.353,v:['2025-05']},
+ {n:'Maido',ct:'Lima',c:'Peru',L:'fine',k:'아시안',d:'니케이 코스',p:4,la:-12.122,lo:-77.030,v:['2023-11']}
+];
+const PR=['가볍게','보통','특별한 날','큰맘 먹고'];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=i=>document.getElementById(i);
+
+/* 한 문장 — 사람은 자기를 한 문장으로 요약한다 */
+function totalKm(){
+  const v=[];
+  S.forEach(s=>s.v.forEach(d=>v.push({d:d,la:s.la,lo:s.lo})));
+  v.sort((a,b)=>a.d<b.d?-1:1);
+  const R=6371,r=Math.PI/180;
+  let k=0;
+  for(let i=1;i<v.length;i++){
+    const a=v[i-1],b=v[i];
+    const x=Math.sin((b.la-a.la)*r/2)**2
+      +Math.cos(a.la*r)*Math.cos(b.la*r)*Math.sin((b.lo-a.lo)*r/2)**2;
+    k+=2*R*Math.asin(Math.min(1,Math.sqrt(x)));}
+  return Math.round(k);}
+const visits=S.reduce((a,s)=>a+s.v.length,0);
+const countries=[...new Set(S.map(s=>s.c))];
+const cities=[...new Set(S.map(s=>s.ct))];
+const topBy=f=>{const o={};S.forEach(s=>o[f(s)]=(o[f(s)]||0)+s.v.length);
+  return Object.keys(o).sort((a,b)=>o[b]-o[a])[0];};
+const years=[...new Set(S.flatMap(s=>s.v.map(d=>d.slice(0,4))))].sort();
+const KM=totalKm();
+$('line').innerHTML=years[0]+'년부터 '+countries.length+'개 나라 '+cities.length
+  +'개 도시에서 <b>'+visits+'번</b> 드셨습니다.<br><i>'+esc(topBy(s=>s.k))
+  +'</i>으로 기울고, <i>'+esc(topBy(s=>s.ct))+'</i>에 가장 자주 돌아가십니다.';
+$('nums').innerHTML=[[countries.length,'나라'],[cities.length,'도시'],[S.length,'곳'],
+  [visits,'번'],[(KM/1000).toFixed(1)+'천','km'],
+  [years[0].slice(2)+'–'+years[years.length-1].slice(2),'해']]
+  .map(n=>'<div class="num"><b>'+n[0]+'</b><span>'+n[1]+'</span></div>').join('');
+
+/* 무대 바꾸기 */
+document.querySelectorAll('.sb').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.sb').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+b.dataset.p));});
+document.querySelectorAll('.dt').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.dt').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.dpane').forEach(p=>p.classList.toggle('on',p.id==='d-'+b.dataset.d));});
+
+/* ── 도장첩 ── 같은 타일, 묶는 축만 바꾼다 ── */
+const AX=[['k','갈래'],['c','나라'],['ct','도시'],['L','명단'],['yr','해'],['p','가격대'],['none','묶지 않기']];
+let axis='k', monthFilter='';
+$('gbar').innerHTML+=AX.map(a=>'<span class="chip'+(a[0]===axis?' on':'')
+  +'" data-a="'+a[0]+'">'+a[1]+'</span>').join('');
+$('gbar').addEventListener('click',e=>{
+  const c=e.target.closest('.chip'); if(!c)return;
+  axis=c.dataset.a;
+  $('gbar').querySelectorAll('.chip').forEach(x=>x.classList.toggle('on',x===c));
+  paintGrid();});
+
+function keysOf(s){
+  if(axis==='none')return['전체'];
+  if(axis==='yr')return[...new Set(s.v.map(d=>d.slice(0,4)))];
+  if(axis==='L')return[LN[s.L]];
+  if(axis==='p')return[PR[s.p-1]];
+  return [s[axis]];}
+
+function tileHTML(s){
+  const dim=monthFilter&&s.v.indexOf(monthFilter)<0?' dim':'';
+  return '<div class="tile'+dim+'" title="'+esc(s.n)+'">'
+    +'<div class="dot" style="background:'+C[s.L]+'"></div>'
+    +(s.v.length>1?'<span class="stampmark">'+s.v.length+'번</span>':'')
+    +'<div class="nm">'+esc(s.n)+'</div>'
+    +'<div class="mt">'+esc(s.ct)+' · '+esc(s.c)+'</div>'
+    +(s.d?'<div class="dish">'+esc(s.d)+'</div>':'')
+    +'<div class="ft">'+s.v.map(()=>'<i class="vdot"></i>').join('')
+    +'<span class="pr">'+'●'.repeat(s.p)+'○'.repeat(4-s.p)+'</span></div></div>';}
+
+function paintGrid(){
+  const G={};
+  S.forEach(s=>keysOf(s).forEach(k=>{(G[k]=G[k]||[]).push(s);}));
+  const n=arr=>arr.reduce((x,s)=>x+s.v.length,0);
+  const order=Object.keys(G).sort((a,b)=>n(G[b])-n(G[a]));
+  $('grid').innerHTML=order.map(k=>
+    '<div class="grp"><div class="grph"><b>'+esc(k)+'</b>'
+      +'<i>'+G[k].length+'곳 · '+n(G[k])+'번</i></div>'
+      +'<div class="tiles">'+G[k].map(tileHTML).join('')+'</div></div>').join('')
+    +(monthFilter?'<div class="hint">'+monthFilter.replace('-','년 ')
+      +'월만 진하게 두었습니다. 「세월」에서 그 달을 다시 누르면 풀립니다.</div>':'');}
+paintGrid();
+
+/* ── 세월 ── 지도가 못 그리는 축 ── */
+const MO=['1','2','3','4','5','6','7','8','9','10','11','12'];
+$('molab').innerHTML=MO.map(m=>'<span>'+m+'</span>').join('');
+function paintTime(){
+  const by={};
+  S.forEach(s=>s.v.forEach(d=>{(by[d]=by[d]||[]).push(s);}));
+  $('time').innerHTML=years.map(y=>
+    '<div class="yr"><b>'+y+'</b><div class="months">'
+    +MO.map((_,i)=>{
+        const key=y+'-'+String(i+1).padStart(2,'0');
+        const hits=by[key]||[];
+        return '<div class="mo'+(hits.length?'':' empty')+(monthFilter===key?' on':'')
+          +'" data-m="'+key+'" title="'+esc(hits.map(h=>h.n).join(', '))+'">'
+          +hits.map(h=>'<i class="mdot" style="background:'+C[h.L]+'"></i>').join('')
+          +(hits.length?'<em>'+hits.length+'</em>':'')+'</div>';}).join('')
+    +'</div></div>').join('');
+  $('time').querySelectorAll('.mo').forEach(el=>el.onclick=()=>{
+    monthFilter=monthFilter===el.dataset.m?'':el.dataset.m;
+    paintTime();paintGrid();});}
+paintTime();
+
+/* ── 명단판 ── 분모가 있어야 그릴 수 있는 그림 ── */
+Promise.all([
+  fetch('../data/michelin-3star.json').then(r=>r.json()).catch(()=>null),
+  fetch('../data/unesco-gastronomy.json').then(r=>r.json()).catch(()=>null)
+]).then(function(res){
+  const arr=x=>!x?[]:(Array.isArray(x)?x:(x.items||[]));
+  const boards=[
+    {k:'mich',label:'MICHELIN 3스타',items:arr(res[0])},
+    {k:'un',label:'유네스코 미식 창의도시',items:arr(res[1])}];
+  const gotName=new Set(S.map(s=>s.n));
+  const gotCity=new Set(S.map(s=>s.ct));
+  $('board').innerHTML=boards.map((b,bi)=>{
+    let got=0;
+    const cells=b.items.map(it=>{
+      const nm=it.n||'';
+      const hit=b.k==='mich'?gotName.has(nm):gotCity.has(nm);
+      if(hit)got++;
+      return '<div class="cel'+(hit?' got':'')+'" style="'+(hit?'background:'+C[b.k]:'')
+        +'" data-n="'+esc(nm)+'" data-b="'+bi+'"></div>';}).join('');
+    return '<div class="board"><div class="bh"><span style="width:8px;height:8px;'
+      +'border-radius:99px;background:'+C[b.k]+';display:inline-block"></span>'
+      +'<b>'+b.label+'</b><i>'+got+' <s>/ '+b.items.length+'</s></i></div>'
+      +'<div class="cells">'+cells+'</div>'
+      +'<div class="caption" id="cap'+bi+'"></div></div>';}).join('');
+  $('board').querySelectorAll('.cel').forEach(c=>{
+    c.onmouseenter=()=>{$('cap'+c.dataset.b).innerHTML=
+      (c.classList.contains('got')?'다녀오신 곳 — ':'')+'<b>'+c.dataset.n+'</b>';};
+    c.onmouseleave=()=>{$('cap'+c.dataset.b).innerHTML='';};});
+});
+</script>
+</body></html>
