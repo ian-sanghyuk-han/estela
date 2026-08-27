@@ -60,7 +60,8 @@
   #jpanel .tag{font-size:8.5px;letter-spacing:1.6px;font-weight:600;color:var(--card);
     background:var(--mute);padding:3px 8px}
   /* 도장판 */
-  #jstops{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  #jstops{display:grid;grid-template-columns:repeat(auto-fill,minmax(0,132px));
+    gap:12px;justify-content:start}
   .stamp{aspect-ratio:1;border:1.5px solid var(--wine);color:var(--wine);
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
     text-align:center;transform:rotate(var(--r));transform-origin:50% 50%}
@@ -202,7 +203,9 @@
   #jtabs .jm.on em{color:rgba(242,238,230,.62)}
   #jtabs #cardbtn{flex:0 0 auto;display:flex;align-items:center;
     border-left:1px solid var(--rule)}
-  #jwrap{flex:1;overflow:auto;width:100%;padding:18px 22px 30px}
+  /* 이 CSS엔 전역 box-sizing이 없다. width:100%에 좌우 여백을 더하면
+     서랍이 창보다 넓어져서 오른쪽 끝이 잘렸다 */
+  #jwrap{flex:1;overflow:auto;width:100%;box-sizing:border-box;padding:18px 22px 30px}
   #jinner{max-width:1180px;margin:0 auto}
   .jpane{display:none}.jpane.on{display:block}
 
@@ -265,6 +268,18 @@
   .bcap{font-size:10.5px;color:var(--dim);min-height:17px;margin-top:9px}
   .bcap b{font-family:var(--serif);font-size:12.5px;color:var(--ink);font-weight:400}
   .bcap em{font-style:normal;color:var(--wine)}
+  /* 진행률 칸이 넘겨 준 것 — 판이 못 하던 유일한 일 */
+  .bcty{margin-top:11px;max-width:560px}
+  .bcty .crow{display:flex;align-items:center;gap:9px;font-size:10.5px;
+    color:var(--dim);padding:2px 0}
+  .bcty .crow>span{flex:0 0 132px;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap}
+  .bcty .crow i{flex:1;height:3px;border-radius:2px}
+  .bcty .crow b{flex:0 0 52px;text-align:right;color:var(--ink);font-weight:600;
+    font-size:10px}
+  .bcty .crow.next{color:var(--mute);padding-top:5px}
+  .bcty .crow.next>span{flex:0 0 132px}
+  .bcty .crow.next b{flex:1;text-align:left;font-weight:400;color:var(--mute)}
 
   /* ── 스탬프 ── 타일은 그대로, 묶는 축만 바뀐다 ── */
   .groupbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:16px}
@@ -273,6 +288,12 @@
     cursor:pointer;background:var(--card);transition:.2s;user-select:none}
   .gchip:hover{border-color:var(--mute)}
   .gchip.on{background:var(--wine);border-color:var(--wine);color:var(--paper)}
+  .groupbar.wall .gchip,.groupbar.wall>span:first-child{display:none}
+  .viewsw{order:9;margin-left:auto;display:flex;border:1px solid var(--rule)}
+  .vsw{font-size:10.5px;color:var(--dim);padding:4px 12px;cursor:pointer;
+    user-select:none;background:var(--card)}
+  .vsw+.vsw{border-left:1px solid var(--rule)}
+  .vsw.on{background:var(--ink);color:var(--paper)}
   .grp{margin-bottom:24px}
   .grph{display:flex;align-items:baseline;gap:9px;padding-bottom:7px;margin-bottom:11px;
     border-bottom:1px solid var(--rule)}
@@ -336,9 +357,8 @@
   /* 다섯 칸 — 내 목록 · 다녀온 곳 · 여권 · 진행률 · 함께.
      좁아지면 셋, 더 좁으면 둘, 휴대폰에서는 하나 */
   #jstage{display:grid;
-    grid-template-columns:minmax(210px,1fr) minmax(190px,.9fr) minmax(190px,.9fr)
-      minmax(250px,1.2fr) minmax(180px,.85fr) minmax(165px,.78fr);
-    gap:26px 26px;align-items:start}
+    grid-template-columns:minmax(260px,1.5fr) minmax(190px,.9fr) minmax(190px,.9fr);
+    gap:26px 30px;align-items:start}
   @media (max-width:1600px){
     #jstage{grid-template-columns:repeat(3,minmax(220px,1fr))}}
   @media (max-width:1080px){
@@ -526,7 +546,6 @@
   @media (max-width:560px){
     #jpanel{width:auto;left:12px;right:12px;top:auto;bottom:86px;transform:translateY(6px)}
     #jpanel.on{transform:none}
-    #jstops{grid-template-columns:repeat(4,minmax(0,1fr))}
     #where{font-size:11px;padding:5px 10px;max-width:56vw}
     #hud{font-size:10px;padding:6px 10px}
     .mbtn{padding:12px 16px}
@@ -560,13 +579,19 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
     <span class="jm" data-m="grid">스탬프<em>무엇을 먹었나</em></span>
     <span class="jm" data-m="time">세월<em>언제 다녔나</em></span>
     <span class="jm" data-m="board">명단판<em>얼마나 남았나</em></span>
-    <span class="jm" data-m="list">내 기록<em>모아 보기</em></span>
+    <span class="jm" data-m="list">내 목록<em>내가 세운 순위</em></span>
     <span id="cardbtn">공유 카드</span>
   </div>
   <div id="jwrap"><div id="jinner">
     <div class="jpane" id="jpane-grid">
-      <div class="groupbar" id="gbar"><span>묶기</span></div>
+      <div class="groupbar" id="gbar"><span>묶기</span>
+        <span class="viewsw"><span class="vsw on" data-w="tile">타일</span
+          ><span class="vsw" data-w="stamp">도장</span></span>
+      </div>
       <div id="jgrid"></div>
+      <div id="jstops"></div>
+      <div id="jsample">아직 도장이 없어 <b>샘플</b>이 서 있습니다. 지구본에서 별을 눌러
+        첫 도장을 찍으면 이 자리는 선장님 기록으로 바뀝니다.</div>
     </div>
     <div class="jpane" id="jpane-time">
       <div class="molabels" id="jmolab"></div>
@@ -578,30 +603,21 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
     <div class="jpane" id="jpane-list">
     <div id="jstage">
       <section class="jcol">
-        <div class="colh">내 미식</div>
-        <div id="jtaste"></div>
-      </section>
-      <section class="jcol">
-        <div class="colh">내 목록</div>
+        <div class="colh">내가 세운 순위</div>
         <div id="jlists"></div>
       </section>
       <section class="jcol">
-        <div class="colh">다녀온 곳</div>
-        <div id="jtree"></div>
-      </section>
-      <section class="jcol">
-        <div class="colh">여권</div>
-        <div id="jstops"></div>
-        <div id="jsample">아직 도장이 없어 <b>샘플</b>이 서 있습니다. 지구본에서 별을 눌러
-          첫 도장을 찍으면 이 자리는 선장님 기록으로 바뀝니다.</div>
-      </section>
-      <section class="jcol">
-        <div class="colh">진행률</div>
-        <div id="jprog"></div>
+        <div class="colh">가고 싶은 곳</div>
+        <div id="jwant"></div>
       </section>
       <section class="jcol">
         <div class="colh">함께 — bond</div>
         <div id="jbond"></div>
+        <div class="colh mt">기록 옮기기</div>
+        <div class="hint">계정이 생기기 전까지는 이 브라우저 안에만 있습니다.
+          파일로 내보내 두시면 폰과 노트북을 오갈 수 있고, 자료를 지워도 되살릴 수 있습니다.</div>
+        <div class="recbtns"><span id="recout">내보내기</span>
+          <span id="recin">불러오기</span></div>
       </section>
     </div>
     </div>
@@ -2100,11 +2116,8 @@ function myPlaces(){
   out.sort((a,b)=>{const x=a.st[a.st.length-1].d,y=b.st[b.st.length-1].d;return x<y?-1:x>y?1:0;});
   return out;}
 
-/* ══ 다녀온 곳 ══ 나라 → 도시 → 가게 ══
-   여권 벽이 느낌이라면 이건 읽는 쪽이다. 잎을 누르면 지도가 그 자리로 날아가고
-   카드가 열린다. 도시나 나라가 비어 있는 항목은 우리가 이미 들고 있는
-   지명 사전과 나라 도형에서 메운다 — 빈칸으로 두면 기록이 아니라 구멍이 된다 */
-const jOpen=new Set();
+/* 도시나 나라가 비어 있는 항목은 우리가 이미 들고 있는 지명 사전과 나라 도형에서
+   메운다 — 빈칸으로 두면 기록이 아니라 구멍이 된다 */
 function cityOfStop(m){
   if(m.L.grain==='city')return m.it.n;
   if(m.it.ct)return m.it.ct;
@@ -2113,59 +2126,9 @@ function cityOfStop(m){
 function countryOfStop(m){
   return m.it.c||countryAt(m.it.lo,m.it.la)||'';}
 
-function buildTree(mine){
-  const T=new Map();
-  mine.forEach(m=>{
-    const c=countryOfStop(m)||'어디인지 모를 곳';
-    const t=cityOfStop(m)||'도시 미상';
-    if(!T.has(c))T.set(c,new Map());
-    const cm=T.get(c);
-    if(!cm.has(t))cm.set(t,[]);
-    cm.get(t).push(m);});
-  return T;}
-
-function paintTree(mine){
-  const el=$('jtree'); if(!el)return;
-  if(!mine.length){
-    el.innerHTML='<div class="hint">도장을 찍으면 여기에 '
-      +'나라 · 도시 · 가게 순서로 쌓입니다.</div>';return;}
-  const T=buildTree(mine);
-  /* 처음에는 나라가 몇 안 되면 펼쳐 둔다. 셋을 넘어가면 접어야 훑을 수 있다 */
-  if(!jOpen.size&&T.size<=3)T.forEach((_,c)=>jOpen.add('C:'+c));
-  const sum=arr=>arr.reduce((a,m)=>a+m.st.length,0);
-  let h='';
-  [...T.entries()].sort((a,b)=>a[0].localeCompare(b[0])).forEach(([c,cm])=>{
-    const all=[...cm.values()].flat(), on=jOpen.has('C:'+c);
-    h+='<div class="tnode lv1'+(on?' open':'')+'" data-o="C:'+esc(c)+'">'
-      +'<span class="tw">›</span><b>'+esc(c)+'</b>'
-      +'<i>'+all.length+'곳 · '+sum(all)+'번</i></div>';
-    if(!on)return;
-    [...cm.entries()].sort((a,b)=>a[0].localeCompare(b[0])).forEach(([t,arr])=>{
-      const k='T:'+c+'|'+t, ton=jOpen.has(k);
-      h+='<div class="tnode lv2'+(ton?' open':'')+'" data-o="'+esc(k)+'">'
-        +'<span class="tw">›</span><span>'+esc(t)+'</span>'
-        +'<i>'+arr.length+'곳</i></div>';
-      if(!ton)return;
-      arr.sort((a,b)=>a.it.n.localeCompare(b.it.n)).forEach(m=>{
-        const n=m.st.length, last=m.st[n-1].d.replace('-',' · ');
-        h+='<div class="tleaf" data-k="'+esc(keyOf(m.L,m.it))+'">'
-          +'<span class="wd" style="background:'+m.L.color
-          +(m.L.grain==='city'?';border-radius:999px;background:transparent;border:1.5px solid '+m.L.color:'')
-          +'"></span><span class="ln">'+esc(m.it.n)+'</span>'
-          +(n>1?'<em>×'+n+'</em>':'')+'<i>'+last+'</i></div>';});});});
-  el.innerHTML=h;
-  el.querySelectorAll('.tnode').forEach(nd=>nd.onclick=()=>{
-    const k=nd.dataset.o;
-    if(jOpen.has(k))jOpen.delete(k);else jOpen.add(k);
-    paintTree(mine);});
-  el.querySelectorAll('.tleaf').forEach(lf=>lf.onclick=()=>{
-    const m=mine.find(x=>keyOf(x.L,x.it)===lf.dataset.k);
-    if(!m)return;
-    setSheet('globe');
-    map.easeTo({center:[m.it.lo,m.it.la],
-      zoom:Math.max(map.getZoom(),m.L.grain==='city'?9.5:15),duration:1000});
-    selectPlace(m.L,{n:m.it.n,ct:m.it.ct||'',c:m.it.c||'',q:m.it.q||m.it.n,
-      y:m.it.y||'',sh:!!m.it.g});});}
+/* 「다녀온 곳」 나무는 스탬프의 나라·도시 묶기가 물려받았다.
+   같은 정보를 타일 하나에 더 많이 담고, 축을 바꾸면 다른 질문에도 답한다.
+   나무는 자기가 유일하게 하던 일이 없어졌으므로 남기지 않는다 */
 
 /* 한 문장 — 숫자는 사실이고, 문장은 그 사람이다 */
 function paintPortrait(){
@@ -2190,59 +2153,23 @@ function paintJourney(){
   const mine=myPlaces(),c=myCounts();
   const saved=[];layers.forEach(L=>(L.items||[]).forEach(it=>{if(isSaved(keyOf(L,it)))saved.push({L,it});}));
   const stat=(v,l)=>'<span class="st"><b>'+v+'</b>'+l+'</span>';
+  const t=tasteData();
   $('jsum').innerHTML=stat(new Set(mine.map(countryOfStop).filter(Boolean)).size,'나라')
     +stat(new Set(mine.map(cityOfStop).filter(Boolean)).size,'도시')
-    +stat(c.places,'도장 찍은 곳')+stat(c.visits,'찍은 횟수')+stat(c.saved,'가고 싶은 곳');
-  paintTree(mine);
+    +stat(c.places,'도장 찍은 곳')+stat(c.visits,'찍은 횟수')
+    /* 「내 미식」이 넘겨준 둘 — 얼마나 멀리, 몇 해에 걸쳐 */
+    +(t.km?stat(t.km>=1000?(t.km/1000).toFixed(1)+'천':t.km,'km'):'')
+    +(t.years?stat(t.years[0]===t.years[1]?t.years[0]
+        :t.years[0].slice(2)+'–'+t.years[1].slice(2),'해'):'')
+    +stat(c.saved,'가고 싶은 곳');
   paintLists();
-  paintTaste();
+  paintWant(saved);
   paintPortrait();
   paintGrid();
   if(sheetMode==='time')paintTime();
   if(sheetMode==='board')paintBoard();
   if($('cardsheet')&&$('cardsheet').classList.contains('on'))paintCardSheet();
   refreshTrail();
-  const el=$('jstops');
-  if(mine.length){
-    el.innerHTML=mine.map((m,i)=>{const n=m.st.length,last=m.st[n-1].d.replace('-',' · ');
-      return '<div class="stamp'+(n>1?' again':'')+'" title="'+esc(m.st.map(v=>v.d).join(' / '))
-        +'" style="--r:'+rot(i)+';animation-delay:'+(i*60)+'ms">'
-        +(n>1?'<span class="x">×'+n+'</span>':'')
-        +'<span class="n">'+esc(m.it.n)+'</span><span class="d">'+last+'</span></div>';}).join('')
-      +Array.from({length:Math.max(3,6-mine.length%6)},(_,i)=>
-        '<div class="stamp empty" style="animation-delay:'+((mine.length+i)*60)+'ms"><span class="d">빈칸</span></div>').join('');
-    $('jsample').style.display='none';
-  }else{el.innerHTML=SAMPLE;$('jsample').style.display='';}
-  /* 나라별로 쪼갠다. '4 / 140'은 다음에 어디로 갈지 말해주지 않지만
-     '프랑스 3/31 · 일본 0/28'은 바로 말해 준다 */
-  $('jprog').innerHTML=layers.filter(L=>L.kind!=='candidate'&&L.total>0).map(L=>{
-    const items=L.items||[];
-    const got=items.filter(it=>stampsOf(keyOf(L,it)).length).length;
-    const pct=L.total?Math.round(got/L.total*100):0;
-    const by={};
-    items.forEach(it=>{
-      const c=it.c||'—';
-      const e=by[c]||(by[c]={n:0,g:0});
-      e.n++; if(stampsOf(keyOf(L,it)).length)e.g++;});
-    const rows=Object.keys(by).map(c=>({c,...by[c]}));
-    const touched=rows.filter(r=>r.g).sort((a,b)=>b.g-a.g||b.n-a.n);
-    const untouched=rows.filter(r=>!r.g).sort((a,b)=>b.n-a.n);
-    const line=r=>'<div class="crow"><span>'+esc(r.c)+'</span>'
-      +'<i style="background:linear-gradient(to right,'+L.color+' '
-      +Math.round(r.g/r.n*100)+'%,rgba(140,129,117,.22) 0)"></i>'
-      +'<b>'+r.g+' / '+r.n+'</b></div>';
-    return '<div class="prow"><div class="pl"><span>'+esc(L.label)+'</span><b>'
-      +got+' / '+L.total+'</b></div>'
-      +'<div class="bar"><i style="width:'+Math.max(pct,got?2:0)+'%;background:'
-      +L.color+'"></i></div>'
-      +touched.slice(0,6).map(line).join('')
-      +(untouched.length?'<div class="crow next"><span>아직 안 간 나라 '
-        +untouched.length+'곳</span><b>'
-        +untouched.slice(0,3).map(r=>esc(r.c)+' '+r.n).join(' · ')+'</b></div>':'')
-      +'</div>';}).join('')
-    +'<div class="hint">분모는 그 목록의 전체 수입니다. 우리가 정한 숫자가 아닙니다.<br>'
-    +'지도 표기 레이어는 심사를 거친 명단이 아니라 누군가 지도에 적어 넣은 것이라, '
-    +'끝이 없어 분모가 되지 못합니다 — 도장은 찍히되 여기 세지 않습니다.</div>';
   const ring=(t,dsc,kind)=>{
     const svg=kind==='solo'?'<circle cx="14" cy="14" r="4" fill="'+WINE+'"/>'
       :kind==='apart'?'<circle cx="14" cy="14" r="4" fill="'+WINE+'"/><circle cx="14" cy="14" r="9.5" fill="none" stroke="'+OLIVE+'" stroke-width="1.8" stroke-dasharray="3 3"/>'
@@ -2254,11 +2181,6 @@ function paintJourney(){
     +ring('같이','함께 다녀온 곳','together')
     +'<div class="hint">고리 두께 = 인원수 · 끊김/이어짐 = 함께 갔는가.<br>'
     +'그룹은 계정이 생기는 단계에서 열립니다. 그때 <b>“우리 모임 9명 중 4명”</b>이 여기 붙습니다.</div>'
-    +(saved.length?'<div class="colh mt">가고 싶은 곳</div>'
-      +saved.slice(0,8).map(s=>'<div class="wrow"><span class="wd" style="background:'+s.L.color+'"></span>'
-        +esc(s.it.n)+'<i>'+esc(s.L&&s.L.grain==='city'?'도시 전체'
-                                :(s.it.ct||''))+'</i></div>').join('')
-      +(saved.length>8?'<div class="hint">외 '+(saved.length-8)+'곳</div>':''):'')
     +orphanNote();
   const ob=$('orphdrop');
   if(ob)ob.onclick=()=>{
@@ -2448,73 +2370,33 @@ function tasteData(){
     years:years.length?[years[0],years[years.length-1]]:null,
     cuisine:top(cuisine),country:top(country),city:top(city)};}
 
-function paintTaste(){
-  const el=$('jtaste'); if(!el)return;
-  const t=tasteData();
-  if(!t.mine.length){
-    el.innerHTML='<div class="hint">도장이 쌓이면 여기에 선장님이 어떤 분인지가 '
-      +'그려집니다 — 어느 나라에서 제일 많이 드셨는지, 어떤 요리로 기우는지, '
-      +'얼마나 멀리 다니셨는지.</div>';return;}
+/* 「내 미식」 칸은 한 문장 띠(#portrait)와 스탬프와 명단판에 전부 넘겨주고 사라졌다.
+   tasteData()는 공유 카드가 그대로 쓰므로 남는다 */
 
-  /* ① 우리만 쓸 수 있는 줄 — 유한한 명단 위의 완주 */
-  const canon=layers.filter(L=>L.kind!=='candidate'&&L.total>0).map(L=>{
-    const items=L.items||[];
-    const by={};
-    items.forEach(it=>{const c=it.c||'—';
-      const e=by[c]||(by[c]={n:0,g:0}); e.n++;
-      if(stampsOf(keyOf(L,it)).length)e.g++;});
-    const best=Object.keys(by).map(c=>({c:c,...by[c]}))
-      .filter(r=>r.g).sort((a,b)=>b.g/b.n-a.g/a.n)[0];
-    const got=items.filter(it=>stampsOf(keyOf(L,it)).length).length;
-    return got?{label:L.label,got:got,total:L.total,best:best,color:L.color}:null;
-  }).filter(Boolean);
-
-  const big=(v,l)=>'<div class="tst"><b>'+v+'</b><span>'+l+'</span></div>';
-  const bar=(rows,unit)=>{
-    if(!rows.length)return '<div class="hint">아직 자료가 없습니다</div>';
-    const max=rows[0][1];
-    return rows.slice(0,5).map(r=>'<div class="trow"><span>'+esc(r[0])+'</span>'
-      +'<i><u style="width:'+Math.round(r[1]/max*100)+'%"></u></i>'
-      +'<b>'+r[1]+(unit||'')+'</b></div>').join('');};
-
-  el.innerHTML=
-    (canon.length?'<div class="tcanon">'+canon.map(c=>
-      '<div class="tcrow"><span class="wd" style="background:'+c.color+'"></span>'
-      +'<b>'+esc(c.label)+'</b> '+c.got+' / '+c.total
-      +(c.best?'<i>'+esc(c.best.c)+' '+c.best.g+'/'+c.best.n+'</i>':'')
-      +'</div>').join('')+'</div>':'')
-    +'<div class="tstats">'
-      +big(t.country.length,'나라')
-      +big(t.mine.length,'곳')
-      +big(t.vis.length,'번')
-      +big(t.km>=1000?(t.km/1000).toFixed(1)+'천':t.km,'km')
-      +(t.years?big(t.years[0]===t.years[1]?t.years[0]
-          :t.years[0].slice(2)+'–'+t.years[1].slice(2),'해'):'')
-    +'</div>'
-    +'<div class="colh mt">어느 나라에서</div>'+bar(t.country,'번')
-    +'<div class="colh mt">어느 도시에서</div>'+bar(t.city,'번')
-    +'<div class="colh mt">어떤 요리로</div>'
-    +(t.cuisine.length?bar(t.cuisine,'번')
-      :'<div class="hint">요리 정보는 뉴욕과 일부 정본에만 있습니다. '
-       +'없는 곳은 비워 둡니다 — 추측해서 채우지 않습니다.<br>'
-       +'가게 카드에서 <b>내가 적는 것</b>에 한 번 눌러 두시면 여기가 채워집니다.</div>')
-    +(t.dishes.length?'<div class="colh mt">기억하는 음식</div>'
-       +'<div class="tdish">'+t.dishes.slice(0,8).map(esc).join(' · ')+'</div>':'')
-      +'<div class="colh mt">기록 옮기기</div>'
-      +'<div class="hint">계정이 생기기 전까지는 이 브라우저 안에만 있습니다. '
-       +'파일로 내보내 두시면 폰과 노트북을 오갈 수 있고, 자료를 지워도 되살릴 수 있습니다.</div>'
-      +'<div class="recbtns"><span id="recout">내보내기</span>'
-       +'<span id="recin">불러오기</span></div>'
-    +(LISTS.filter(l=>l.items.length).length
-      ?'<div class="colh mt">내 1위</div>'
-       +LISTS.filter(l=>l.items.length).map(l=>
-         '<div class="trow one"><span>'+esc(l.n)+'</span>'
-         +'<b>'+esc(keyInfo(l.items[0]).n)+'</b></div>').join('')
-      :'');
-  /* 이 단추들은 지금 막 만들어졌으니 여기서 이어 준다 */
-  const eo=$('recout'), ei=$('recin');
-  if(eo)eo.onclick=exportRecord;
-  if(ei)ei.onclick=()=>$('recfile').click();}
+/* ══ 가고 싶은 곳 ══ 제 칸을 얻었으니 여덟 곳에서 자르지 않는다 ══
+   명단판의 빈 칸이 "아직 안 가 본 곳"이라면, 여기는 "가기로 마음먹은 곳"이다 */
+function paintWant(saved){
+  const el=$('jwant'); if(!el)return;
+  if(!saved.length){
+    el.innerHTML='<div class="hint">가게 카드에서 <b>가고 싶은 곳</b>에 담으면 '
+      +'여기 쌓이고, 지구본에는 빈 고리로 섭니다.</div>';return;}
+  const by={};
+  saved.forEach(s=>{const c=s.it.c||'어디인지 모를 곳';(by[c]=by[c]||[]).push(s);});
+  el.innerHTML=Object.keys(by).sort((a,b)=>by[b].length-by[a].length).map(c=>
+    '<div class="colh mt">'+esc(c)+' <span style="letter-spacing:0">'
+      +by[c].length+'</span></div>'
+    +by[c].map(s=>'<div class="wrow" data-k="'+esc(keyOf(s.L,s.it))+'">'
+      +'<span class="wd" style="background:'+s.L.color+'"></span>'
+      +esc(s.it.n)+'<i>'+esc(s.L.grain==='city'?'도시 전체':(s.it.ct||''))
+      +'</i></div>').join('')).join('');
+  el.querySelectorAll('.wrow').forEach(r=>r.onclick=()=>{
+    const i=keyInfo(r.dataset.k); if(!i.it)return;
+    setSheet('globe');
+    map.easeTo({center:[i.it.lo,i.it.la],
+      zoom:Math.max(map.getZoom(),i.L.grain==='city'?9.5:15),duration:1000});
+    selectPlace(i.L,{n:i.it.n,ct:i.it.ct||'',c:i.it.c||'',q:i.it.q||i.it.n,
+      cu:i.it.cu||'',w:i.it.w||'',y:i.it.y||'',yr:i.it.yr||'',sy:i.it.sy||'',
+      sh:!!i.it.g});});}
 
 /* ══ 내 목록 ══ 순위가 매겨진 채로 선다. 화면을 찍어 자랑할 것은 이 칸이다 */
 function paintLists(){
@@ -2652,8 +2534,42 @@ function gTile(m){
     +(n.p?'<span class="gp">'+'●'.repeat(n.p)+'○'.repeat(4-n.p)+'</span>':'')
     +'</div></div>';}
 
+/* 여권 벽 — 「여권」 칸이 넘겨준 것. 같은 자료의 장식이지만,
+   장식이야말로 이 물건을 주말에 또 열게 하는 쪽이다 */
+let gView='tile';
+function paintStampWall(mine){
+  const el=$('jstops'); if(!el)return;
+  if(mine.length){
+    el.innerHTML=mine.map((m,i)=>{
+      const n=m.st.length,last=m.st[n-1].d.replace('-',' · ');
+      return '<div class="stamp'+(n>1?' again':'')+'" data-k="'+esc(keyOf(m.L,m.it))
+        +'" title="'+esc(m.st.map(v=>v.d).join(' / '))
+        +'" style="--r:'+rot(i)+';animation-delay:'+(i*60)+'ms">'
+        +(n>1?'<span class="x">×'+n+'</span>':'')
+        +'<span class="n">'+esc(m.it.n)+'</span>'
+        +'<span class="d">'+last+'</span></div>';}).join('')
+      +Array.from({length:Math.max(3,6-mine.length%6)},(_,i)=>
+        '<div class="stamp empty" style="animation-delay:'+((mine.length+i)*60)
+        +'ms"><span class="d">빈칸</span></div>').join('');
+    $('jsample').style.display='none';
+  }else{el.innerHTML=SAMPLE;$('jsample').style.display='';}}
+
 function paintGrid(){
   const bar=$('gbar'),el=$('jgrid'); if(!el)return;
+  const sw=bar&&bar.querySelector('.viewsw');
+  if(sw&&!sw.dataset.wired){
+    sw.dataset.wired='1';
+    sw.querySelectorAll('.vsw').forEach(b=>b.onclick=()=>{
+      gView=b.dataset.w;
+      sw.querySelectorAll('.vsw').forEach(x=>x.classList.toggle('on',x===b));
+      paintGrid();});}
+  const wall=gView==='stamp';
+  if(bar)bar.classList.toggle('wall',wall);
+  el.style.display=wall?'none':'';
+  const st=$('jstops'); if(st)st.style.display=wall?'':'none';
+  const sm=$('jsample'); if(sm&&!wall)sm.style.display='none';
+  paintStampWall(myPlaces());
+  if(wall)return;
   if(bar&&!bar.dataset.wired){
     bar.insertAdjacentHTML('beforeend',GAXES.map(a=>'<span class="gchip'
       +(a[0]===gAxis?' on':'')+'" data-a="'+a[0]+'">'+a[1]+'</span>').join(''));
@@ -2759,9 +2675,13 @@ function paintBoard(){
       +'<b>'+esc(L.label)+'</b><i>'+got+' <s>/ '+L.total+'</s></i>'
       +'<u>'+(L.grain==='city'?'도시':'곳')+'</u></div>'
       +'<div class="cells">'+cells+'</div>'
-      +'<div class="bcap" id="bcap'+bi+'"></div></div>';}).join('')
+      +'<div class="bcap" id="bcap'+bi+'"></div>'
+      +ctyRows(L,items)+'</div>';}).join('')
     +'<div class="hint">칸 하나가 명단의 한 곳입니다. 채워진 칸이 다녀오신 곳이고, '
-    +'빈 칸도 누르시면 그 자리로 데려다 드립니다.</div>';
+    +'빈 칸도 누르시면 그 자리로 데려다 드립니다.<br>'
+    +'분모는 그 명단의 전체 수입니다 — 우리가 정한 숫자가 아닙니다. '
+    +'지도 표기 레이어는 심사를 거친 명단이 아니라 누군가 지도에 적어 넣은 것이라, '
+    +'끝이 없어 분모가 되지 못합니다 — 도장은 찍히되 여기 세지 않습니다.</div>';
   const cap=(bi,html)=>{const c=$('bcap'+bi); if(c)c.innerHTML=html;};
   el.querySelectorAll('.cel').forEach(c=>{
     const show=()=>{const i=keyInfo(c.dataset.k);
@@ -2778,6 +2698,28 @@ function paintBoard(){
       selectPlace(i.L,{n:i.it.n,ct:i.it.ct||'',c:i.it.c||'',q:i.it.q||i.it.n,
         cu:i.it.cu||'',w:i.it.w||'',y:i.it.y||'',yr:i.it.yr||'',sy:i.it.sy||'',
         sh:!!i.it.g});};});}
+
+/* 「진행률」 칸이 넘겨준 유일한 것 — 판이 못 하던 일.
+   `3 / 140`은 다음에 어디로 갈지 말해주지 않지만
+   `France 2 / 31 · Japan 0 / 28`은 바로 말해 준다 */
+function ctyRows(L,items){
+  const by={};
+  items.forEach(it=>{
+    const c=it.c||'—', e=by[c]||(by[c]={n:0,g:0});
+    e.n++; if(stampsOf(keyOf(L,it)).length)e.g++;});
+  const rows=Object.keys(by).map(c=>({c:c,n:by[c].n,g:by[c].g}));
+  const touched=rows.filter(r=>r.g).sort((a,b)=>b.g-a.g||b.n-a.n);
+  const rest=rows.filter(r=>!r.g).sort((a,b)=>b.n-a.n);
+  if(!touched.length&&!rest.length)return '';
+  const line=r=>'<div class="crow"><span>'+esc(r.c)+'</span>'
+    +'<i style="background:linear-gradient(to right,'+L.color+' '
+    +Math.round(r.g/r.n*100)+'%,rgba(140,129,117,.22) 0)"></i>'
+    +'<b>'+r.g+' / '+r.n+'</b></div>';
+  return '<div class="bcty">'+touched.slice(0,6).map(line).join('')
+    +(rest.length?'<div class="crow next"><span>아직 안 간 '
+      +(L.grain==='city'?'나라':'나라')+' '+rest.length+'곳</span><b>'
+      +rest.slice(0,3).map(r=>esc(r.c)+' '+r.n).join(' · ')+'</b></div>':'')
+    +'</div>';}
 
 /* ══ 서랍 ══ 지구본을 고르면 내려간다. 지구본은 치워지지 않는다 ══ */
 let sheetMode='globe';
@@ -2797,6 +2739,8 @@ function setSheet(m){
 document.querySelectorAll('#jtabs .jm').forEach(el=>
   el.onclick=()=>setSheet(el.dataset.m));
 $('cardbtn').onclick=toggleCardSheet;
+$('recout').onclick=exportRecord;
+$('recin').onclick=()=>$('recfile').click();
 $('recfile').onchange=e=>{if(e.target.files[0])importRecord(e.target.files[0]);
   e.target.value='';};
 $('geobtn').onclick=()=>setGeo(!geoOn());
