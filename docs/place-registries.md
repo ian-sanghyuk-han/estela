@@ -123,6 +123,19 @@ it declines and says so instead. Nothing from the registry is ever drawn on the 
 the registry and absent from OpenStreetMap entirely. That is the whole point of the tier —
 it finds what no guide and no volunteer mapper recorded.
 
+## 서비스 지역을 지구본에 칠한다 (2026-08-27)
+
+칸은 이미 `0.25°`로 쪼개져 있고 목록도 manifest에 있으니, 칠하는 값은 공짜였다.
+9개 출처의 칸을 합쳐 중복을 걷어내면 **1,989칸**. 겹친 칸이 두 번 칠해지지 않게
+한 겹으로 만든 다음 별과 항적 **아래**에 깐다 — 바닥이지 주인공이 아니다.
+
+색은 새로 하나 들였다(`--reach:#4F6D7A`). 포도주는 나, 올리브는 함께이고,
+찾을 수 있는 땅은 둘 중 어느 쪽도 아니다 — 판단이 아니라 바닥이다.
+세계 배율에서 진하고 파고들면 옅어진다.
+
+그림이 말없이 사실을 말한다: **영국과 프랑스는 꽉 찼고, 덴마크는 얼룩이고,
+미국은 점 세 개다.** 그게 지금 상태고, 그게 보여야 넓히는 일이 넓히는 것처럼 느껴진다.
+
 ## Tier A — one national file, ready to use
 
 | | Source | Scale | Coordinates | Licence | Refresh |

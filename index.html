@@ -22,6 +22,9 @@
     --ink:#1B1714;   --dim:#6B6259;  --mute:#8C8175;
     --rule:rgba(27,23,20,.13);
     --wine:#7A2233;  --olive:#6E7355;
+    /* 포도주는 나, 올리브는 함께. 찾을 수 있는 땅은 둘 중 어느 쪽도 아니라서
+       색을 하나 더 들인다 — 판단이 아니라 바닥이다 */
+    --reach:#4F6D7A;
     --serif:Newsreader,Georgia,serif; --sans:Archivo,'Helvetica Neue',sans-serif;
   }
   body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
@@ -1875,6 +1878,44 @@ function startDuel(listId,key,after){
   step();}
 
 /* ══ 레이어 패널 ══ */
+/* ══ 찾을 수 있는 곳 ══ 서비스 지역을 칠한다 ══
+   지금까지는 여기서 검색이 되는지 알려면 쳐 보고 실패해야 알았다.
+   등기부는 이미 0.25° 칸으로 쪼개 두었고 목록도 갖고 있으니, 칠하는 값은 공짜다.
+   세계 배율에서 칸들이 뭉치면 그림이 말없이 사실을 말한다 —
+   영국과 프랑스는 꽉 찼고, 덴마크는 얼룩이고, 미국은 점 세 개다.
+   그게 지금 상태고, 그게 보여야 넓히는 일이 넓히는 것처럼 느껴진다 */
+const REACH='#4F6D7A';
+let reachOn=true;
+function reachFC(){
+  const M=REG; if(!M||!M.sources)return {type:'FeatureCollection',features:[]};
+  const step=M.step||0.25, seen=new Set();
+  Object.keys(M.sources).forEach(k=>
+    Object.keys(M.sources[k].cells||{}).forEach(c=>seen.add(c)));
+  const feats=[];
+  seen.forEach(c=>{
+    const p=c.split('_'), y=+p[0]*step, x=+p[1]*step;
+    feats.push({type:'Feature',properties:{},geometry:{type:'Polygon',
+      coordinates:[[[x,y],[x+step,y],[x+step,y+step],[x,y+step],[x,y]]]}});});
+  return {type:'FeatureCollection',features:feats};}
+
+function addReachLayer(before){
+  map.addSource('reach',{type:'geojson',
+    data:{type:'FeatureCollection',features:[]}});
+  /* 별과 항적 아래에 깔린다 — 바닥이지 주인공이 아니다 */
+  map.addLayer({id:'reach',type:'fill',source:'reach',
+    /* 세계 배율에서는 진하게, 파고들면 옅게 — 멀리서는 그림이 보여야 하고
+       가까이서는 별을 가리면 안 된다 */
+    paint:{'fill-color':REACH,'fill-opacity':
+      ['interpolate',['linear'],['zoom'],1,.34,4,.24,7,.13]}},before);
+  map.addLayer({id:'reach-ln',type:'line',source:'reach',
+    minzoom:6,
+    paint:{'line-color':REACH,'line-opacity':.22,'line-width':.6}},before);}
+
+function refreshReach(){
+  const s=map.getSource('reach'); if(!s)return;
+  s.setData(reachFC());
+  paintPanel();}
+
 /* ══ 팔로우한 사람 ══ 견본 ══
    계정이 없으니 지어낸 것이다. 화면 어디에서도 그 사실을 지우지 않는다.
    자리는 진짜 식당 위에 찍는다 — 그래야 이 기능이 무엇인지 눈에 들어온다 */
@@ -1924,8 +1965,12 @@ const OWNROWS=[
   {k:'aim',  label:'내가 갈 곳',  color:WINE,  ids:['jaim'], ring:true,
    count:()=>myCounts().saved+'곳'},
   {k:'foll', label:'팔로우한 사람이 다녀온 곳', color:OLIVE, ids:['jfoll'], ring:true,
-   count:()=>'견본', mock:true}];
-const ownOn={been:true,aim:true,foll:true};
+   count:()=>'견본', mock:true},
+  {k:'reach',label:'찾을 수 있는 곳', color:REACH, ids:['reach','reach-ln'], wash:true,
+   count:()=>{const M=REG; if(!M||!M.sources)return '—';
+     let n=0; Object.keys(M.sources).forEach(k=>n+=M.sources[k].total||0);
+     return n>=10000?Math.round(n/1000)+'천 곳':n+'곳';}}];
+const ownOn={been:true,aim:true,foll:true,reach:true};
 /* 판이 미쉐린으로 시작하면, 우리가 뭘 적어 두든 그 브랜드가 이 화면의 주인이 된다.
    이름을 바꿀 수는 없다 — 사실은 사실이다. 대신 상석에서 내린다.
    내 것이 먼저 서고, 명단들은 그 아래 「남이 매긴 것」으로 앉는다 */
@@ -1939,8 +1984,9 @@ function paintPanel(){
   $('lrows').innerHTML=OWNROWS.map(r=>
     '<div class="lrow'+(ownOn[r.k]?'':' off')+(r.mock?' mock':'')
       +'" data-k="'+r.k+'">'
-    +'<span class="dot" style="'+(r.ring
-        ?'background:transparent;border:1.5px dashed '+r.color
+    +'<span class="dot" style="'+(r.wash
+        ?'background:'+r.color+';opacity:.34;border-radius:2px'
+        :r.ring?'background:transparent;border:1.5px dashed '+r.color
         :'background:'+r.color)+'"></span>'
     +'<span class="nm">'+r.label+'</span>'
     +'<span class="ct">'+r.count()+'</span></div>').join('')
@@ -2963,6 +3009,9 @@ map.on('load',async()=>{
   addStarLayer(minePlacesLayer());
   fetch('data/places.json',{cache:'no-cache'}).then(r=>r.json())
     .then(d=>{GAZ=d.items;paintWhere();}).catch(()=>{});
+  /* 바닥부터 깔고 그 위에 별을 올린다 */
+  addReachLayer(layers.length?layers[0].id+'-cl':undefined);
+  regManifest().then(refreshReach).catch(()=>{});
   addJourneyLayers();
   addFollowLayer();
   showTrail(true);            /* 집이 지구본이니, 항적은 모드가 아니라 기본이다 */
