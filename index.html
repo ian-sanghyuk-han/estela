@@ -1562,9 +1562,12 @@ function hereHTML(){
   const gs=guidesFor(c), rs=regSourceFor(c);
   const cn=esc(normCountry(c));
   let out='<div class="here"><div class="hcty">'+cn+'</div>';
-  out+='<div class="hrow"><span>정부 명부</span><b>'
-    +(rs.length?esc(rs.map(s=>s.label).join(' · '))+' — 이름으로 찾습니다'
-      :'아직 없습니다. 지도와 좌표로 찾습니다')+'</b></div>';
+  /* 미국처럼 명부가 열둘씩 되면 이름을 다 늘어놓을 수 없다.
+     셋까지만 대고 나머지는 센다 */
+  const rsTxt=!rs.length?'아직 없습니다. 지도와 좌표로 찾습니다'
+    :esc(rs.slice(0,3).map(s=>s.label).join(' · '))
+      +(rs.length>3?' 외 '+(rs.length-3)+'곳':'')+' — 이름으로 찾습니다';
+  out+='<div class="hrow"><span>정부 명부</span><b>'+rsTxt+'</b></div>';
   if(gs.length){
     out+='<div class="hrow"><span>이 나라를 다루는 곳</span><b>'
       +gs.map(g=>'<a href="'+esc(g.url)+'" target="_blank" rel="noopener noreferrer"'
