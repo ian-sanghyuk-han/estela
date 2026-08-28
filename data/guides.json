@@ -1,0 +1,235 @@
+{
+  "kind": "guides",
+  "note": "가이드 명단이 아니라 가이드에 대한 소개다. 우리는 이들의 명단을 싣지 않는다 — 무엇을 하는 곳이고 어떻게 판단하는지만 적고, 나머지는 공식 주소로 보낸다. 사실만 적었고 평가는 적지 않았다.",
+  "written": "2026-08-27",
+  "verified": false,
+  "verifyNote": "일반 지식으로 적었습니다. 공개 전에 사람이 한 번 확인해야 합니다. check:true 인 항목은 특히 확인이 필요합니다.",
+  "alias": {
+    "United States of America": "United States",
+    "Republic of Korea": "South Korea",
+    "Korea": "South Korea",
+    "Czech Republic": "Czechia",
+    "Macao": "Macau",
+    "Hong Kong S.A.R.": "Hong Kong",
+    "Macao S.A.R": "Macau",
+    "Macao S.A.R.": "Macau",
+    "Macau S.A.R": "Macau"
+  },
+  "guides": [
+    {
+      "id": "michelin",
+      "n": "MICHELIN Guide",
+      "ko": "미쉐린 가이드",
+      "pub": "미쉐린 (프랑스 타이어 회사)",
+      "since": "1900",
+      "how": "익명 조사원이 접시 위의 요리만 보고 별 1~3개를 매깁니다. 서비스나 인테리어는 별에 넣지 않습니다. 값에 견줘 잘 먹은 집에는 빕구르망을 줍니다.",
+      "url": "https://guide.michelin.com/",
+      "scope": [
+        "France",
+        "Italy",
+        "Spain",
+        "Germany",
+        "United Kingdom",
+        "Ireland",
+        "Belgium",
+        "Netherlands",
+        "Luxembourg",
+        "Switzerland",
+        "Austria",
+        "Portugal",
+        "Denmark",
+        "Sweden",
+        "Norway",
+        "Finland",
+        "Iceland",
+        "Estonia",
+        "Latvia",
+        "Poland",
+        "Czechia",
+        "Hungary",
+        "Croatia",
+        "Slovenia",
+        "Greece",
+        "Turkey",
+        "Malta",
+        "Japan",
+        "South Korea",
+        "China",
+        "Hong Kong",
+        "Macau",
+        "Taiwan",
+        "Singapore",
+        "Thailand",
+        "Vietnam",
+        "Malaysia",
+        "United States",
+        "Canada",
+        "Brazil",
+        "United Arab Emirates",
+        "Qatar"
+      ]
+    },
+    {
+      "id": "gaultmillau",
+      "n": "Gault&Millau",
+      "ko": "고미요",
+      "pub": "앙리 고 · 크리스티앙 미요",
+      "since": "1965",
+      "how": "20점 만점으로 점수를 매기고 요리사 모자(toque)를 붙입니다. 별을 주는 쪽보다 젊은 요리사와 새 흐름을 일찍 집는다는 평을 들어 왔습니다.",
+      "url": "https://www.gaultmillau.com/",
+      "scope": [
+        "France",
+        "Belgium",
+        "Netherlands",
+        "Luxembourg",
+        "Switzerland",
+        "Germany",
+        "Austria"
+      ]
+    },
+    {
+      "id": "laliste",
+      "n": "La Liste",
+      "ko": "라 리스트",
+      "pub": "프랑스",
+      "since": "2015",
+      "how": "스스로 심사하지 않습니다. 세계의 가이드와 평점을 모아 100점으로 환산해 1,000곳을 냅니다 — 가이드들의 가이드입니다.",
+      "url": "https://www.laliste.com/",
+      "scope": [
+        "*"
+      ],
+      "check": true
+    },
+    {
+      "id": "50best",
+      "n": "The World's 50 Best Restaurants",
+      "ko": "월드 50 베스트",
+      "pub": "William Reed (영국)",
+      "since": "2002",
+      "how": "심사원이 아니라 세계 각지 업계 인사들의 투표로 순위를 냅니다. 아시아·중남미 판이 따로 있습니다.",
+      "url": "https://www.theworlds50best.com/",
+      "scope": [
+        "*"
+      ]
+    },
+    {
+      "id": "bluer",
+      "n": "블루리본 서베이",
+      "ko": "블루리본 서베이",
+      "pub": "블루리본서베이 (한국)",
+      "since": "2005",
+      "how": "이용자 설문을 모아 리본 1~3개를 붙입니다. 한국 안에서는 미쉐린보다 다루는 범위가 훨씬 넓습니다.",
+      "url": "https://www.bluer.co.kr/",
+      "scope": [
+        "South Korea"
+      ]
+    },
+    {
+      "id": "gamberorosso",
+      "n": "Gambero Rosso",
+      "ko": "감베로 로소",
+      "pub": "이탈리아",
+      "since": "1986",
+      "how": "식당에는 포크(forchette)를 1~3개 붙이고, 최고는 트레 포르케테입니다. 와인·젤라토·피자 안내서를 따로 냅니다.",
+      "url": "https://www.gamberorosso.it/",
+      "scope": [
+        "Italy"
+      ]
+    },
+    {
+      "id": "repsol",
+      "n": "Guía Repsol",
+      "ko": "레프솔 가이드",
+      "pub": "Repsol (스페인 정유사)",
+      "since": "1979",
+      "how": "해(Soles)를 1~3개 붙입니다. 미쉐린과 마찬가지로 길 안내서에서 출발했습니다.",
+      "url": "https://www.guiarepsol.com/",
+      "scope": [
+        "Spain"
+      ],
+      "check": true
+    },
+    {
+      "id": "goodfood-uk",
+      "n": "The Good Food Guide",
+      "ko": "굿 푸드 가이드 (영국)",
+      "pub": "영국",
+      "since": "1951",
+      "how": "독자 제보와 익명 방문을 함께 씁니다. 영국에서 가장 오래된 식당 안내서입니다.",
+      "url": "https://www.thegoodfoodguide.co.uk/",
+      "scope": [
+        "United Kingdom"
+      ],
+      "check": true
+    },
+    {
+      "id": "jamesbeard",
+      "n": "James Beard Awards",
+      "ko": "제임스 비어드 상",
+      "pub": "James Beard Foundation (미국)",
+      "since": "1991",
+      "how": "명단이 아니라 상입니다. 해마다 요리사와 식당에 부문별로 줍니다 — 미국에서는 별보다 이쪽을 먼저 말합니다.",
+      "url": "https://www.jamesbeard.org/awards",
+      "scope": [
+        "United States"
+      ]
+    },
+    {
+      "id": "blackpearl",
+      "n": "黑珍珠餐厅指南 (Black Pearl)",
+      "ko": "흑진주 가이드",
+      "pub": "메이퇀 (중국)",
+      "since": "2018",
+      "how": "다이아몬드를 1~3개 붙입니다. 중국 요리의 기준으로 중국이 직접 만든 명단입니다.",
+      "url": "https://www.meituan.com/",
+      "scope": [
+        "China",
+        "Hong Kong",
+        "Macau"
+      ],
+      "check": true
+    },
+    {
+      "id": "tabelog",
+      "n": "食べログ (Tabelog)",
+      "ko": "타베로그",
+      "pub": "Kakaku.com (일본)",
+      "since": "2005",
+      "how": "가이드가 아니라 이용자 평점 사이트입니다. 5점 만점이고 3.5점만 넘어도 높게 칩니다 — 일본에서 실제로 많이 보는 쪽입니다.",
+      "url": "https://tabelog.com/",
+      "scope": [
+        "Japan"
+      ],
+      "notGuide": true
+    },
+    {
+      "id": "goodfood-au",
+      "n": "Good Food Guide (Australia)",
+      "ko": "굿 푸드 가이드 (호주)",
+      "pub": "호주",
+      "since": "",
+      "how": "모자(hats)를 1~3개 붙입니다. 주(州)별로 따로 냅니다.",
+      "url": "https://www.goodfood.com.au/",
+      "scope": [
+        "Australia"
+      ],
+      "check": true
+    },
+    {
+      "id": "whiteguide",
+      "n": "White Guide",
+      "ko": "화이트 가이드",
+      "pub": "스웨덴",
+      "since": "2005",
+      "how": "북유럽 식당을 점수로 매깁니다.",
+      "url": "https://whiteguide.com/",
+      "scope": [
+        "Sweden",
+        "Norway",
+        "Denmark",
+        "Finland"
+      ],
+      "check": true
+    }
+  ]
+}
