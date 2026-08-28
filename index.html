@@ -1426,14 +1426,35 @@ function regCellsInView(){
   for(let i=0;i<out.length;i++){rows+=out[i].n||0;
     if(rows>60000)return out.slice(0,i);}
   return out;}
+/* 칸 파일은 두 가지를 줄마다 되풀이하고 있었다 — 좌표의 앞자리(그 칸의 것이다)와
+   업종(스무 낱말 중 하나다). 둘 다 뺐다. 칸이 제 기준점을 한 번 밝히고, 집마다
+   십만분의 일도 단위 정수로 어긋난 만큼만 적고, 업종은 목록을 만들어 번호로 가리킨다.
+   여기서 옛 모양 그대로 펴 주므로 검색하는 쪽은 아무것도 몰라도 된다 */
+function regExpand(d){
+  if(Array.isArray(d))return d;                /* 옛 형식은 그대로 */
+  const y0=d.o[0], x0=d.o[1], K=d.k||[];
+  const out=new Array(d.p.length);
+  for(let i=0;i<d.p.length;i++){
+    const r=d.p[i];
+    out[i]=[r[0], +(y0+r[1]/1e5).toFixed(5), +(x0+r[2]/1e5).toFixed(5),
+            r[4]||'', K[r[3]]||''];}
+  return out;}
+
 function regLoad(list){
   return Promise.all(list.map(c=>{
     const key=c.id+'/'+c.k;
     if(REGCELL.has(key))return null;
     REGCELL.set(key,[]);                       /* 같은 조각을 두 번 받지 않게 */
     return fetch('data/registry/'+c.s.folder+'/'+c.k+'.json')
-      .then(r=>r.json()).then(a=>{REGCELL.set(key,a);})
+      .then(r=>r.json()).then(a=>{REGCELL.set(key,regExpand(a));})
       .catch(()=>{REGCELL.delete(key);});}));}
+/* 같은 집을 두 출처가 함께 아는 자리가 생겼다 — 나라 명부와 Overture.
+   있는 곳에서는 나라 쪽이 낫다. 그건 모아 놓은 것이 아니라 면허 그 자체다.
+   띄어쓰기와 문장부호를 지우고 견준다 — Joe's Pizza 와 Joes Pizza 는 같은 집이고
+   화면에는 하나만 서야 한다 */
+const regKey=(n,la,lo)=>n.toLowerCase().replace(/[\s'’`.,\-&()]/g,'')
+  +'@'+la.toFixed(3)+','+lo.toFixed(3);
+
 function regSearch(t,cap,only){
   const s=t.toLowerCase(),hit=[];
   const want=only&&new Set(only.map(c=>c.id+'/'+c.k));
@@ -1445,6 +1466,15 @@ function regSearch(t,cap,only){
       if(p<0)continue;
       hit.push({src:src,it:it,rank:p===0?0:1});
       if(hit.length>800)return;}});
+  /* 나라 명부를 먼저 세우고, 같은 자리 같은 이름이 뒤에 또 오면 버린다 */
+  const gov=id=>{const S=REG&&REG.sources&&REG.sources[id];return S&&S.gov!==false;};
+  hit.sort((a,b)=>(gov(b.src)?1:0)-(gov(a.src)?1:0));
+  const seen=new Set(), uniq=[];
+  for(let i=0;i<hit.length;i++){
+    const h=hit[i], k=regKey(h.it[0],h.it[1],h.it[2]);
+    if(seen.has(k))continue;
+    seen.add(k); uniq.push(h);}
+  hit.length=0; Array.prototype.push.apply(hit,uniq);
   hit.sort((a,b)=>a.rank-b.rank||a.it[0].length-b.it[0].length);
   return hit.slice(0,cap||5);}
 function regReady(){return REG&&REG.sources&&Object.keys(REG.sources).length;}
