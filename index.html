@@ -430,6 +430,18 @@
   .lrow .lgrip{cursor:grab;letter-spacing:-2px}
   .lrow.dragging{opacity:.4}
   .lrow.over{box-shadow:inset 0 2px 0 var(--wine)}
+  /* ── 1위 배지 ── 순위표의 위쪽 절반만 ── */
+  #card .crown{margin-top:10px;border:1px solid var(--olive);padding:8px 10px;
+    background:rgba(110,115,85,.06)}
+  #card .crown b{display:block;font-family:var(--serif);font-size:13px;
+    font-weight:500;color:var(--olive)}
+  #card .crown span{display:block;font-size:10.5px;color:var(--dim);margin-top:3px}
+  #card .crown em{font-style:normal;font-weight:600;color:var(--ink)}
+  #card .crown i{display:block;font-style:normal;font-size:9px;color:var(--mute);
+    margin-top:5px;line-height:1.55}
+  /* 판에서 견본은 견본이라고 보여야 한다 */
+  #lrows .lrow.mock .ct{color:var(--olive)}
+
   /* ── 카드 안 · 내가 적는 것 ── 공용 기록과 눈으로 갈리게 ── */
   #card .mynote{margin-top:10px;border-top:1px solid var(--rule);padding-top:8px}
   #card .nkinds{margin-bottom:6px}
@@ -1310,8 +1322,18 @@ function featureOf(L,it){
     geometry:{type:'Point',coordinates:[it.lo,it.la]}};}
 function fcOf(L){return {type:'FeatureCollection',features:(L.items||[]).map(it=>featureOf(L,it))};}
 
+/* 채택(adopt)하지 않은 명단은 지구본에 그리지 않는다.
+   자료는 그대로 실린다 — 이미 찍힌 도장이 그 명단을 가리키고 있고, 검색도 그걸 쓴다.
+   달라지는 건 별을 뿌리느냐 뿐이다. 언젠가 "미쉐린 가이드를 채택하시겠습니까"에
+   예라고 답하는 날, 이 불리언 하나가 뒤집히면 별이 돌아온다 */
+function hideLayer(L){
+  LSFX.forEach(s=>{const id=L.id+s;
+    if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none');});}
+
 function addStarLayer(L){
-  if(L.grain==='city')return addCityLayer(L);
+  if(L.grain==='city'){addCityLayer(L);
+    if(L.adopted===false){L.on=false;hideLayer(L);}
+    return;}
   layers.push(L);
   map.addSource(L.id,{type:'geojson',data:fcOf(L),cluster:true,
     clusterRadius:46,clusterMaxZoom:13,
@@ -1343,6 +1365,7 @@ function addStarLayer(L){
       .then(z=>map.easeTo({center:at,zoom:z,duration:700}))
       .catch(()=>map.easeTo({center:at,zoom:map.getZoom()+2,duration:700}));});
   addStampLayer(L);
+  if(L.adopted===false){L.on=false;hideLayer(L);}
   map.on('click',L.id+'-pt',e=>selectPlace(L,e.features[0].properties));
   ['-cl','-pt'].forEach(sfx=>{
     map.on('mouseenter',L.id+sfx,()=>map.getCanvas().style.cursor='pointer');
@@ -1773,6 +1796,24 @@ function paintCard(){
       setNote(key,'p',noteOf(key).p===v?'':v);paintNote();paintJourney();});};
   paintNote();
 
+  /* ══ 1위 배지 ══ 견본 ══
+     "내가 순대국 1위로 꼽은 집은 남의 것과 합쳐져 세어지고 표기되어야 한다."
+     별점 평균이 아니라 **직접 가 본 사람의 1순위**를 세는 것이고, 그 분모는
+     짝지어 비교하는 우리 구조에서만 공짜로 떨어진다.
+     아래로는 세지 않는다 — 꼴찌가 없으면 항의할 자리도 없다.
+     계정이 없으니 지금 숫자는 지어낸 것이고, 그 사실을 배지에 적어 둔다 */
+  const crownOf=k=>{let h=0;for(let i=0;i<k.length;i++)h=(h*31+k.charCodeAt(i))>>>0;
+    return 6+h%47;};
+  const firstIn=LISTS.filter(l=>l.items[0]===key);
+  if(firstIn.length){
+    const cw=document.createElement('div');
+    cw.className='crown';
+    cw.innerHTML='<b>'+esc(firstIn.map(l=>l.n).join(' · '))+' 1위</b>'
+      +'<span>전국에서 이 집을 1위로 꼽은 사람 <em>'+crownOf(key)+'명</em></span>'
+      +'<i>견본입니다 — 계정이 생기면 진짜로 셉니다. '
+      +'낮은 순위는 어디에도 세지 않습니다.</i>';
+    el.insertBefore(cw,el.querySelector('.prov'));}
+
   /* 내 목록 — 이 집이 어느 목록에 들어 있나, 그리고 넣고 빼기 */
   const strip=document.createElement('div');
   strip.className='mylists';
@@ -1834,40 +1875,87 @@ function startDuel(listId,key,after){
   step();}
 
 /* ══ 레이어 패널 ══ */
-const PENDING=[{label:'우리 그룹의 장소',note:'계정 필요'},{label:'팔로우한 사람의 장소',note:'계정 필요'}];
+/* ══ 팔로우한 사람 ══ 견본 ══
+   계정이 없으니 지어낸 것이다. 화면 어디에서도 그 사실을 지우지 않는다.
+   자리는 진짜 식당 위에 찍는다 — 그래야 이 기능이 무엇인지 눈에 들어온다 */
+const FOLLOW_NAMES=['지인 ㄱ','지인 ㄴ','지인 ㄷ'];
+let FOLLOW=[];
+function buildFollowMock(){
+  const pool=[];
+  layers.forEach(L=>{
+    if(L.id==='mine'||!(L.items||[]).length)return;
+    for(let i=0;i<L.items.length;i+=Math.max(1,Math.floor(L.items.length/9)))
+      pool.push({L:L,it:L.items[i]});});
+  FOLLOW=pool.slice(0,18).map((p,i)=>({
+    n:p.it.n,la:p.it.la,lo:p.it.lo,
+    who:FOLLOW_NAMES[i%FOLLOW_NAMES.length],
+    /* 같은 곳을 둘이 갔을 수도 있다 — 고리가 두꺼워지는 자리 */
+    people:(i%5===0?2:1)}));
+  return FOLLOW;}
+function followFC(){
+  return {type:'FeatureCollection',features:FOLLOW.map(f=>({type:'Feature',
+    properties:{n:f.n,who:f.who,people:f.people},
+    geometry:{type:'Point',coordinates:[f.lo,f.la]}}))};}
+function addFollowLayer(){
+  map.addSource('jfoll',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+  map.addLayer({id:'jfoll',type:'circle',source:'jfoll',
+    paint:{'circle-color':'rgba(0,0,0,0)','circle-radius':8,
+      'circle-stroke-color':OLIVE,
+      'circle-stroke-width':['case',['>',['get','people'],1],3,1.6],
+      'circle-stroke-opacity':.85}});
+  map.on('mouseenter','jfoll',()=>map.getCanvas().style.cursor='pointer');
+  map.on('mouseleave','jfoll',()=>map.getCanvas().style.cursor='');
+  map.on('click','jfoll',e=>{
+    const p=e.features[0].properties;
+    const el=$('geoask');
+    el.innerHTML='<b>'+esc(p.n)+'</b> — '+esc(p.who)
+      +(p.people>1?' 외 '+(p.people-1)+'명':'')+'이 다녀왔습니다'
+      +'<span class="ga no">견본입니다 · 닫기</span>';
+    el.classList.add('on');
+    el.querySelector('.no').onclick=()=>el.classList.remove('on');
+    setTimeout(()=>el.classList.remove('on'),6000);});}
+
+/* ══ 레이어 판 ══ 남의 명단을 내리고 나면 남는 것 ══
+   남의 별로 덮인 지구본은 지도가 붙은 가이드고, 내 별로 덮인 지구본은 한 사람의 기록이다.
+   둘은 다른 물건이고 우리 것은 뒤쪽이다 */
+const OWNROWS=[
+  {k:'been', label:'내가 간 곳',  color:WINE,  ids:['jdot','jring','jline'],
+   withMine:true, count:()=>myCounts().places+'곳'},
+  {k:'aim',  label:'내가 갈 곳',  color:WINE,  ids:['jaim'], ring:true,
+   count:()=>myCounts().saved+'곳'},
+  {k:'foll', label:'팔로우한 사람이 다녀온 곳', color:OLIVE, ids:['jfoll'], ring:true,
+   count:()=>'견본', mock:true}];
+const ownOn={been:true,aim:true,foll:true};
 /* 판이 미쉐린으로 시작하면, 우리가 뭘 적어 두든 그 브랜드가 이 화면의 주인이 된다.
    이름을 바꿀 수는 없다 — 사실은 사실이다. 대신 상석에서 내린다.
    내 것이 먼저 서고, 명단들은 그 아래 「남이 매긴 것」으로 앉는다 */
+function setOwnRow(r,on){
+  ownOn[r.k]=on;
+  const ids=r.ids.concat(r.withMine?LSFX.map(s=>'mine'+s):[]);
+  ids.forEach(id=>{if(map.getLayer(id))
+    map.setLayoutProperty(id,'visibility',on?'visible':'none');});}
+
 function paintPanel(){
-  const row=(L,i)=>{
-    const mapped=(L.items||[]).length;
-    const unit=L.grain==='city'?' 도시':'';
-    const ct=L.kind==='candidate'?L.total.toLocaleString()+'곳'
-      :(mapped<L.total?mapped+' / '+L.total:String(L.total))+unit;
-    return '<div class="lrow'+(L.on===false?' off':'')+'" data-i="'+i+'">'
-      +'<span class="dot" style="'+(L.grain==='city'
-          ?'background:transparent;border:1.5px dashed '+L.color
-          :'background:'+L.color)+'"></span>'
-      +'<span class="nm">'+esc(L.label)+'</span><span class="ct">'+ct+'</span></div>';};
-  const idx=layers.map((L,i)=>i);
-  const own=idx.filter(i=>layers[i].kind==='mine'||layers[i].id==='mine');
-  const rest=idx.filter(i=>own.indexOf(i)<0);
-  $('lrows').innerHTML=
-    (own.length?'<div class="lgrp">내 것</div>'+own.map(i=>row(layers[i],i)).join(''):'')
-    +(rest.length?'<div class="lgrp">남이 매긴 것 — 참고</div>'
-      +rest.map(i=>row(layers[i],i)).join(''):'')
-    +PENDING.map(p=>'<div class="lrow locked"><span class="dot" style="background:transparent;'
-      +'border:1.5px dashed rgba(140,129,117,.7)"></span><span class="nm">'+p.label
-      +'</span><span class="ct">'+p.note+'</span></div>').join('');
+  $('lrows').innerHTML=OWNROWS.map(r=>
+    '<div class="lrow'+(ownOn[r.k]?'':' off')+(r.mock?' mock':'')
+      +'" data-k="'+r.k+'">'
+    +'<span class="dot" style="'+(r.ring
+        ?'background:transparent;border:1.5px dashed '+r.color
+        :'background:'+r.color)+'"></span>'
+    +'<span class="nm">'+r.label+'</span>'
+    +'<span class="ct">'+r.count()+'</span></div>').join('')
+    +'<div class="lgrp">남의 명단</div>'
+    +'<div class="lrow locked"><span class="dot" style="background:transparent;'
+    +'border:1.5px dashed rgba(140,129,117,.7)"></span>'
+    +'<span class="nm">미쉐린 · 유네스코 · 파인다이닝</span>'
+    +'<span class="ct">채택 전</span></div>';
   $('lrows').querySelectorAll('.lrow:not(.locked)').forEach(el=>el.onclick=()=>{
-    const L=layers[+el.dataset.i];L.on=(L.on===false);
-    el.classList.toggle('off',!L.on);
-    LSFX.forEach(s=>{
-      if(map.getLayer(L.id+s))map.setLayoutProperty(L.id+s,'visibility',L.on?'visible':'none');});});
-  const gap=layers.filter(L=>(L.items||[]).length<L.total);
-  $('lprov').innerHTML='출처 Wikidata · CC0 · 최종확인 '+((layers[0]||{}).lastVerified||'—')
-    +(gap.length?'<br>'+gap.map(L=>L.label+' '+(L.items||[]).length+'/'+L.total).join(' · ')+' — 좌표 있는 것만':'')
-    +'<br>우리가 평가하지 않습니다';
+    const r=OWNROWS.find(x=>x.k===el.dataset.k); if(!r)return;
+    setOwnRow(r,!ownOn[r.k]);
+    el.classList.toggle('off',!ownOn[r.k]);});
+  $('lprov').innerHTML='지구본에는 선장님 기록만 섭니다.<br>'
+    +'남의 명단은 검색과 셈에만 쓰이고 별로는 뿌리지 않습니다 — '
+    +'채택하시면 그때 돌아옵니다.<br>우리가 평가하지 않습니다';
   /* 머리말의 '별'은 정본만 센다. 후보는 분모가 아니므로 따로 적는다 */
   const canon=layers.filter(L=>L.kind!=='candidate').reduce((a,L)=>a+L.total,0);
   const cand=layers.filter(L=>L.kind==='candidate').reduce((a,L)=>a+L.total,0);
@@ -2756,8 +2844,14 @@ function paintTime(){
    빈 칸도 누를 수 있다. 찬 칸은 다녀온 밤으로, 빈 칸은 아직 안 가 본 곳으로 데려간다 */
 function paintBoard(){
   const el=$('jboard'); if(!el)return;
-  const boards=layers.filter(L=>L.kind!=='candidate'&&L.total>0&&(L.items||[]).length);
-  if(!boards.length){el.innerHTML='<div class="hint">명단을 불러오는 중입니다.</div>';return;}
+  const boards=layers.filter(L=>L.adopted&&L.total>0&&(L.items||[]).length);
+  if(!boards.length){
+    el.innerHTML='<div class="hint">채택하신 명단이 아직 없습니다.<br><br>'
+      +'명단판은 <b>분모가 있어야</b> 그릴 수 있는 그림입니다 — 140칸 중 몇 칸이 찼는지는 '
+      +'명단이 닫혀 있을 때만 셀 수 있습니다.<br>'
+      +'미쉐린이나 블루리본 같은 명단을 채택하시면 그 칸들이 여기 섭니다. '
+      +'그건 그쪽과 이야기가 된 다음의 일입니다.</div>';
+    return;}
   el.innerHTML=boards.map((L,bi)=>{
     const items=(L.items||[]).slice().sort((a,b)=>{
       const x=(a.c||'')+'\u0000'+a.n, y=(b.c||'')+'\u0000'+b.n;
@@ -2864,12 +2958,16 @@ map.on('load',async()=>{
   defs.filter(Boolean).forEach(d=>addStarLayer({
     id:d.layer,label:d.label,color:d.color,grade:d.grade,kind:d.kind,grain:d.grain||'place',
     total:d.total||(d.items||[]).length,
+    adopted:false,      /* 채택 전 — 검색과 셈에는 쓰되 지구본에는 뿌리지 않는다 */
     source:d.source,license:d.license,lastVerified:d.lastVerified,items:d.items}));
   addStarLayer(minePlacesLayer());
   fetch('data/places.json',{cache:'no-cache'}).then(r=>r.json())
     .then(d=>{GAZ=d.items;paintWhere();}).catch(()=>{});
   addJourneyLayers();
+  addFollowLayer();
   showTrail(true);            /* 집이 지구본이니, 항적은 모드가 아니라 기본이다 */
+  buildFollowMock();
+  {const s=map.getSource('jfoll'); if(s)s.setData(followFC());}
   wireAdd();paintPanel();paintMine();paintJourney();paintWhere();
   let wt=0;
   map.on('move',()=>{clearTimeout(wt);wt=setTimeout(paintWhere,120);});
