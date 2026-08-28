@@ -1405,18 +1405,26 @@ function regManifest(){
     .then(r=>r.json()).then(m=>(REG=m)).catch(()=>(REG=false));
 }
 /* 지금 화면을 덮는 조각들. 대륙을 보고 있을 때 등기부를 뒤지는 건 의미가 없다 */
+/* 격자 크기가 출처마다 다르다. 0.25°짜리 칸은 영국 시골에서는 알맞지만
+   방콕 도심에서는 2.7 MB가 되어, 검색 한 번에 그걸 다 내려받게 된다.
+   그래서 촘촘한 도시는 0.02°로 잘라 두었고, 여기서는 출처마다 제 격자로 센다 */
 function regCellsInView(){
   if(!REG||!REG.sources)return [];
-  const st=REG.step,b=map.getBounds();
-  const x0=Math.floor(b.getWest()/st),x1=Math.floor(b.getEast()/st);
-  const y0=Math.floor(b.getSouth()/st),y1=Math.floor(b.getNorth()/st);
-  if((x1-x0+1)*(y1-y0+1)>42)return [];
+  const b=map.getBounds();
   const out=[];
   Object.keys(REG.sources).forEach(id=>{
-    const s=REG.sources[id];
+    const s=REG.sources[id], st=s.step||REG.step||0.25;
+    const x0=Math.floor(b.getWest()/st), x1=Math.floor(b.getEast()/st);
+    const y0=Math.floor(b.getSouth()/st), y1=Math.floor(b.getNorth()/st);
+    /* 화면이 대륙만 하면 뒤질 것이 아니다 */
+    if((x1-x0+1)*(y1-y0+1)>600)return;
     for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
       const k=y+'_'+x;
-      if(s.cells[k])out.push({id:id,s:s,k:k});}});
+      if(s.cells[k])out.push({id:id,s:s,k:k,n:s.cells[k]});}});
+  /* 칸 수가 아니라 줄 수로 막는다. 그게 실제로 내려받는 무게다 */
+  let rows=0;
+  for(let i=0;i<out.length;i++){rows+=out[i].n||0;
+    if(rows>60000)return out.slice(0,i);}
   return out;}
 function regLoad(list){
   return Promise.all(list.map(c=>{
@@ -1891,14 +1899,27 @@ const REACH='#4F6D7A';
 let reachOn=true;
 function reachFC(){
   const M=REG; if(!M||!M.sources)return {type:'FeatureCollection',features:[]};
-  const step=M.step||0.25, seen=new Set();
-  Object.keys(M.sources).forEach(k=>
-    Object.keys(M.sources[k].cells||{}).forEach(c=>seen.add(c)));
-  const feats=[];
-  seen.forEach(c=>{
-    const p=c.split('_'), y=+p[0]*step, x=+p[1]*step;
-    feats.push({type:'Feature',properties:{},geometry:{type:'Polygon',
-      coordinates:[[[x,y],[x+step,y],[x+step,y+step],[x,y+step],[x,y]]]}});});
+  const seen=new Set(), feats=[];
+  const box=(x0,y0,x1,y1)=>feats.push({type:'Feature',properties:{},
+    geometry:{type:'Polygon',coordinates:[[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]]]}});
+  Object.keys(M.sources).forEach(id=>{
+    const s=M.sources[id], step=s.step||M.step||0.25;
+    const keys=Object.keys(s.cells||{});
+    if(!keys.length)return;
+    if(step<0.1){
+      /* 0.02°짜리 칸은 세계 배율에서 바늘구멍만 하다. 도시 하나를 통째로 칠한다 —
+         우리가 뒤진 상자가 곧 그 상자이므로, 뭉뚱그리는 것이 아니라 사실 그대로다 */
+      let a=1e9,b=-1e9,c=1e9,d=-1e9;
+      keys.forEach(k=>{const p=k.split('_');
+        const y=+p[0]*step, x=+p[1]*step;
+        if(x<a)a=x; if(x+step>b)b=x+step; if(y<c)c=y; if(y+step>d)d=y+step;});
+      box(a,c,b,d); return;}
+    keys.forEach(c=>{
+      /* 격자가 다르면 같은 땅이라도 열쇠가 다르다. 칠한 자리로 겹침을 판단한다 */
+      const p=c.split('_'), y=+p[0]*step, x=+p[1]*step;
+      const g=Math.round(y/0.05)+'@'+Math.round(x/0.05);
+      if(seen.has(g))return; seen.add(g);
+      box(x,y,x+step,y+step);});});
   return {type:'FeatureCollection',features:feats};}
 
 function addReachLayer(before){
