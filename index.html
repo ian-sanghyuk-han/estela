@@ -1932,24 +1932,22 @@ function reachFC(){
   const seen=new Set(), feats=[];
   const box=(x0,y0,x1,y1)=>feats.push({type:'Feature',properties:{},
     geometry:{type:'Polygon',coordinates:[[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]]]}});
+  /* 칸은 출처마다 크기가 다르고, 잔 것은 세계 배율에서 바늘구멍이라 안 보인다.
+     그렇다고 나라를 통째로 칠하면 사막까지 덮는 거짓이 된다.
+     그래서 보이기용 격자 하나(0.1°)로 모아 그린다 — 실제로 자료가 있는 칸만 */
+  const SHOW=0.1;
   Object.keys(M.sources).forEach(id=>{
     const s=M.sources[id], step=s.step||M.step||0.25;
-    const keys=Object.keys(s.cells||{});
-    if(!keys.length)return;
-    if(step<0.1){
-      /* 0.02°짜리 칸은 세계 배율에서 바늘구멍만 하다. 도시 하나를 통째로 칠한다 —
-         우리가 뒤진 상자가 곧 그 상자이므로, 뭉뚱그리는 것이 아니라 사실 그대로다 */
-      let a=1e9,b=-1e9,c=1e9,d=-1e9;
-      keys.forEach(k=>{const p=k.split('_');
-        const y=+p[0]*step, x=+p[1]*step;
-        if(x<a)a=x; if(x+step>b)b=x+step; if(y<c)c=y; if(y+step>d)d=y+step;});
-      box(a,c,b,d); return;}
-    keys.forEach(c=>{
-      /* 격자가 다르면 같은 땅이라도 열쇠가 다르다. 칠한 자리로 겹침을 판단한다 */
+    Object.keys(s.cells||{}).forEach(c=>{
       const p=c.split('_'), y=+p[0]*step, x=+p[1]*step;
-      const g=Math.round(y/0.05)+'@'+Math.round(x/0.05);
+      if(step>=SHOW){                          /* 성긴 칸은 제 모양 그대로 */
+        const g='c'+p[0]+'_'+p[1]+'_'+step;
+        if(seen.has(g))return; seen.add(g);
+        box(x,y,x+step,y+step); return;}
+      const gy=Math.floor(y/SHOW), gx=Math.floor(x/SHOW);
+      const g=gy+'@'+gx;
       if(seen.has(g))return; seen.add(g);
-      box(x,y,x+step,y+step);});});
+      box(gx*SHOW,gy*SHOW,(gx+1)*SHOW,(gy+1)*SHOW);});});
   return {type:'FeatureCollection',features:feats};}
 
 function addReachLayer(before){
