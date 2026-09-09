@@ -33,12 +33,27 @@ if not os.path.isdir(REG):
 OUT = os.path.join(REG, "index")
 BUCKETS = 512
 PER = 50            # 말머리 하나가 담는 가게 수 — 92%의 말머리는 이보다 적게 나온다
-PER_AREA = 3        # 한 도시가 오십 자리를 다 차지하지 않게
+PER_AREA = 6        # 한 도시가 오십 자리를 다 차지하지 않게
 AREAS = 260
 
 # 글자로 볼 것 — 숫자·라틴·한글·가나·한자·키릴·타이·아랍. 나머지는 낱말 경계로 친다
 SPLIT = re.compile(r"[^0-9a-z가-힣぀-ヿ一-鿿"
                    r"Ѐ-ӿ฀-๿؀-ۿ]+")
+
+
+# 한글·가나·한자는 글자 하나가 품은 뜻이 커서, 두 글자면 «성심»처럼 뭉뚱그려진다.
+# 그래서 이 글자들로 된 낱말은 두 글자와 세 글자를 함께 담는다 —
+# «성심당»을 치면 성심당만 든 칸이 따로 열린다
+CJK = re.compile(r"[가-힣぀-ヿ一-鿿]")
+
+
+def keys_of(word):
+    # 한글·가나·한자는 세 글자로만 건다. 두 글자(«성심»)는 너무 뭉뚱그려져서
+    # 한 칸에 성심돈·성심전·성심당이 다 몰리고, 둘 다 담으면 색인이 141 MB가 된다.
+    # 라틴 글자는 두 글자로 건다 — 알파벳은 글자 하나가 품은 뜻이 작다.
+    if CJK.match(word[0]):
+        return [word[:3]] if len(word) >= 3 else [word[:2]]
+    return [word[:2]]
 
 
 def bucket(prefix):
@@ -84,28 +99,40 @@ def main():
                 area = (int(math.floor(la)), int(math.floor(lo)))
                 rec = None
                 seen = None
+                first = True
                 for w in SPLIT.split(str(nm).lower()):
                     if len(w) < 2:
+                        first = False
                         continue
-                    p = w[:2]
+                    head = first          # 이름의 첫 낱말에서 걸렸는가
+                    first = False
                     if seen is None:
                         seen = set()
-                    if p in seen:
+                    for p in keys_of(w):
+                      if p in seen:
                         continue
-                    seen.add(p)
-                    a = idx.get(p)
-                    if a is None:
+                      seen.add(p)
+                      a = idx.get(p)
+                      if a is None:
                         a = idx[p] = {}
-                    L = a.get(area)
-                    if L is None:
+                      L = a.get(area)
+                      if L is None:
                         if len(a) >= AREAS:
                             continue          # 땅을 너무 많이 벌리지 않는다
                         L = a[area] = []
-                    if len(L) >= PER_AREA:
-                        continue
-                    if rec is None:
+                      if rec is None:
                         rec = [str(nm)[:44], round(la, 5), round(lo, 5), si]
-                    L.append(rec)
+                    # 첫 낱말에서 걸린 것과 이름이 짧은 것을 먼저 담는다.
+                    # 자리가 차면 건너뛰는 게 아니라 **가장 못한 것을 밀어낸다** —
+                    # 건너뛰면 가나다순으로 먼저 온 «디씨씨 성심당»이 여섯 자리를
+                    # 다 차지하고, 정작 «성심당본점»은 들어올 자리가 없다
+                      key = (0 if head else 1, len(rec[0]))
+                      if len(L) < PER_AREA:
+                        L.append((key[0], key[1], rec))
+                      else:
+                        wi = max(range(len(L)), key=lambda z: (L[z][0], L[z][1]))
+                        if key < (L[wi][0], L[wi][1]):
+                            L[wi] = (key[0], key[1], rec)
         if (n_done + 1) % 40 == 0:
             print("   출처 %d/%d · 이름 %s · 말머리 %s · %.0f분"
                   % (n_done + 1, len(srcs), format(names, ","),
@@ -124,13 +151,14 @@ def main():
     for p, areas in idx.items():
         total = sum(len(v) for v in areas.values())
         # 땅을 돌아가며 하나씩 집는다 — 한 도시가 오십 자리를 다 차지하지 않게
-        picked, lists = [], [list(v) for v in areas.values()]
+        picked = []
+        lists = [sorted(v, key=lambda z: (z[0], z[1])) for v in areas.values()]
         i = 0
         while len(picked) < PER and any(lists):
             for L in lists:
                 if not L:
                     continue
-                picked.append(L.pop(0))
+                picked.append(L.pop(0)[2])
                 if len(picked) >= PER:
                     break
             i += 1
@@ -146,7 +174,7 @@ def main():
         nbytes += os.path.getsize(q)
 
     man["srcs"] = srcs
-    man["index"] = {"buckets": BUCKETS, "gram": 2, "per": PER, "places": True}
+    man["index"] = {"buckets": BUCKETS, "gram": 2, "cjk": 3, "per": PER, "places": True}
     json.dump(man, io.open(mpath, "w", encoding="utf-8"),
               ensure_ascii=False, separators=(",", ":"))
     print("색인 %s곳 · %d개 꾸러미 · %.0f MB · 꾸러미 평균 %.0f KB"

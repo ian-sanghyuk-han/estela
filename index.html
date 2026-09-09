@@ -1563,10 +1563,17 @@ function crc32(str){
 /* 색인이 가게를 직접 담고 있으므로 받아 올 칸이 없다. 한 번 가져와 걸러 내면 끝이다.
    처음에는 «어느 땅에 있는지»만 담았는데, 1°짜리 땅 안에 세밀한 칸이 400개라
    무엇을 펴야 할지 알 수 없어 엉뚱한 것을 받아 왔다. 뒤집고 나니 훨씬 단순해졌다 */
+/* 한글·가나·한자는 세 글자, 라틴 글자는 두 글자로 건다.
+   한글 두 글자(«성심»)는 성심돈·성심전·성심당을 한 칸에 몰아넣어 쓸모가 없다 */
+const CJKRE=/[가-힣぀-ヿ一-鿿]/;
+function farKey(q){
+  if(CJKRE.test(q[0]))return q.length>=3?q.slice(0,3):(q.length>=2?q.slice(0,2):'');
+  return q.length>=2?q.slice(0,2):'';}
+
 function farFind(t){
   if(!REG||!REG.index||!REG.srcs)return Promise.resolve([]);
-  const q=t.toLowerCase(), p=q.slice(0,2);
-  if(p.length<2)return Promise.resolve([]);
+  const q=t.toLowerCase(), p=farKey(q);
+  if(!p)return Promise.resolve([]);
   const b=crc32(p)%REG.index.buckets;
   return fetch(regUrl('index','b'+('00'+b).slice(-3)))
     .then(r=>r.json()).then(m=>{
