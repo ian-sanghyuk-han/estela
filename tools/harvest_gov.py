@@ -508,7 +508,9 @@ def us_pa():
     for r in got:
         if (r.get("active_indicator") or "").lower() != "yes":
             continue
-        if (r.get("program_group_type") or "") != "Food":
+        # 체스터 카운티는 «ChesterCountyFood»로 따로 적힌다. «Food»만 보다가
+        # 9,359줄을 통째로 놓쳤다
+        if "food" not in (r.get("program_group_type") or "").lower():
             continue
         nm = r.get("public_facility_name") or r.get("organization_name")
         ad = r.get("address")
@@ -517,10 +519,27 @@ def us_pa():
         # 인구조사국은 «09th»를 못 읽는다. 앞의 0을 떼면 대개 걸린다
         ad = re.sub(r"\b0(\d)(st|nd|rd|th)\b", r"\1\2", ad, flags=re.I)
         key = "|".join([ad, r.get("city") or "", "PA", r.get("zip_code") or ""])
-        raw.append([nm, key, joinp(ad, r.get("city"), r.get("zip_code"))])
-    cache = geocode_us([k for _, k, _ in raw])
+        raw.append([nm, key, joinp(ad, r.get("city"), r.get("zip_code")), ad,
+                    r.get("city") or "", r.get("zip_code") or ""])
+    cache = geocode_us([k for _, k, _, _, _, _ in raw])
+    # 못 찾은 주소는 호수·동·건물 이름을 떼고 다시 물어본다. 인구조사국은
+    # «123 MAIN ST STE 4»를 못 읽지만 «123 MAIN ST»는 읽는다
+    again = {}
+    for _, key, _, ad, city, zp in raw:
+        if cache.get(key):
+            continue
+        s = re.split(r"\b(?:ste|suite|apt|unit|rm|room|fl|floor|bldg|#)\b",
+                     ad, 1, flags=re.I)[0].strip(" ,-")
+        s = re.sub(r"\s+", " ", s)
+        if s and s != ad:
+            again[key] = "|".join([s, city, "PA", zp])
+    if again:
+        c2 = geocode_us(list(set(again.values())))
+        for key, s in again.items():
+            if c2.get(s):
+                cache[key] = c2[s]
     rows = []
-    for nm, key, ad in raw:
+    for nm, key, ad, _, _, _ in raw:
         xy = cache.get(key)
         if not xy or xy[0] is None:
             continue

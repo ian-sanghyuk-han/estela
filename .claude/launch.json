@@ -1,11 +1,6 @@
 {
   "version": "0.0.1",
   "configurations": [
-    {
-      "name": "estela",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8731"],
-      "port": 8731
-    }
+    { "name": "estela", "runtimeExecutable": "python", "runtimeArgs": ["-m","http.server","8787"], "port": 8787 }
   ]
 }

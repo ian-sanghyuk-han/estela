@@ -171,6 +171,27 @@
   #geoask .ga.yes{background:var(--wine);border-color:var(--wine);color:var(--paper)}
   #geobtn.on{color:var(--olive)}
   .recbtns{display:flex;gap:6px;margin-top:7px}
+  /* ── 친구 vs 나 ── 순대국은 여기가 최고, 내 곳 vs 네 곳 ── */
+  #jduel .dwho{display:flex;align-items:baseline;gap:6px;font-size:10.5px;
+    color:var(--dim);margin:2px 0 8px}
+  #jduel .dwho b{color:var(--ink);font-size:11.5px}
+  #jduel .dwho em{margin-left:auto;font-style:normal;cursor:pointer;
+    text-decoration:underline}
+  #jduel .dblk{border-top:1px solid var(--rule);padding:9px 0 7px}
+  #jduel .dname{font:600 11.5px var(--sans);color:var(--ink);margin-bottom:7px}
+  #jduel .dtop{display:flex;align-items:center;gap:7px}
+  #jduel .dcol{flex:1 1 0;min-width:0}
+  #jduel .dcol i{display:block;font-style:normal;font-size:9px;color:var(--mute);
+    margin-bottom:3px}
+  #jduel .dx{font-family:var(--serif);font-size:10px;color:var(--mute);flex:0 0 auto}
+  #jduel .drow{display:flex;align-items:center;gap:5px;font-size:11px;
+    color:var(--ink);line-height:1.35;cursor:pointer;
+    border:1px solid var(--rule);padding:6px 7px}
+  #jduel .drow.me{border-color:var(--wine)}
+  #jduel .drow.em{color:var(--mute);cursor:default;border-style:dashed}
+  #jduel .drow .wd{flex:0 0 auto;width:7px;height:7px;border-radius:50%}
+  #jduel .dsame{font-size:10px;color:var(--olive);margin-top:6px}
+  #jduel .dmeta{font-size:9.5px;color:var(--mute);margin-top:6px}
   .recbtns span{flex:1;text-align:center;font-size:10.5px;color:var(--ink);
     border:1px solid var(--rule);padding:6px;cursor:pointer}
   .recbtns span:hover{border-color:var(--mute);background:var(--sand)}
@@ -603,6 +624,7 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
 <div id="picking"><span>지도에서 자리를 눌러 주세요</span></div>
 <div id="geoask"></div>
 <input type="file" id="recfile" accept="application/json,.json" hidden>
+<input type="file" id="duelfile" accept="application/json,.json" hidden>
 
 <div id="modebar">
   <span class="mbtn" id="btnhome">전체 보기</span>
@@ -653,6 +675,8 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
       <section class="jcol">
         <div class="colh">함께 — bond</div>
         <div id="jbond"></div>
+        <div class="colh mt">친구와 겨루기</div>
+        <div id="jduel"></div>
         <div class="colh mt">기록 옮기기</div>
         <div class="hint">계정이 생기기 전까지는 이 브라우저 안에만 있습니다.
           파일로 내보내 두시면 폰과 노트북을 오갈 수 있고, 자료를 지워도 되살릴 수 있습니다.</div>
@@ -2766,7 +2790,87 @@ function paintJourney(){
   const ob=$('orphdrop');
   if(ob)ob.onclick=()=>{
     if(!confirm('자리를 잃은 기록을 영구히 지웁니다. 되돌릴 수 없습니다. 진행할까요?'))return;
-    dropOrphans();paintJourney();paintMine();};}
+    dropOrphans();paintJourney();paintMine();};
+  paintDuel();}
+
+/* ══ 친구 vs 나 ══ 순대국은 여기가 최고 — 내 곳 vs 네 곳.
+   식당으로도 겨루고 메뉴로도 겨룬다. 사실 둘은 같은 것이다. 선장님이 «순대국»이라는
+   목록을 만들어 거기 1위를 세우면, 그 목록 이름이 곧 메뉴이고 1위가 곧 식당이다.
+   그래서 따로 만들지 않고 **같은 이름의 목록끼리** 맞붙인다.
+
+   서버가 없으니 친구 기록은 파일로 온다 — 이미 있는 내보내기/불러오기 그대로다.
+   합치지 않는다. 남의 판단으로 내 순위를 덮지 않는 것이 이 앱의 규칙이고,
+   겨루기는 «누가 맞나»가 아니라 «어디가 갈리나»를 보는 일이다 */
+let FRIEND=null;                 /* {name, lists:[{n,items:[key]}]} — 이 화면에서만 산다 */
+
+function friendFromBox(box){
+  let ls=[];
+  try{ls=JSON.parse((box.data||{})['estela.lists.v1']||'[]');}catch(e){ls=[];}
+  return {name:(box.who||'').trim()||'친구',at:box.at||'',lists:Array.isArray(ls)?ls:[]};}
+
+function duelRow(k,mine){
+  const i=keyInfo(k);
+  return '<div class="drow'+(mine?' me':'')+'" data-k="'+esc(k)+'">'
+    +'<span class="wd" style="background:'+i.c+'"></span>'+esc(i.n)+'</div>';}
+
+function paintDuel(){
+  const el=$('jduel'); if(!el)return;
+  if(!FRIEND){
+    el.innerHTML='<div class="hint">친구가 <b>내보내기</b>로 만든 파일을 받으면, '
+      +'같은 이름의 목록끼리 맞붙습니다 — «순대국 1위: 내 곳 vs 네 곳».<br>'
+      +'합치지 않습니다. 친구의 순위가 제 순위를 덮는 일은 없습니다.</div>'
+      +'<div class="recbtns"><span id="duelin">친구 파일 열기</span></div>';
+    $('duelin').onclick=()=>$('duelfile').click();
+    return;}
+  const mine={}; LISTS.forEach(l=>mine[l.n.trim()]=l);
+  const theirs={}; FRIEND.lists.forEach(l=>{if(l&&l.n)theirs[l.n.trim()]=l;});
+  const both=Object.keys(mine).filter(n=>theirs[n]);
+  const onlyMe=Object.keys(mine).filter(n=>!theirs[n]);
+  const onlyYou=Object.keys(theirs).filter(n=>!mine[n]);
+  let h='<div class="dwho"><b>'+esc(FRIEND.name)+'</b>'
+    +(FRIEND.at?' · '+esc(FRIEND.at):'')+'<em id="duelout">치우기</em></div>';
+  if(!both.length)
+    h+='<div class="hint">겹치는 목록 이름이 없습니다. 같은 이름으로 목록을 만들면 '
+      +'그때 맞붙습니다 — 이름을 미리 정해 두지 않는 것이 이 앱의 방식이라, '
+      +'겨루려면 둘이 같은 말을 써야 합니다.</div>';
+  both.forEach(n=>{
+    const A=mine[n].items||[], B=theirs[n].items||[];
+    const same=A.filter(k=>B.indexOf(k)>=0);
+    h+='<div class="dblk"><div class="dname">'+esc(n)+'</div>'
+      +'<div class="dtop"><div class="dcol"><i>내 1위</i>'
+      +(A.length?duelRow(A[0],true):'<div class="drow em">아직 없음</div>')+'</div>'
+      +'<div class="dx">vs</div><div class="dcol"><i>'+esc(FRIEND.name)+'의 1위</i>'
+      +(B.length?duelRow(B[0],false):'<div class="drow em">아직 없음</div>')+'</div></div>';
+    /* 1위가 같으면 그게 이 겨루기에서 가장 재미있는 결과다 */
+    if(A.length&&B.length&&A[0]===B[0])
+      h+='<div class="dsame">둘 다 1위로 꼽았습니다</div>';
+    h+='<div class="dmeta">겹치는 곳 '+same.length+'곳 · 내 '+A.length+'곳 · '
+      +esc(FRIEND.name)+' '+B.length+'곳</div></div>';});
+  if(onlyMe.length||onlyYou.length)
+    h+='<div class="hint">'
+      +(onlyMe.length?'나만 가진 목록: '+onlyMe.map(esc).join(' · ')+'<br>':'')
+      +(onlyYou.length?esc(FRIEND.name)+'만 가진 목록: '
+        +onlyYou.map(esc).join(' · '):'')+'</div>';
+  el.innerHTML=h;
+  const x=$('duelout'); if(x)x.onclick=()=>{FRIEND=null;paintDuel();};
+  el.querySelectorAll('.drow[data-k]').forEach(r=>r.onclick=()=>{
+    const i=keyInfo(r.dataset.k); if(!i.it)return;
+    setSheet('globe');
+    travelTo(i.it.la,i.it.lo,Math.max(map.getZoom(),15));
+    selectPlace(i.L,i.it);});}
+
+function loadFriend(file){
+  const r=new FileReader();
+  r.onload=()=>{
+    let box;
+    try{box=JSON.parse(r.result);}catch(e){alert('읽을 수 없는 파일입니다.');return;}
+    if(!box||box.app!=='estela'||!box.data){alert('에스텔라 기록 파일이 아닙니다.');return;}
+    const who=prompt('이 기록은 누구의 것인가요?','친구');
+    if(who===null)return;
+    box.who=who;
+    FRIEND=friendFromBox(box);
+    paintDuel();};
+  r.readAsText(file);}
 
 /* ══ 기록 옮기기 ══ 계정이 생기기 전까지 유일한 안전장치 ══
    브라우저 하나에만 들어 있으니, 사이트 자료를 지우면 몇 해치 도장이 사라진다.
@@ -3369,6 +3473,8 @@ $('cardbtn').onclick=toggleCardSheet;
 $('recout').onclick=exportRecord;
 $('recin').onclick=()=>$('recfile').click();
 $('recfile').onchange=e=>{if(e.target.files[0])importRecord(e.target.files[0]);
+  e.target.value='';};
+$('duelfile').onchange=e=>{if(e.target.files[0])loadFriend(e.target.files[0]);
   e.target.value='';};
 /* 검색창이 열리면 여기가 어디인지부터 말한다. 지도를 옮기면 따라 바뀐다 */
 (function(){
