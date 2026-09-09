@@ -1398,12 +1398,28 @@ let addTimer=null;
    없는 집까지 닿게. 화면에 걸친 조각만, 그것도 화면이 충분히 좁을 때만 받아온다 */
 let REG=null;
 const REGCELL=new Map();
+/* 등기부는 딴 저장소에 산다 — github.com/ian-sanghyuk-han/estela-data.
+   용량 때문이 아니라 갱신 때문이다: Overture는 매달 새 판이 나오는데, 한 저장소에
+   같이 있으면 갱신 한 번에 수백 MB가 앱 이력에 영구히 쌓인다.
+   GitHub Pages는 어느 주소에서든 읽어 가게 열어 두므로 그냥 가져오면 된다.
+   집에서 자료를 손보는 중이면 그쪽이 먼저다 */
+const REGBASE=(location.hostname==='localhost'||location.hostname==='127.0.0.1')
+  ? 'data/registry/'
+  : 'https://ian-sanghyuk-han.github.io/estela-data/registry/';
 function regManifest(){
   if(REG!==null)return Promise.resolve(REG);
   REG=false;
-  return fetch('data/registry/manifest.json',{cache:'no-cache'})
-    .then(r=>r.json()).then(m=>(REG=m)).catch(()=>(REG=false));
+  const remote='https://ian-sanghyuk-han.github.io/estela-data/registry/manifest.json';
+  return fetch(REGBASE+'manifest.json',{cache:'no-cache'})
+    .then(r=>r.ok?r.json():Promise.reject(0)).then(m=>(REG=m))
+    /* 집에 자료가 없으면 딴 저장소에서 — 그래야 앱만 받아도 검색이 산다 */
+    .catch(()=>fetch(remote,{cache:'no-cache'}).then(r=>r.json())
+      .then(m=>{REGREMOTE=true;return (REG=m);}).catch(()=>(REG=false)));
 }
+let REGREMOTE=false;
+const regUrl=(folder,cell)=>
+  (REGREMOTE?'https://ian-sanghyuk-han.github.io/estela-data/registry/':REGBASE)
+  +folder+'/'+cell+'.json';
 /* 지금 화면을 덮는 조각들. 대륙을 보고 있을 때 등기부를 뒤지는 건 의미가 없다 */
 /* 격자 크기가 출처마다 다르다. 0.25°짜리 칸은 영국 시골에서는 알맞지만
    방콕 도심에서는 2.7 MB가 되어, 검색 한 번에 그걸 다 내려받게 된다.
@@ -1445,7 +1461,7 @@ function regLoad(list){
     const key=c.id+'/'+c.k;
     if(REGCELL.has(key))return null;
     REGCELL.set(key,[]);                       /* 같은 조각을 두 번 받지 않게 */
-    return fetch('data/registry/'+c.s.folder+'/'+c.k+'.json')
+    return fetch(regUrl(c.s.folder,c.k))
       .then(r=>r.json()).then(a=>{REGCELL.set(key,regExpand(a));})
       .catch(()=>{REGCELL.delete(key);});}));}
 /* 같은 집을 두 출처가 함께 아는 자리가 생겼다 — 나라 명부와 Overture.
