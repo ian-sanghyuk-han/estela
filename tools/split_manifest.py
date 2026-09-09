@@ -39,6 +39,29 @@ def main():
         if not os.path.isdir(d):
             os.makedirs(d)
         p = os.path.join(d, "cells.json")
+        if not cells:
+            # 이미 갈라 놓은 목록에 한 번 더 돌면 여기가 빈다. 그대로 쓰면 출처
+            # 233개의 칸 목록과 덮개가 «{}»가 되고 화면 안 검색이 그 자리에서
+            # 멈춘다 — 한 번 그렇게 했다. 이미 내려간 것이 있으면 손대지 않는다
+            if os.path.exists(p):
+                try:
+                    old = json.load(io.open(p, encoding="utf-8"))
+                except Exception:
+                    old = {}
+                if old:
+                    ncells += len(old)
+                    nbytes += os.path.getsize(p)
+                    w = dict(v)
+                    w.pop("cells", None)
+                    if not w.get("cov"):
+                        cov = collections.Counter()
+                        for k in old:
+                            a, b = k.split("_")
+                            cov[(int(math.floor(int(a) * step)),
+                                 int(math.floor(int(b) * step)))] += old[k]
+                        w["cov"] = " ".join("%d,%d" % k for k in sorted(cov))
+                    lite["sources"][sid] = w
+                    continue
         json.dump(cells, io.open(p, "w", encoding="utf-8"),
                   ensure_ascii=False, separators=(",", ":"))
         ncells += len(cells)
