@@ -122,6 +122,9 @@
     border-bottom:1px solid var(--rule);color:var(--ink)}
   #addres .r:hover{background:var(--sand)}
   #addres .r small{display:block;color:var(--dim);font-size:9.5px}
+  /* 얼마나 먼지 — 이름 옆에 조용히 */
+  #addres .r .km{float:right;font-style:normal;font-size:9px;color:var(--mute);
+    margin-left:6px}
   #addres .msg{font-size:10px;color:var(--dim);padding:6px 2px}
   /* 몇 개 중 몇 개인지 — 목록이 잘렸다는 걸 숨기지 않는다 */
   #addres .grp i{font-style:normal;letter-spacing:0;color:var(--dim);
@@ -1494,7 +1497,10 @@ function regSearch(t,cap,only){
     if(seen.has(k))continue;
     seen.add(k); uniq.push(h);}
   hit.length=0; Array.prototype.push.apply(hit,uniq);
-  hit.sort((a,b)=>a.rank-b.rank||a.it[0].length-b.it[0].length);
+  /* 이름이 앞에서 걸린 것을 먼저, 그다음은 가까운 것부터.
+     "순대"를 치면 서울 어느 동네에서든 걸어갈 수 있는 집이 위에 서야 한다 */
+  hit.forEach(h=>{h.km=distKm(h.it[1],h.it[2]);});
+  hit.sort((a,b)=>a.rank-b.rank||a.km-b.km);
   const out=hit.slice(0,cap||40);
   out.total=hit.length;                /* 잘라 놓고도 몇 개였는지는 말해 준다 */
   return out;}
@@ -1515,6 +1521,22 @@ function searchCanon(t){
   const out=hit.slice(0,12);
   out.total=hit.length;
   return out;}
+
+/* ══ 기준점 ══ 가까운 것부터 보여주려면 어디를 기준으로 재는지가 있어야 한다.
+   폰에서 위치를 켜 두셨으면 서 계신 자리, 아니면 지금 보고 계신 지도의 한가운데.
+   둘 다 "내가 지금 관심 있는 자리"라는 점에서 같은 뜻이다 */
+let geoFix=null;
+function refPoint(){
+  if(geoFix && Date.now()-geoFix.t < 10*60*1000) return geoFix;   /* 십 분까지는 유효 */
+  const c=map.getCenter();
+  return {la:c.lat, lo:c.lng, t:0};}
+function distKm(la,lo){
+  const r=refPoint(), R=6371, d=Math.PI/180;
+  const dla=(la-r.la)*d, dlo=(lo-r.lo)*d;
+  const x=Math.sin(dla/2)**2+Math.cos(r.la*d)*Math.cos(la*d)*Math.sin(dlo/2)**2;
+  return 2*R*Math.asin(Math.min(1,Math.sqrt(x)));}
+const farText=km=>km<1?Math.round(km*1000)+'m'
+  :km<10?km.toFixed(1)+'km':Math.round(km)+'km';
 
 /* 지금 보고 있는 화면 쪽을 먼저 보여달라고 일러둔다. '라멘'은 세상에 수천 개다 */
 function viewBox(){
@@ -1771,7 +1793,8 @@ function wireAdd(){
           +rr.map(h=>{
             const sc=REG.sources[h.src]||{};
             const kind=h.it[4]?esc(h.it[4])+' · ':'';
-            return '<div class="r reg"><b>'+esc(h.it[0])+'</b><small>'
+            return '<div class="r reg"><b>'+esc(h.it[0])+'</b>'
+              +'<em class="km">'+farText(h.km)+'</em><small>'
               +esc(h.it[3]||'')+' — '+kind+esc(sc.label||'')+'</small></div>';}).join('');
         bound.reg=i=>{
           const h=rr[i],sc=REG.sources[h.src]||{};
@@ -1790,10 +1813,19 @@ function wireAdd(){
         +'&addressdetails=1&viewbox='+viewBox()+'&q='+encodeURIComponent(t))
         .then(r=>r.json()).then(list=>{
           if(slot.q!==t)return;
+          /* Nominatim은 "순대"를 로마자 sundae 로 옮겨 읽고 미국의 Sundae Drive를
+             돌려준다. 순대와 아이스크림 썬데는 다른 음식이다.
+             찾은 이름 안에 실제로 그 글자가 들어 있는 것만 남긴다 */
+          const q=t.toLowerCase();
+          list=list.filter(r=>((r.name||'')+' '+(r.display_name||''))
+                              .toLowerCase().indexOf(q)>=0);
+          list.forEach(r=>{r.km=distKm(+r.lat,+r.lon);});
+          list.sort((a,b)=>a.km-b.km);
           slot.net=list.length
             ?'<div class="grp">지도에서 찾았습니다</div>'+list.map(r=>{
                const nm=(r.name||r.display_name.split(',')[0]).trim();
-               return '<div class="r net"><b>'+esc(nm)+'</b><small>'
+               return '<div class="r net"><b>'+esc(nm)+'</b>'
+                 +'<em class="km">'+farText(r.km)+'</em><small>'
                  +esc(r.display_name)+'</small></div>';}).join('')
             :'<div class="msg">지도에도 아직 없는 곳입니다.</div>';
           bound.net=i=>{
@@ -2615,6 +2647,7 @@ function nearbyCandidates(){
   return out;}
 function geoHit(pos){
   const la=pos.coords.latitude, lo=pos.coords.longitude, now=Date.now();
+  geoFix={la:la, lo:lo, t:now};        /* 검색 정렬의 기준점으로도 쓴다 */
   let best=null;
   nearbyCandidates().forEach(c=>{
     if(geoAsked[c.k]&&now-geoAsked[c.k]<3*3600*1000)return;   /* 세 시간은 조용히 */
