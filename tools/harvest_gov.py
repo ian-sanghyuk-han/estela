@@ -27,7 +27,9 @@ REG = os.path.join(os.path.dirname(REPO), "estela-data", "registry")
 if not os.path.isdir(REG):
     REG = os.path.join(REPO, "data", "registry")
 
-UA = {"User-Agent": "estela/1.0 (gastronomic map; open data harvest)"}
+# 괄호와 세미콜론이 든 이름표를 막는 서버가 있다. 보스턴은 그걸로 502를 뱉었고
+# 나는 서버가 죽은 줄 알았다. 이름표는 짧게 둔다
+UA = {"User-Agent": "estela/1.0"}
 STEPS = [0.25, 0.1, 0.05, 0.02, 0.01]
 TARGET = 520
 
@@ -531,9 +533,11 @@ def us_pa():
 
 def us_boston():
     """보스턴 식품업소 면허 — 유효한 면허만. 식료품점(Retail Food)은 뺀다."""
+    # 보스턴 CKAN은 502를 자주 뱉는다. 문이 닫힌 게 아니라 숨을 고르는 것이라
+    # 여러 번 두드리면 열린다
     pk = get("https://data.boston.gov/api/3/action/package_show",
              params={"id": "food-establishment-inspections"},
-             headers={"Accept": "application/json"}).json()["result"]
+             headers={"Accept": "application/json"}, tries=8).json()["result"]
     url = next((x["url"] for x in pk["resources"]
                 if (x.get("format") or "").upper() == "CSV"), None)
     if not url:
@@ -543,7 +547,10 @@ def us_boston():
     for d in csv.DictReader(io.StringIO(txt)):
         if (d.get("licstatus") or "").strip().lower() != "active":
             continue
-        if (d.get("descript") or "").strip() != "Eating & Drinking":
+        # «Eating & Drinking»과 «Eating & Drinking w/ Take Out»은 다른 면허 갈래로
+        # 적히는데 둘 다 밥 먹으러 가는 곳이다. 앞의 것만 보다가 1,367곳을 놓쳤다.
+        # 식료품점(Retail Food)과 푸드트럭(Mobile)은 뺀다
+        if not (d.get("descript") or "").strip().startswith("Eating & Drinking"):
             continue
         nm = (d.get("businessname") or d.get("dbaname") or "").strip()
         loc = (d.get("location") or "").strip("() ").split(",")

@@ -1,0 +1,127 @@
+# 정부 명부를 스스로 다시 받는다.
+#
+# 선장님 PC가 늘 켜져 있지 않으므로 «자동»이 되려면 남의 기계여야 한다. 공개 저장소는
+# 무료다. 정부 명부 스물넷은 다 합쳐 30분 안팎이라 한 작업으로 넉넉하다 —
+# Overture는 648조각을 훑어야 해서 여기 넣지 않는다(따로, 달마다).
+#
+# 자료 저장소는 역사를 쌓지 않는다. 달마다 새 사본을 얹으면 1년에 4 GB가 되고,
+# GitHub는 저장소 하나를 1 GB 아래로 두라고 한다. 그래서 tools/publish.py 가
+# 뿌리 없는 커밋 하나로 갈아엎는다.
+#
+# 채취기에는 «예전의 60% 아래면 멈춘다»는 빗장이 걸려 있다. 원본이 반쯤 닫혔을 때
+# 사람이 안 보는 사이에 멀쩡한 사본을 지우지 않기 위해서다. 그 빗장이 걸리면
+# 그 명부만 건너뛰고 나머지는 그대로 간다.
+
+name: 정부 명부 갱신
+
+on:
+  schedule:
+    - cron: "0 18 * * 0"        # 매주 월요일 새벽 3시(한국) — 협정시 일요일 18시
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "받을 명부 (비우면 전부)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  harvest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - name: 앱 저장소 (도구가 여기 있다)
+        uses: actions/checkout@v4
+        with:
+          path: Estela
+
+      - name: 자료 저장소
+        uses: actions/checkout@v4
+        with:
+          repository: ian-sanghyuk-han/estela-data
+          path: estela-data
+          token: ${{ secrets.DATA_PUSH_TOKEN }}
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install requests pyproj
+
+      # 좌표를 물어본 주소를 적어 둔다. 홍콩 1만 7천, 덴마크 2만 1천, 펜실베이니아
+      # 3만 5천 개인데, 이게 없으면 매주 처음부터 다시 물어야 한다
+      - name: 좌표 기억 꺼내기
+        uses: actions/cache@v4
+        with:
+          path: Estela/.harvest
+          key: geocode-${{ github.run_id }}
+          restore-keys: geocode-
+
+      - name: 받기
+        working-directory: Estela
+        run: |
+          python tools/harvest_gov.py ${{ inputs.only || 'all' }}
+          python tools/harvest_korea.py || echo "한국은 파일을 손으로 받아야 한다 — 건너뜀"
+
+      - name: 목록 다시 가르기
+        working-directory: Estela
+        run: python tools/split_manifest.py
+
+      - name: 무엇이 바뀌었나
+        id: diff
+        working-directory: estela-data
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "changed=no" >> $GITHUB_OUTPUT
+            echo "바뀐 것이 없다"
+          else
+            echo "changed=yes" >> $GITHUB_OUTPUT
+            git diff --cached --stat | tail -1
+          fi
+
+      - name: 자료 올리기
+        if: steps.diff.outputs.changed == 'yes'
+        working-directory: Estela
+        env:
+          GIT_AUTHOR_NAME: estela-bot
+          GIT_AUTHOR_EMAIL: noreply@github.com
+          GIT_COMMITTER_NAME: estela-bot
+          GIT_COMMITTER_EMAIL: noreply@github.com
+        run: python tools/publish.py estela-data "정부 명부 주간 갱신"
+
+  # 색인은 자료가 바뀌었을 때만, 그리고 따로 짓는다 — 25분에 584 MB다
+  reindex:
+    needs: harvest
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: Estela }
+      - uses: actions/checkout@v4
+        with:
+          repository: ian-sanghyuk-han/estela-data
+          path: estela-data
+          fetch-depth: 1
+      - uses: actions/checkout@v4
+        with:
+          repository: ian-sanghyuk-han/estela-index
+          path: estela-index
+          token: ${{ secrets.DATA_PUSH_TOKEN }}
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: 색인 짓기
+        working-directory: Estela
+        run: python tools/build_index.py
+      - name: 색인 올리기
+        working-directory: Estela
+        env:
+          GIT_AUTHOR_NAME: estela-bot
+          GIT_AUTHOR_EMAIL: noreply@github.com
+          GIT_COMMITTER_NAME: estela-bot
+          GIT_COMMITTER_EMAIL: noreply@github.com
+        run: python tools/publish.py estela-index "명부 갱신에 맞춰 색인 다시 지음"
