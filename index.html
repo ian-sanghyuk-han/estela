@@ -136,6 +136,8 @@
   #addres .r.ours{border-left:2px solid var(--wine);padding-left:8px}
   /* 정부 명부 — 판단이 없는 목록이라 담백하게 */
   #addres .r.reg{border-left:2px solid var(--olive);padding-left:8px}
+  /* 화면 밖에서 찾아온 것 — 여기 있지 않다는 뜻으로 점선 */
+  #addres .r.far{border-left:2px dotted var(--mute);padding-left:8px}
   /* 마지막 수단은 스크롤에 묻히면 안 된다 — 목록이 길어도 바닥에 붙어 있는다 */
   #addres .pickrow{position:sticky;bottom:0;margin-top:6px;padding:7px;
     text-align:center;cursor:pointer;font-size:10.5px;color:var(--ink);
@@ -1412,11 +1414,14 @@ const REGCELL=new Map();
 const REGBASE=(location.hostname==='localhost'||location.hostname==='127.0.0.1')
   ? 'data/registry/'
   : 'https://ian-sanghyuk-han.github.io/estela-data/registry/';
+/* 받아 오는 중에 또 물으면 «아직 없다»고 답해 버렸다 — 부팅 직후 첫 검색이
+   그래서 빈손이었다. 오가는 약속을 하나만 두고 모두 그걸 기다리게 한다 */
+let REGP=null;
 function regManifest(){
-  if(REG!==null)return Promise.resolve(REG);
-  REG=false;
+  if(REG)return Promise.resolve(REG);
+  if(REGP)return REGP;
   const remote='https://ian-sanghyuk-han.github.io/estela-data/registry/manifest.json';
-  return fetch(REGBASE+'manifest.json',{cache:'no-cache'})
+  return REGP=fetch(REGBASE+'manifest.json',{cache:'no-cache'})
     .then(r=>r.ok?r.json():Promise.reject(0)).then(m=>(REG=m))
     /* 집에 자료가 없으면 딴 저장소에서 — 그래야 앱만 받아도 검색이 산다 */
     .catch(()=>fetch(remote,{cache:'no-cache'}).then(r=>r.json())
@@ -1539,6 +1544,39 @@ function regSearch(t,cap,only){
   out.total=hit.length;                /* 잘라 놓고도 몇 개였는지는 말해 준다 */
   return out;}
 function regReady(){return REG&&REG.sources&&Object.keys(REG.sources).length;}
+
+/* ══ 전역 검색 ══ 지도를 옮기지 않고도 이름으로 찾는다 ══
+   1,034만 곳을 브라우저가 통째로 들 수는 없다. 그래서 가게가 아니라
+   «이 두 글자로 시작하는 이름이 어느 땅에 있는지»만 담은 얇은 색인을 둔다.
+   색인은 어디를 펴야 하는지만 알려주고, 판단은 원본 칸을 열어서 한다 */
+let CRCT=null;
+function crc32(str){
+  if(!CRCT){CRCT=new Int32Array(256);
+    for(let i=0;i<256;i++){let c=i;
+      for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);
+      CRCT[i]=c;}}
+  const b=new TextEncoder().encode(str);
+  let c=-1;
+  for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&0xFF]^(c>>>8);
+  return (c^-1)>>>0;}
+
+/* 색인이 가게를 직접 담고 있으므로 받아 올 칸이 없다. 한 번 가져와 걸러 내면 끝이다.
+   처음에는 «어느 땅에 있는지»만 담았는데, 1°짜리 땅 안에 세밀한 칸이 400개라
+   무엇을 펴야 할지 알 수 없어 엉뚱한 것을 받아 왔다. 뒤집고 나니 훨씬 단순해졌다 */
+function farFind(t){
+  if(!REG||!REG.index||!REG.srcs)return Promise.resolve([]);
+  const q=t.toLowerCase(), p=q.slice(0,2);
+  if(p.length<2)return Promise.resolve([]);
+  const b=crc32(p)%REG.index.buckets;
+  return fetch(regUrl('index','b'+('00'+b).slice(-3)))
+    .then(r=>r.json()).then(m=>{
+      const e=m[p]; if(!e||!e.p)return [];
+      const hit=e.p.filter(r=>String(r[0]).toLowerCase().indexOf(q)>=0)
+        .map(r=>({n:r[0],la:r[1],lo:r[2],src:REG.srcs[r[3]],km:distKm(r[1],r[2])}));
+      hit.sort((a,b)=>a.km-b.km);
+      hit.total=e.n;
+      return hit;}).catch(()=>[]);}
+
 
 /* 우리 목록 안에서 먼저 찾는다. 이건 인터넷이 없어도 즉시 된다.
    이걸 건너뛰면 미슐랭 식당을 검색해도 '내 장소'로 하나 더 만들어 버린다 */
@@ -1755,9 +1793,9 @@ function wireAdd(){
   /* 세 곳이 서로 다른 속도로 답한다 — 우리 목록은 즉시, 등기부는 조각을 받은 뒤,
      지도 검색은 잠시 뒤. 예전에는 각자 칸 전체를 다시 써서 늦게 온 쪽이 먼저 온 쪽을
      지웠다. 이제 각자 제 칸만 채우고, 그리는 것은 한 곳에서 한다 */
-  let slot={q:'',here:'',ours:'',reg:'',net:'',hint:''},bound={};
+  let slot={q:'',here:'',ours:'',reg:'',far:'',net:'',hint:''},bound={};
   const paint=()=>{
-    res.innerHTML=slot.here+slot.ours+slot.reg+slot.net+slot.hint;
+    res.innerHTML=slot.here+slot.ours+slot.reg+slot.far+slot.net+slot.hint;
     /* 가이드 이름 위에 손을 얹으면 그 가이드가 어떻게 판단하는지 한 줄 */
     const nt=$('gnote');
     res.querySelectorAll('.here a[data-g]').forEach(a=>{
@@ -1768,7 +1806,7 @@ function wireAdd(){
           +(g.check?' <i>(확인 필요)</i>':'');};
       a.onmouseleave=()=>{if(nt)nt.innerHTML='이름을 누르면 그쪽 공식 주소로 갑니다. '
         +'명단은 우리가 들고 있지 않습니다.';};});
-    ['ours','reg','net'].forEach(k=>{
+    ['ours','reg','far','net'].forEach(k=>{
       if(!bound[k])return;
       res.querySelectorAll('.r.'+k).forEach((el,i)=>el.onclick=()=>bound[k](i));});
     const b=$('dopick'); if(b)b.onclick=()=>setPick(true,slot.q);};
@@ -1779,7 +1817,7 @@ function wireAdd(){
     clearTimeout(addTimer);
     const t=q.value.trim();
     if(pickMode)setPick(false);
-    slot={q:t,here:slot.here,ours:'',reg:'',net:'',hint:''};bound={};
+    slot={q:t,here:slot.here,ours:'',reg:'',far:'',net:'',hint:''};bound={};
     clearCandidate();                    /* 새로 치면 옛 표시는 지운다 */
     if(t.length<2){paint();return;}
 
@@ -1840,6 +1878,22 @@ function wireAdd(){
            고를 수가 있다. 글자 목록만으로는 "이 자리가 맞나요"에 답할 수 없다 */
         showFound(rr.map(h=>({n:h.it[0],la:h.it[1],lo:h.it[2]})));
         paint();});});
+
+    /* ②-b 세상 어디서든 — 지도를 옮기지 않아도 이름만으로 */
+    regManifest().then(()=>farFind(t)).then(ff=>{
+      if(slot.q!==t||!ff.length)return;
+      const show=ff.slice(0,40);
+      slot.far='<div class="grp">세상 어디서든 <i>'+show.length
+        +(ff.total>show.length?' / '+ff.total.toLocaleString():'')+'</i></div>'
+        +show.map(h=>{
+          const sc=(REG.sources||{})[h.src]||{};
+          return '<div class="r far"><b>'+esc(h.n)+'</b>'
+            +'<em class="km">'+farText(h.km)+'</em><small>'
+            +esc(sc.label||h.src||'')+'</small></div>';}).join('');
+      bound.far=i=>{
+        const h=show[i],sc=(REG.sources||{})[h.src]||{};
+        confirmAdd(h.n,h.la,h.lo,'',sc.country||'',sc.label||'');};
+      paint();}).catch(()=>{});
 
     /* ③ 세상 지도 — 그래도 없으면 손으로 찍는다 */
     addTimer=setTimeout(()=>{      /* Nominatim은 초당 1회를 넘기지 않는다 */
@@ -3214,6 +3268,7 @@ let fr=0,ft=performance.now();
 (function tick(t){fr++;if(t-ft>1000){$('fps').textContent=fr;fr=0;ft=t;}requestAnimationFrame(tick);})(performance.now());
 
 window.__dbg={map,layers,store,paintJourney,selectPlace,setSheet,showTrail,
+  farFind,regSearch,regLoad,regCellsInView,reg:()=>REG,
   levelName,myCounts,rebuildMine,keyOf,stampsOf,isSaved};
 </script>
 </body>
