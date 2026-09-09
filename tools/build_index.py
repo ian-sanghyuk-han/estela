@@ -1,63 +1,136 @@
 # -*- coding: utf-8 -*-
-"""전역 검색 색인 — 지도를 옮기지 않고도 이름으로 찾게 한다.
+"""전역 검색 색인 — 사전을 찾듯이.
 
-지금까지 검색은 화면에 걸친 칸만 뒤졌다. 개봉동을 알아야 개봉동 순대국을 찾을 수 있었고,
-그러면 검색이라고 부르기 어렵다.
+앞선 판은 말머리를 **정해진 길이**로 잘랐다. 라틴 글자는 두 글자, 한글은 세 글자.
+그래서 «tr» 한 칸에 30만 곳이 몰렸고 그중 50곳만 담기니 «Trattoria Dari»는 아무리
+쳐도 나오지 않았다. 고치겠다고 «tr» 안에 그 집이 들어가도록 순위를 손보려 했는데,
+선장님이 그건 거꾸로라고 하셨다. 맞는 말이다 — 사전은 «tr» 쪽에 그 낱말을 끌어다
+놓지 않는다. 사전은 t·r·a·t·t 를 따라 **책장을 좁혀 준다.**
 
-처음에는 «어느 땅에 있는지»만 담았다. 1°짜리 땅 하나 안에 세밀한 칸이 400개라, 그중
-무엇을 펴야 하는지 알 수 없어서 엉뚱한 칸을 받아 왔다. 헛수고였다.
+그래서 이 판은 **말머리마다 칸을 만들되, 넘치면 더 깊이 판다.**
 
-그래서 뒤집었다 — **색인이 가게를 직접 담는다.** 말머리마다 최대 50곳까지, 땅을 골고루.
-말머리 216,651개 중 **92%가 스무 번 이하로만 나오므로**, 드문 이름은 사실상 전부 담긴다.
-동영상에서 본 그 집을 찾는 일은 대개 드문 이름이다.
+- 어떤 말머리에 50곳 이하가 걸리면 그 칸에 **전부** 담는다. 빠지는 게 없다.
+- 50곳을 넘으면 그 칸에는 **숫자만** 둔다("밑에 30만 곳"). 이름은 한 글자 더 긴
+  칸으로 내려간다. 유저가 글자를 더 치면 그 칸이 열린다.
+- 열두 글자까지 파고, 거기서도 넘치면 그때만 50곳을 고른다.
 
-«카페»처럼 흔한 말머리는 세계에 흩어진 50곳만 보여 주고, 나머지는 그 동네로 가서 찾는다 —
-화면 안 검색이 원래 그 일을 한다.
+넘치지 않는 말머리라도 **부모가 넘쳤을 때만** 칸을 만든다. 부모 칸에 이미 전부
+들어 있으면 자식 칸은 같은 것을 한 번 더 담는 셈이다.
 
-**말머리 두 글자**로만 잡는다. 이름 속 아무 데나(순대실록의 "실록") 찾으려면 모든 두 글자
-토막을 담아야 하고, 그러면 색인이 자료만큼 커진다. 화면 안 검색은 지금처럼 아무 데나
-걸리고, 전역 검색만 말머리로 건다.
+**숫자만 두는 칸도 자기 이름과 똑같은 낱말은 들고 있는다.** 여덟 글자에서 끊었을 때
+«Trattoria Dari»가 안 나왔다. dari 밑에 darius·daria가 넘쳐서 이름이 더 깊은 칸으로
+내려갔는데, dari 라는 낱말은 네 글자뿐이라 내려갈 칸이 없어 나무에서 떨어져 나갔다.
+사전에서도 dari 쪽을 펴면 표제어 dari 가 daria 위에 있다. 순대실록(51곳)과
+El Celler de Can Roca 도 같은 자리에서 떨어졌었다.
 
-땅은 1°로 잡는다. 그보다 잘면 색인이 자료만큼 커지고, 그보다 성기면 한 번에 받아야 할
-칸이 너무 많아진다.
+**낱말이 전부 흔한 이름은 이어 붙여서도 건다.** 세상 식당 이름의 43.4%가 그렇다 —
+Trattoria Dari, Le Bistro, Golden Dragon. 흔한 낱말은 2,861,053개 중 34,185개뿐인데
+그것들이 이름의 절반을 덮는다. 어느 낱말로도 좁혀지지 않으니 사전이라면 이름 전체로
+찾을 자리다. 그런 이름만 골라 붙이면 196 MB가 더 든다. 전부 붙이면 355 MB다.
+
+넘치는 칸의 차례는 **사전의 차례**다 — 친 것과 똑같은 낱말이 먼저, 그다음 가나다순,
+땅은 골고루. 인기나 유명세로 고르지 않는다. 그건 유저가 생긴 뒤에 정할 문제고,
+그때 정하더라도 이 차례와 다투지 않는다.
+
+칸이 100만 개라 꾸러미를 512개로 두면 하나가 600 KB가 된다. 4,096개로 늘려 하나를
+75 KB 안팎으로 맞춘다 — 한 글자 칠 때마다 그만큼만 받으면 된다.
+
+여유 메모리가 6 GB뿐이라 나눠 읽는다. 여덟 글자까지는 한 번에 세고, 그보다 깊은
+층은 넘치는 자리에만 생기므로 한 층씩 따로 센다. 채울 때도 꾸러미를 넷으로 갈라
+한 번에 4분의 1씩만 들고 있는다.
 
 Run: python tools/build_index.py
 """
-import io, json, math, os, re, sys, time, zlib
+import collections, io, json, math, os, re, shutil, sys, time, zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 REG = os.path.join(os.path.dirname(REPO), "estela-data", "registry")
 if not os.path.isdir(REG):
     REG = os.path.join(REPO, "data", "registry")
-OUT = os.path.join(REG, "index")
-BUCKETS = 512
-PER = 50            # 말머리 하나가 담는 가게 수 — 92%의 말머리는 이보다 적게 나온다
-PER_AREA = 6        # 한 도시가 오십 자리를 다 차지하지 않게
-AREAS = 260
+# 색인 300 MB는 자료 저장소에 안 들어간다 — 제 저장소를 쓴다
+OUT = os.path.join(os.path.dirname(REPO), "estela-index", "index")
+if not os.path.isdir(os.path.dirname(OUT)):
+    OUT = os.path.join(REG, "index")
 
-# 글자로 볼 것 — 숫자·라틴·한글·가나·한자·키릴·타이·아랍. 나머지는 낱말 경계로 친다
+BUCKETS = 8192      # 칸이 늘어난 만큼 꾸러미도 늘린다 — 하나를 75 KB 안팎으로
+CAP = 50            # 이보다 적게 걸리면 그 칸에 전부 담는다
+MIND = 2            # 두 글자 밑으로는 칸을 만들지 않는다
+BASE = 8            # 여기까지는 한 번에 센다
+MAXD = 12           # 여기까지 판다. 깊은 층은 넘치는 자리에만 생기므로 거의 공짜다
+PER_AREA = 6        # 넘치는 칸에서만 쓴다 — 한 도시가 오십 자리를 다 차지하지 않게
+SHARDS = 4
+
 SPLIT = re.compile(r"[^0-9a-z가-힣぀-ヿ一-鿿"
                    r"Ѐ-ӿ฀-๿؀-ۿ]+")
 
 
-# 한글·가나·한자는 글자 하나가 품은 뜻이 커서, 두 글자면 «성심»처럼 뭉뚱그려진다.
-# 그래서 이 글자들로 된 낱말은 두 글자와 세 글자를 함께 담는다 —
-# «성심당»을 치면 성심당만 든 칸이 따로 열린다
-CJK = re.compile(r"[가-힣぀-ヿ一-鿿]")
-
-
-def keys_of(word):
-    # 한글·가나·한자는 세 글자로만 건다. 두 글자(«성심»)는 너무 뭉뚱그려져서
-    # 한 칸에 성심돈·성심전·성심당이 다 몰리고, 둘 다 담으면 색인이 141 MB가 된다.
-    # 라틴 글자는 두 글자로 건다 — 알파벳은 글자 하나가 품은 뜻이 작다.
-    if CJK.match(word[0]):
-        return [word[:3]] if len(word) >= 3 else [word[:2]]
-    return [word[:2]]
-
-
 def bucket(prefix):
     return zlib.crc32(prefix.encode("utf-8")) % BUCKETS
+
+
+def cell_rows(path):
+    """칸 파일 두 형식을 다 읽는다 — 압축 형식(v3)과 그 전의 줄 배열."""
+    try:
+        dd = json.load(io.open(path, encoding="utf-8"))
+    except Exception:
+        return ()
+    if isinstance(dd, dict) and "p" in dd:
+        y0, x0 = dd["o"]
+        return [(r[0], y0 + r[1] / 1e5, x0 + r[2] / 1e5) for r in dd["p"]]
+    if isinstance(dd, list):
+        return [(r[0], r[1], r[2]) for r in dd if len(r) >= 3]
+    return ()
+
+
+def walk(man, srcs):
+    """모든 출처의 모든 칸을 흘려보낸다. 출처가 끝날 때 (None, 번호)를 낸다."""
+    for si, sid in enumerate(srcs):
+        v = man["sources"][sid]
+        d = os.path.join(REG, *v["folder"].split("/"))
+        if os.path.isdir(d):
+            for f in os.listdir(d):
+                if not f.endswith(".json") or f == "cells.json":
+                    continue
+                for nm, la, lo in cell_rows(os.path.join(d, f)):
+                    yield nm, la, lo, si
+        yield None, si, 0.0, 0
+
+
+COMMON = set()      # 쉰 번 넘게 나오는 낱말. 첫 번째 읽기에서 채운다
+
+
+def words(nm):
+    return [w for w in SPLIT.split(str(nm).lower()) if len(w) >= MIND]
+
+
+def tokens(nm):
+    """색인에 걸 (글자줄, 몇 글자부터 걸 것인가).
+
+    보통은 낱말 하나하나다. 그런데 세상 식당 이름의 **43.4%는 흔한 낱말로만** 되어
+    있다 — Trattoria Dari, Le Bistro, Golden Dragon. 어느 낱말로도 좁혀지지 않는다.
+    사전이라면 그건 «이름 전체»로 찾을 자리다. 그래서 그런 이름만 낱말을 이어 붙여
+    한 줄로 만들어 함께 건다. 첫 낱말보다 긴 자리부터만 — 그보다 짧으면 첫 낱말의
+    말머리와 똑같아서 두 번 담는 셈이다."""
+    ws = words(nm)
+    out = [(w, MIND) for w in ws]
+    if len(ws) >= 2 and all(w in COMMON for w in ws):
+        out.append(("".join(ws), len(ws[0]) + 1))
+    return out
+
+
+def prefixes(nm, top=MAXD):
+    """이름에서 뽑을 (말머리, 그 말머리가 나온 글자줄)."""
+    out, seen = [], set()
+    for s, lo in tokens(nm):
+        for L in range(lo, min(len(s), top) + 1):
+            p = s[:L]
+            if p not in seen:
+                seen.add(p)
+                out.append((p, s))
+    return out
+
+
 
 
 def main():
@@ -65,121 +138,191 @@ def main():
     mpath = os.path.join(REG, "manifest.json")
     man = json.load(io.open(mpath, encoding="utf-8"))
     srcs = sorted(man["sources"])
-    si_of = {s: i for i, s in enumerate(srcs)}
-
     t0 = time.time()
-    idx = {}                       # prefix -> {packed: count}
-    names = cells = 0
-    for n_done, sid in enumerate(srcs):
-        v = man["sources"][sid]
-        si = si_of[sid]
-        d = os.path.join(REG, *v["folder"].split("/"))
-        if not os.path.isdir(d):
+
+    # ── 세기 ⓪: 흔한 낱말을 가려낸다 ───────────────────────────────────
+    # 낱말 하나가 쉰 번 이하로만 나오면 그 이름은 그 낱말로 이미 찾아진다.
+    # 이어 붙이기가 필요한 것은 낱말이 **전부** 흔한 이름뿐이다
+    wc = collections.Counter()
+    for nm, la, lo, si in walk(man, srcs):
+        if nm is not None:
+            wc.update(set(words(nm)))
+    for w, c in wc.items():
+        if c > CAP:
+            COMMON.add(w)
+    print("낱말 %s개 중 흔한 것 %s개 · %.0f분"
+          % (format(len(wc), ","), format(len(COMMON), ","),
+             (time.time() - t0) / 60), flush=True)
+    del wc
+
+    # ── 세기 ①: 여덟 글자까지 한 번에 ──────────────────────────────────
+    cnt = collections.Counter()
+    n = 0
+    for nm, la, lo, si in walk(man, srcs):
+        if nm is None:
+            if (si + 1) % 60 == 0 or si + 1 == len(srcs):
+                print("   세는 중 %d/%d · 이름 %s · 말머리 %s · %.0f분"
+                      % (si + 1, len(srcs), format(n, ","), format(len(cnt), ","),
+                         (time.time() - t0) / 60), flush=True)
             continue
-        for f in os.listdir(d):
-            if not f.endswith(".json") or f == "cells.json":
+        n += 1
+        cnt.update(p for p, w in prefixes(nm, BASE))
+    print("세기 끝: 이름 %s · 여덟 글자까지의 말머리 %s · %.0f분"
+          % (format(n, ","), format(len(cnt), ","), (time.time() - t0) / 60), flush=True)
+
+    leaf, deep = {}, {}                # 전부 담는 칸 / 숫자만 두는 칸
+    big = set(p for p, c in cnt.items() if c > CAP)
+    for p, c in cnt.items():
+        if c <= CAP:
+            # 부모가 넘쳤을 때만 칸을 만든다. 부모에 이미 전부 들어 있으면 군더더기다
+            if len(p) == MIND or p[:-1] in big:
+                leaf[p] = c
+        else:
+            deep[p] = c
+    front = set(p for p in big if len(p) == BASE)
+    del cnt, big
+
+    # ── 세기 ②: 여덟 글자에서 넘친 자리만 한 층씩 더 판다 ──────────────
+    d = BASE
+    while front and d < MAXD:
+        d += 1
+        sub = collections.Counter()
+        for nm, la, lo, si in walk(man, srcs):
+            if nm is None:
                 continue
-            try:
-                dd = json.load(io.open(os.path.join(d, f), encoding="utf-8"))
-            except Exception:
-                continue
-            # 칸 파일이 두 형식이다. 압축 형식(v3)은 {o,k,p}이고, 그 전에 쪼갠
-            # 정부 명부는 그냥 줄의 배열이다. 앞의 것만 읽다가 영국·프랑스·미국 도시
-            # 48만 8,762곳을 통째로 빠뜨렸다 — 형식이 둘이면 둘 다 읽어야 한다
-            if isinstance(dd, dict) and "p" in dd:
-                y0, x0 = dd["o"]
-                rows = [(r[0], y0 + r[1] / 1e5, x0 + r[2] / 1e5) for r in dd["p"]]
-            elif isinstance(dd, list):
-                rows = [(r[0], r[1], r[2]) for r in dd if len(r) >= 3]
+            seen = None
+            for s, lo in tokens(nm):
+                if len(s) < d or d < lo or s[:d - 1] not in front:
+                    continue
+                p = s[:d]
+                if seen is None:
+                    seen = set()
+                if p not in seen:
+                    seen.add(p)
+                    sub[p] += 1
+        nxt = set()
+        for p, c in sub.items():
+            if c > CAP and d < MAXD:
+                deep[p] = c
+                nxt.add(p)
             else:
-                continue
-            cells += 1
-            for nm, la, lo in rows:
-                names += 1
-                area = (int(math.floor(la)), int(math.floor(lo)))
-                rec = None
-                seen = None
-                first = True
-                for w in SPLIT.split(str(nm).lower()):
-                    if len(w) < 2:
-                        first = False
-                        continue
-                    head = first          # 이름의 첫 낱말에서 걸렸는가
-                    first = False
-                    if seen is None:
-                        seen = set()
-                    for p in keys_of(w):
-                      if p in seen:
-                        continue
-                      seen.add(p)
-                      a = idx.get(p)
-                      if a is None:
-                        a = idx[p] = {}
-                      L = a.get(area)
-                      if L is None:
-                        if len(a) >= AREAS:
-                            continue          # 땅을 너무 많이 벌리지 않는다
-                        L = a[area] = []
-                      if rec is None:
-                        rec = [str(nm)[:44], round(la, 5), round(lo, 5), si]
-                    # 첫 낱말에서 걸린 것과 이름이 짧은 것을 먼저 담는다.
-                    # 자리가 차면 건너뛰는 게 아니라 **가장 못한 것을 밀어낸다** —
-                    # 건너뛰면 가나다순으로 먼저 온 «디씨씨 성심당»이 여섯 자리를
-                    # 다 차지하고, 정작 «성심당본점»은 들어올 자리가 없다
-                      key = (0 if head else 1, len(rec[0]))
-                      if len(L) < PER_AREA:
-                        L.append((key[0], key[1], rec))
-                      else:
-                        wi = max(range(len(L)), key=lambda z: (L[z][0], L[z][1]))
-                        if key < (L[wi][0], L[wi][1]):
-                            L[wi] = (key[0], key[1], rec)
-        if (n_done + 1) % 40 == 0:
-            print("   출처 %d/%d · 이름 %s · 말머리 %s · %.0f분"
-                  % (n_done + 1, len(srcs), format(names, ","),
-                     format(len(idx), ","), (time.time() - t0) / 60), flush=True)
+                leaf[p] = c            # 열두 글자에서도 넘치면 여기서 오십 곳을 고른다
+        print("   %d글자 층 · 칸 %s · 더 깊이 %s · %.0f분"
+              % (d, format(len(sub) - len(nxt), ","), format(len(nxt), ","),
+                 (time.time() - t0) / 60), flush=True)
+        front = nxt
 
-    print("읽기 끝: 칸 %s · 이름 %s · 말머리 %s · %.0f분"
-          % (format(cells, ","), format(names, ","), format(len(idx), ","),
-             (time.time() - t0) / 60))
+    print("칸 %s개 · 숫자만 두는 칸 %s개 · 담을 항목 %s개"
+          % (format(len(leaf), ","), format(len(deep), ","),
+             format(sum(min(v, CAP) for v in leaf.values()), ",")), flush=True)
 
+    # ── 채우기: 정해진 칸만. 여유 메모리 때문에 꾸러미를 넷으로 갈라 돈다 ──
     if os.path.isdir(OUT):
-        import shutil
         shutil.rmtree(OUT)
     os.makedirs(OUT)
-    buckets = [{} for _ in range(BUCKETS)]
-    entries = 0
-    for p, areas in idx.items():
-        total = sum(len(v) for v in areas.values())
-        # 땅을 돌아가며 하나씩 집는다 — 한 도시가 오십 자리를 다 차지하지 않게
-        picked = []
-        lists = [sorted(v, key=lambda z: (z[0], z[1])) for v in areas.values()]
-        i = 0
-        while len(picked) < PER and any(lists):
-            for L in lists:
-                if not L:
+    over = set(p for p, c in leaf.items() if c > CAP)
+    nbytes = entries = 0
+    filled = set()                     # 낱말을 실제로 담은 «숫자만» 칸
+    for sh in range(SHARDS):
+        mineL = set(p for p in leaf if bucket(p) % SHARDS == sh)
+        mineD = set(p for p in deep if bucket(p) % SHARDS == sh)
+        box = {}
+        for nm, la, lo, si in walk(man, srcs):
+            if nm is None:
+                continue
+            rec = None
+            for p, w in prefixes(nm):
+                inL = p in mineL
+                # 숫자만 두는 칸이라도 **자기 이름과 똑같은 낱말**은 들고 있어야 한다.
+                # «dari»는 네 글자뿐이라 더 깊은 칸으로 내려갈 수가 없다. 사전에서도
+                # dari 쪽을 펴면 표제어 dari 가 daria 위에 있다
+                inD = (not inL) and p == w and p in mineD
+                if not (inL or inD):
                     continue
-                picked.append(L.pop(0)[2])
-                if len(picked) >= PER:
-                    break
-            i += 1
-            if i > PER + 5:
-                break
-        buckets[bucket(p)][p] = {"n": total, "p": picked}
-        entries += len(picked)
-    nbytes = 0
-    for i, b in enumerate(buckets):
-        q = os.path.join(OUT, "b%03d.json" % i)
-        json.dump(b, io.open(q, "w", encoding="utf-8"),
+                if rec is None:
+                    rec = [str(nm)[:44], round(la, 5), round(lo, 5), si]
+                L = box.get(p)
+                if L is None:
+                    L = box[p] = ([] if (inL and p not in over) else {})
+                if isinstance(L, list):
+                    L.append(rec)
+                    continue
+                # 넘치는 칸 — 친 것과 똑같은 낱말이 먼저, 그다음 가나다순.
+                # 땅은 골고루 훑는다. 한 도시가 쉰 자리를 다 차지하지 않게
+                a = (int(math.floor(la)), int(math.floor(lo)))
+                q = L.get(a)
+                if q is None:
+                    if len(L) >= 200:
+                        continue
+                    q = L[a] = []
+                key = (len(w), w, rec[0])
+                if len(q) < PER_AREA:
+                    q.append((key, rec))
+                else:
+                    wi = max(range(len(q)), key=lambda z: q[z][0])
+                    if key < q[wi][0]:
+                        q[wi] = (key, rec)
+        packs = collections.defaultdict(dict)
+        for p, L in box.items():
+            if isinstance(L, dict):
+                lists = [sorted(v, key=lambda z: z[0]) for v in L.values()]
+                picked = []
+                while len(picked) < CAP and any(lists):
+                    for q in lists:
+                        if q:
+                            picked.append(q.pop(0)[1])
+                            if len(picked) >= CAP:
+                                break
+            else:
+                picked = L
+            picked.sort(key=lambda r: r[0])
+            if p in deep:
+                packs[bucket(p)][p] = {"n": deep[p], "p": picked, "x": 1}
+                filled.add(p)
+            else:
+                packs[bucket(p)][p] = {"n": leaf[p], "p": picked}
+            entries += len(picked)
+        for b, dd in packs.items():
+            q = os.path.join(OUT, "b%04d.json" % b)
+            json.dump(dd, io.open(q, "w", encoding="utf-8"),
+                      ensure_ascii=False, separators=(",", ":"))
+            nbytes += os.path.getsize(q)
+        del box, packs, mineL, mineD
+        print("   %d/%d 묶음 완료 · 지금까지 %.0f MB · %.0f분"
+              % (sh + 1, SHARDS, nbytes / 1048576, (time.time() - t0) / 60), flush=True)
+
+    # ── 낱말을 하나도 못 담은 «숫자만» 칸은 숫자만 적어 얹는다 ────────────
+    add = collections.defaultdict(dict)
+    for p, c in deep.items():
+        if p not in filled:
+            add[bucket(p)][p] = {"n": c}
+    for b, dd in add.items():
+        q = os.path.join(OUT, "b%04d.json" % b)
+        cur = {}
+        if os.path.exists(q):
+            cur = json.load(io.open(q, encoding="utf-8"))
+            nbytes -= os.path.getsize(q)
+        cur.update(dd)
+        json.dump(cur, io.open(q, "w", encoding="utf-8"),
                   ensure_ascii=False, separators=(",", ":"))
         nbytes += os.path.getsize(q)
 
+    # 색인의 규격은 색인 저장소가 들고 있는다. 자료 저장소의 목록에 적어 두면 둘을
+    # 같은 순간에 올려야 하고, 어긋난 몇 분 동안 검색이 조용히 빗나간다
+    meta = {"buckets": BUCKETS, "min": MIND, "max": MAXD, "cap": CAP,
+            "dict": True, "built": time.strftime("%Y-%m-%d"), "srcs": srcs}
+    json.dump(meta, io.open(os.path.join(OUT, "meta.json"), "w", encoding="utf-8"),
+              ensure_ascii=False, separators=(",", ":"))
+
+    nfiles = len([f for f in os.listdir(OUT) if f.endswith(".json")])
     man["srcs"] = srcs
-    man["index"] = {"buckets": BUCKETS, "gram": 2, "cjk": 3, "per": PER, "places": True}
+    man["index"] = dict(meta)
+    man["index"].pop("srcs", None)
     json.dump(man, io.open(mpath, "w", encoding="utf-8"),
               ensure_ascii=False, separators=(",", ":"))
-    print("색인 %s곳 · %d개 꾸러미 · %.0f MB · 꾸러미 평균 %.0f KB"
-          % (format(entries, ","), BUCKETS, nbytes / 1048576,
-             nbytes / BUCKETS / 1024))
+    print("색인 %s곳 · 꾸러미 %d개 · %.0f MB · 평균 %.0f KB · %.0f분"
+          % (format(entries, ","), nfiles, nbytes / 1048576,
+             nbytes / max(1, nfiles) / 1024, (time.time() - t0) / 60))
 
 
 if __name__ == "__main__":
