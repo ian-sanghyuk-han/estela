@@ -1427,6 +1427,39 @@ const regUrl=(folder,cell)=>
   (REGREMOTE?'https://ian-sanghyuk-han.github.io/estela-data/registry/':REGBASE)
   +folder+'/'+cell+'.json';
 /* 지금 화면을 덮는 조각들. 대륙을 보고 있을 때 등기부를 뒤지는 건 의미가 없다 */
+/* ══ 두 겹의 목록 ══
+   세밀한 칸 열쇠 78,046개가 목록 하나에 다 들어 있어서 첫 화면이 1 MB를 읽었다.
+   그중 실제로 쓰이는 건 화면에 걸친 몇 개뿐이다. 그래서 갈랐다 —
+   앞의 목록에는 1°짜리 성긴 덮개만 있고, 세밀한 칸은 그 땅에 왔을 때만 받는다 */
+function covSet(sv){
+  if(sv.__cov)return sv.__cov;
+  const S=new Set();
+  (sv.cov||'').split(' ').forEach(k=>{if(k)S.add(k);});
+  return (sv.__cov=S);}
+
+function regSourcesInView(){
+  if(!REG||!REG.sources)return [];
+  const b=map.getBounds();
+  const y0=Math.floor(b.getSouth()),y1=Math.floor(b.getNorth());
+  const x0=Math.floor(b.getWest()), x1=Math.floor(b.getEast());
+  if((y1-y0+1)*(x1-x0+1)>2500)return [];      /* 대륙을 보고 있으면 뒤질 것이 아니다 */
+  const out=[];
+  Object.keys(REG.sources).forEach(id=>{
+    const S=covSet(REG.sources[id]);
+    for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)
+      if(S.has(y+','+x)){out.push(id);return;}});
+  return out;}
+
+/* 세밀한 목록을 받아 온다. 한 출처당 한 번이면 된다 */
+function regCellsLoad(ids){
+  return Promise.all(ids.map(id=>{
+    const sv=REG.sources[id];
+    if(sv.cells)return null;
+    if(sv.__p)return sv.__p;
+    return (sv.__p=fetch(regUrl(sv.folder,'cells'))
+      .then(r=>r.json()).then(c=>{sv.cells=c;})
+      .catch(()=>{sv.cells={};}));}));}
+
 /* 격자 크기가 출처마다 다르다. 0.25°짜리 칸은 영국 시골에서는 알맞지만
    방콕 도심에서는 2.7 MB가 되어, 검색 한 번에 그걸 다 내려받게 된다.
    그래서 촘촘한 도시는 0.02°로 잘라 두었고, 여기서는 출처마다 제 격자로 센다 */
@@ -1436,6 +1469,7 @@ function regCellsInView(){
   const out=[];
   Object.keys(REG.sources).forEach(id=>{
     const s=REG.sources[id], st=s.step||REG.step||0.25;
+    if(!s.cells)return;                        /* 아직 안 받은 출처는 건너뛴다 */
     const x0=Math.floor(b.getWest()/st), x1=Math.floor(b.getEast()/st);
     const y0=Math.floor(b.getSouth()/st), y1=Math.floor(b.getNorth()/st);
     /* 화면이 대륙만 하면 뒤질 것이 아니다 */
@@ -1777,7 +1811,9 @@ function wireAdd(){
     paint();
 
     /* ② 등기부 — 이 지역 정부 명부. 지도에 그리지 않고 검색에만 쓴다 */
-    regManifest().then(()=>{
+    regManifest()
+      .then(()=>regCellsLoad(regSourcesInView()))
+      .then(()=>{
       if(slot.q!==t||!regReady())return;
       const cells=regCellsInView();
       if(!cells.length){
@@ -2035,22 +2071,13 @@ function reachFC(){
   const seen=new Set(), feats=[];
   const box=(x0,y0,x1,y1)=>feats.push({type:'Feature',properties:{},
     geometry:{type:'Polygon',coordinates:[[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]]]}});
-  /* 칸은 출처마다 크기가 다르고, 잔 것은 세계 배율에서 바늘구멍이라 안 보인다.
-     그렇다고 나라를 통째로 칠하면 사막까지 덮는 거짓이 된다.
-     그래서 보이기용 격자 하나(0.1°)로 모아 그린다 — 실제로 자료가 있는 칸만 */
-  const SHOW=0.1;
+  /* 성긴 덮개(1°)로 그린다. 세밀한 칸 목록은 첫 화면에 없고, 있을 필요도 없다 —
+     세계 배율에서 0.02°짜리 칸은 어차피 바늘구멍이다 */
   Object.keys(M.sources).forEach(id=>{
-    const s=M.sources[id], step=s.step||M.step||0.25;
-    Object.keys(s.cells||{}).forEach(c=>{
-      const p=c.split('_'), y=+p[0]*step, x=+p[1]*step;
-      if(step>=SHOW){                          /* 성긴 칸은 제 모양 그대로 */
-        const g='c'+p[0]+'_'+p[1]+'_'+step;
-        if(seen.has(g))return; seen.add(g);
-        box(x,y,x+step,y+step); return;}
-      const gy=Math.floor(y/SHOW), gx=Math.floor(x/SHOW);
-      const g=gy+'@'+gx;
-      if(seen.has(g))return; seen.add(g);
-      box(gx*SHOW,gy*SHOW,(gx+1)*SHOW,(gy+1)*SHOW);});});
+    (M.sources[id].cov||'').split(' ').forEach(k=>{
+      if(!k||seen.has(k))return; seen.add(k);
+      const p=k.split(','), y=+p[0], x=+p[1];
+      box(x,y,x+1,y+1);});});
   return {type:'FeatureCollection',features:feats};}
 
 function addReachLayer(before){
