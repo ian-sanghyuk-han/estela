@@ -112,8 +112,9 @@ def rows_of(path):
                 continue
             ad = (r.get("도로명주소") or r.get("지번주소") or "").strip()
             kind = KIND.get(biz, biz)
-            out.append([nm, 0.0, 0.0, ad[:52], kind])
-            buf.append((out[-1], fx, fy))
+            # 좌표를 뭉치로 바꾼 뒤에야 out 에 넣는다. 여기서 넣으면 두 번 들어가고,
+            # 한반도 밖으로 튄 줄이 0,0 좌표를 단 채 남는다
+            buf.append(([nm, 0.0, 0.0, ad[:52], kind], fx, fy))
             if len(buf) >= 20000:
                 flush()
         flush()
