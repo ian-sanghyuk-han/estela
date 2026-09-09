@@ -631,7 +631,7 @@ FPS <b id="fps">—</b> · 국가 <b id="ncty">—</b> · 별 <b id="nstar">—<
       <div id="jgrid"></div>
       <div id="jstops"></div>
       <div id="jsample">아직 도장이 없어 <b>샘플</b>이 서 있습니다. 지구본에서 별을 눌러
-        첫 도장을 찍으면 이 자리는 선장님 기록으로 바뀝니다.</div>
+        첫 도장을 찍으면 이 자리는 선장님 기록으로 바뀌고, 다녀오신 곳끼리 선이 이어집니다.</div>
     </div>
     <div class="jpane" id="jpane-time">
       <div class="molabels" id="jmolab"></div>
@@ -1442,11 +1442,21 @@ function covSet(sv){
   (sv.cov||'').split(' ').forEach(k=>{if(k)S.add(k);});
   return (sv.__cov=S);}
 
-function regSourcesInView(){
-  if(!REG||!REG.sources)return [];
+/* 화면 네모. 지도를 옮기지 않고 내 둘레를 뒤지려면 다른 네모도 필요하다 */
+function viewBoxLL(){
   const b=map.getBounds();
-  const y0=Math.floor(b.getSouth()),y1=Math.floor(b.getNorth());
-  const x0=Math.floor(b.getWest()), x1=Math.floor(b.getEast());
+  return {s:b.getSouth(),n:b.getNorth(),w:b.getWest(),e:b.getEast()};}
+/* 내 둘레 네모 — 위치를 잡았으면 그 자리, 못 잡았으면 지도 한가운데.
+   선장님 말씀대로 «가까운 곳»은 지도가 어디를 보고 있든 뒤질 수 있어야 한다 */
+function nearBoxLL(km){
+  const r=refPoint(), dLa=km/111.0;
+  const dLo=km/(111.0*Math.max(.18,Math.cos(r.la*Math.PI/180)));
+  return {s:r.la-dLa,n:r.la+dLa,w:r.lo-dLo,e:r.lo+dLo};}
+
+function regSourcesIn(bx){
+  if(!REG||!REG.sources)return [];
+  const y0=Math.floor(bx.s),y1=Math.floor(bx.n);
+  const x0=Math.floor(bx.w), x1=Math.floor(bx.e);
   if((y1-y0+1)*(x1-x0+1)>2500)return [];      /* 대륙을 보고 있으면 뒤질 것이 아니다 */
   const out=[];
   Object.keys(REG.sources).forEach(id=>{
@@ -1454,6 +1464,9 @@ function regSourcesInView(){
     for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)
       if(S.has(y+','+x)){out.push(id);return;}});
   return out;}
+function regSourcesInView(){
+  const a=regSourcesIn(viewBoxLL()), b=regSourcesIn(nearBoxLL(25));
+  return a.concat(b.filter(id=>a.indexOf(id)<0));}
 
 /* 세밀한 목록을 받아 온다. 한 출처당 한 번이면 된다 */
 function regCellsLoad(ids){
@@ -1468,20 +1481,28 @@ function regCellsLoad(ids){
 /* 격자 크기가 출처마다 다르다. 0.25°짜리 칸은 영국 시골에서는 알맞지만
    방콕 도심에서는 2.7 MB가 되어, 검색 한 번에 그걸 다 내려받게 된다.
    그래서 촘촘한 도시는 0.02°로 잘라 두었고, 여기서는 출처마다 제 격자로 센다 */
-function regCellsInView(){
+function regCellsIn(bx){
   if(!REG||!REG.sources)return [];
-  const b=map.getBounds();
   const out=[];
   Object.keys(REG.sources).forEach(id=>{
     const s=REG.sources[id], st=s.step||REG.step||0.25;
     if(!s.cells)return;                        /* 아직 안 받은 출처는 건너뛴다 */
-    const x0=Math.floor(b.getWest()/st), x1=Math.floor(b.getEast()/st);
-    const y0=Math.floor(b.getSouth()/st), y1=Math.floor(b.getNorth()/st);
+    const x0=Math.floor(bx.w/st), x1=Math.floor(bx.e/st);
+    const y0=Math.floor(bx.s/st), y1=Math.floor(bx.n/st);
     /* 화면이 대륙만 하면 뒤질 것이 아니다 */
     if((x1-x0+1)*(y1-y0+1)>600)return;
     for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
       const k=y+'_'+x;
       if(s.cells[k])out.push({id:id,s:s,k:k,n:s.cells[k]});}});
+  return out;}
+
+/* 화면 안과 내 둘레를 함께 뒤진다. 예전에는 화면만 뒤져서, 지구본을 멀리서 보고
+   있으면 «지도를 더 확대하십시오»라고만 했다. 이름을 아는 사람에게 그건 답이 아니다 */
+function regCellsInView(){
+  const seen={},out=[];
+  regCellsIn(nearBoxLL(25)).concat(regCellsIn(viewBoxLL())).forEach(c=>{
+    const k=c.id+'/'+c.k;
+    if(!seen[k]){seen[k]=1;out.push(c);}});
   /* 칸 수가 아니라 줄 수로 막는다. 그게 실제로 내려받는 무게다 */
   let rows=0;
   for(let i=0;i<out.length;i++){rows+=out[i].n||0;
@@ -1766,7 +1787,7 @@ function addFound(list){
 function confirmAdd(name,la,lo,ct,c,where,done){
   const res=$('addres');
   showCandidate(name,la,lo);
-  map.easeTo({center:[lo,la],zoom:Math.max(map.getZoom(),16),duration:800});
+  travelTo(la,lo,Math.max(map.getZoom(),16));
   res.innerHTML='<div class="grp">이 자리가 맞나요</div>'
     +'<div class="cfm"><div class="at">'+esc(where||'')+'</div>'
     +'<input id="cfmn" placeholder="이 곳을 뭐라고 부르시나요">'
@@ -1932,13 +1953,13 @@ function wireAdd(){
       if(slot.q!==t||!regReady())return;
       const cells=regCellsInView();
       if(!cells.length){
-        slot.hint='<div class="msg">지도를 더 확대하면 이 지역 정부 명부에서도 찾습니다.</div>';
+        slot.hint='<div class="msg">이 근처와 이 화면에는 아직 받아 둔 정부 명부가 없습니다.</div>';
         paint();return;}
       return regLoad(cells).then(()=>{
         if(slot.q!==t)return;
         const rr=regSearch(t,40,cells);
         if(!rr.length)return;
-        slot.reg='<div class="grp">이 지역 정부 명부에'
+        slot.reg='<div class="grp">이 근처 정부 명부에'
           +(rr.total>rr.length?' <i>'+rr.length+' / '+rr.total
             +(rr.total>800?'+':'')+'</i>':' <i>'+rr.length+'</i>')+'</div>'
           +rr.map(h=>{
@@ -2594,7 +2615,9 @@ function aimFC(aims){
 function refreshTrail(){
   const vis=realVisits();
   const use=vis.length?vis:VISITS.map(v=>({n:v.n,la:v.la,lo:v.lo,d:v.d,c:WINE}));
-  const l=map.getSource('jline'); if(l)l.setData(trailFC(use));
+  /* 선은 여정이 있을 때만 긋는다. 도장이 하나도 없을 때 견본 항적을 그어 두면
+     지구본이 남의 여정으로 덮인 채 시작하고, 예쁘지도 않다. 자리는 점으로만 짚는다 */
+  const l=map.getSource('jline'); if(l)l.setData(trailFC(vis.length?use:[]));
   const p=map.getSource('jpts');  if(p)p.setData(visitFC(use));
   /* 도장이 하나도 없어도 가고 싶은 곳은 그린다 — 처음 쓰는 사람에게
      제일 먼저 보여야 할 게 목표다 */
@@ -2693,7 +2716,7 @@ function paintPortrait(){
   const el=$('pline'); if(!el)return;
   const t=tasteData();
   if(!t.mine.length){
-    el.innerHTML='아직 도장이 없습니다 — 지금 지구본에 그어진 선은 <b>견본</b>입니다.'
+    el.innerHTML='아직 도장이 없습니다 — 지구본에 서 있는 점은 <b>견본</b>입니다.'
       +'<br>별을 누르고 도장을 찍으시면 여기가 선장님 이야기로 바뀝니다.';
     return;}
   const first=(t.years&&t.years[0])||'';
@@ -3286,6 +3309,45 @@ function ctyRows(L,items){
       +rest.slice(0,3).map(r=>esc(r.c)+' '+r.n).join(' · ')+'</b></div>':'')
     +'</div>';}
 
+/* ══ 자전 ══ 지구본은 가만히 있으면 어색하다. 손을 대면 멈추고, 한참 두면 다시 돈다.
+   멀리서 볼 때만 돈다 — 골목까지 들어간 사람에게 지도가 저 혼자 흘러가면 안 된다 ══ */
+const SPIN={rate:2.5,idle:20000,zoom:3.2};   /* 초당 2.5° — 한 바퀴에 두 분 반 */
+let spinLast=0,spinTouch=Date.now(),spinOn=false;
+function spinStop(){spinTouch=Date.now();spinOn=false;}
+function spinAllowed(){
+  return sheetMode==='globe'
+    && !document.body.classList.contains('sheeton')
+    && !($('addbox')&&$('addbox').classList.contains('on'))
+    && !($('card')&&$('card').classList.contains('on'))
+    && map.getZoom()<=SPIN.zoom;}
+function spinFrame(now){
+  requestAnimationFrame(spinFrame);
+  const dt=spinLast?Math.min(now-spinLast,60):0; spinLast=now;
+  if(!spinAllowed()){spinOn=false;return;}
+  if(!spinOn){
+    if(Date.now()-spinTouch<SPIN.idle)return;
+    spinOn=true;}
+  if(!dt)return;
+  const c=map.getCenter();
+  map.setCenter([c.lng+SPIN.rate*dt/1000,c.lat]);}
+
+/* 여정으로 데려갈 때 — 지구본에서 그 골목까지 한 번에 훅 떨어뜨리지 않는다.
+   물러서서, 그 지역까지 날아가서, 잠깐 두었다가 내려앉는다. 어디에 있는 곳인지를
+   보여 주는 것이 자리 자체만큼 중요하다 */
+function travelTo(la,lo,zoom,done){
+  spinStop();
+  const z=zoom||16, far=Math.min(map.getZoom(),2.6);
+  const leg2=()=>{
+    map.flyTo({center:[lo,la],zoom:5.2,duration:2000,curve:1.3,essential:true});
+    setTimeout(leg3,2000+420);};
+  const leg3=()=>{
+    map.easeTo({center:[lo,la],zoom:z,duration:1500,essential:true});
+    if(done)setTimeout(done,1500);};
+  if(map.getZoom()>3.4){
+    map.easeTo({zoom:far,duration:850,essential:true});
+    setTimeout(leg2,850+260);}
+  else leg2();}
+
 /* ══ 서랍 ══ 지구본을 고르면 내려간다. 지구본은 치워지지 않는다 ══ */
 let sheetMode='globe';
 function setSheet(m){
@@ -3341,6 +3403,14 @@ map.on('load',async()=>{
   addJourneyLayers();
   addFollowLayer();
   showTrail(true);            /* 집이 지구본이니, 항적은 모드가 아니라 기본이다 */
+  /* 손이 닿으면 자전이 멈춘다. 지도가 스스로 옮기는 것과 사람이 옮기는 것을
+     가려야 하므로 지도 이벤트가 아니라 손·바퀴·손가락·자판을 직접 듣는다 */
+  {const c=map.getCanvasContainer();
+   ['mousedown','wheel','touchstart','keydown'].forEach(ev=>
+     c.addEventListener(ev,spinStop,{passive:true}));
+   document.addEventListener('pointerdown',e=>{
+     if(!c.contains(e.target))spinStop();},{passive:true});
+   requestAnimationFrame(spinFrame);}
   buildFollowMock();
   {const s=map.getSource('jfoll'); if(s)s.setData(followFC());}
   wireAdd();paintPanel();paintMine();paintJourney();paintWhere();
