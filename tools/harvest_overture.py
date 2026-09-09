@@ -29,12 +29,15 @@ import argparse, collections, io, json, math, os, shutil, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 CACHE = os.path.join(REPO, ".harvest")            # git이 무시한다. 수십 GB가 될 수 있다
-REG = os.path.join(REPO, "data", "registry")
+REG = os.path.join(os.path.dirname(REPO), "estela-data", "registry")
+if not os.path.isdir(REG):                        # 자료 저장소가 없으면 앱 안에 쓴다
+    REG = os.path.join(REPO, "data", "registry")
 REL = "2026-08-19.0"
 SRC = "s3://overturemaps-us-west-2/release/%s/theme=places/type=place/*.parquet" % REL
 
-# 나라 전체를 덮는 정부 명부가 이미 있는 곳 — 겹쳐 싣지 않는다
-SKIP = {"GB", "FR", "DK", "HK"}
+# 나라 전체를 덮는 정부 명부가 이미 있는 곳 — 겹쳐 싣지 않는다.
+# 한국은 2026-09-09에 식품접객업 다섯 갈래 86만 곳이 들어와 이 무리에 합류했다
+SKIP = {"GB", "FR", "DK", "HK", "KR"}
 STEPS = [0.25, 0.1, 0.05, 0.02, 0.01]
 TARGET = 520                                      # 칸 하나에 이만큼이면 30~60 KB다
 
