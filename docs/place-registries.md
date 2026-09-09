@@ -123,6 +123,32 @@ it declines and says so instead. Nothing from the registry is ever drawn on the 
 the registry and absent from OpenStreetMap entirely. That is the whole point of the tier —
 it finds what no guide and no volunteer mapper recorded.
 
+# 세계 — 10,340,296곳 · 221개 나라 (2026-09-09)
+
+| | 곳 | 출처 |
+|---|---|---|
+| **정부 명부** | **1,356,410** | 24 |
+| **Overture Maps** | **8,983,886** | 216개 나라 |
+| **합계** | **10,340,296** | 240 |
+
+가장 많은 곳: 미국 1,749,979 · **한국 867,648** · 일본 776,143 · 브라질 613,941 ·
+멕시코 558,387 · 태국 526,157 · 이탈리아 367,463 · 인도네시아 342,439.
+
+자료는 [estela-data](https://github.com/ian-sanghyuk-han/estela-data) 저장소에 있다 —
+78,047개 칸 파일, 839 MB. 앱은 3.6 MB다.
+
+**정부 명부가 나라 전체를 덮는 곳에는 Overture를 겹쳐 싣지 않는다** — 영국·프랑스·덴마크·
+홍콩·한국. 면허 기록이 남의 자료를 모아 놓은 것보다 낫다. 미국처럼 일부만 덮은 곳은
+둘 다 싣고, 겹치는 것은 검색할 때 정부 쪽을 남긴다.
+
+## 남은 두 가지 짐
+
+- **manifest가 1 MB(gzip 304 KB)이고 첫 화면에서 다 읽는다.** 78,046개 칸 목록이 전부
+  거기 들어 있어서다. 성긴 격자(1°)만 담은 가벼운 목록과, 출처별로 나중에 받는 세밀한
+  목록으로 갈라야 한다. 지금도 되지만 폰에서 무겁다.
+- **839 MB는 GitHub Pages 한도(1 GB)에 가깝다.** 여유가 185 MB뿐이라, 다음 확장이나
+  Overture 갱신(매달 나온다) 전에 자리를 마련해야 한다.
+
 ## 한국은 데이터셋 하나로 안 된다 (확인 2026-09-09)
 
 선장님 질문: *"전국일반음식점표준데이터 하나면 돼? 술집과 빵 이런 것도 다 해당되나?"*
