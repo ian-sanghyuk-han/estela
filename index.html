@@ -123,6 +123,9 @@
   #addres .r:hover{background:var(--sand)}
   #addres .r small{display:block;color:var(--dim);font-size:9.5px}
   #addres .msg{font-size:10px;color:var(--dim);padding:6px 2px}
+  /* 몇 개 중 몇 개인지 — 목록이 잘렸다는 걸 숨기지 않는다 */
+  #addres .grp i{font-style:normal;letter-spacing:0;color:var(--dim);
+    font-weight:600;margin-left:4px}
   #addres .grp{font-size:9px;letter-spacing:.1em;color:var(--mute);
     padding:7px 2px 3px;border-top:1px solid var(--rule);margin-top:4px}
   #addres .grp:first-child{border-top:0;margin-top:0}
@@ -1492,7 +1495,9 @@ function regSearch(t,cap,only){
     seen.add(k); uniq.push(h);}
   hit.length=0; Array.prototype.push.apply(hit,uniq);
   hit.sort((a,b)=>a.rank-b.rank||a.it[0].length-b.it[0].length);
-  return hit.slice(0,cap||5);}
+  const out=hit.slice(0,cap||40);
+  out.total=hit.length;                /* 잘라 놓고도 몇 개였는지는 말해 준다 */
+  return out;}
 function regReady(){return REG&&REG.sources&&Object.keys(REG.sources).length;}
 
 /* 우리 목록 안에서 먼저 찾는다. 이건 인터넷이 없어도 즉시 된다.
@@ -1507,7 +1512,9 @@ function searchCanon(t){
       hit.push({L,it,rank:(i===0?0:1)+(L.kind==='candidate'?2:0)});
       if(hit.length>400)break;}}
   hit.sort((a,b)=>a.rank-b.rank||a.it.n.length-b.it.n.length);
-  return hit.slice(0,6);}
+  const out=hit.slice(0,12);
+  out.total=hit.length;
+  return out;}
 
 /* 지금 보고 있는 화면 쪽을 먼저 보여달라고 일러둔다. '라멘'은 세상에 수천 개다 */
 function viewBox(){
@@ -1732,7 +1739,8 @@ function wireAdd(){
     /* ① 우리 목록 — 인터넷 없이 즉시 */
     const mine=searchCanon(t);
     if(mine.length){
-      slot.ours='<div class="grp">우리 목록에 있습니다</div>'
+      slot.ours='<div class="grp">우리 목록에 있습니다'
+        +(mine.total>mine.length?' <i>'+mine.length+' / '+mine.total+'</i>':'')+'</div>'
         +mine.map(h=>'<div class="r ours"><b>'+esc(h.it.n)+'</b><small>'
           +esc([h.it.ct,h.it.c].filter(Boolean).join(' · '))+' — '+esc(h.L.label)
           +'</small></div>').join('');
@@ -1755,9 +1763,11 @@ function wireAdd(){
         paint();return;}
       return regLoad(cells).then(()=>{
         if(slot.q!==t)return;
-        const rr=regSearch(t,5,cells);
+        const rr=regSearch(t,40,cells);
         if(!rr.length)return;
-        slot.reg='<div class="grp">이 지역 정부 명부에</div>'
+        slot.reg='<div class="grp">이 지역 정부 명부에'
+          +(rr.total>rr.length?' <i>'+rr.length+' / '+rr.total
+            +(rr.total>800?'+':'')+'</i>':' <i>'+rr.length+'</i>')+'</div>'
           +rr.map(h=>{
             const sc=REG.sources[h.src]||{};
             const kind=h.it[4]?esc(h.it[4])+' · ':'';
